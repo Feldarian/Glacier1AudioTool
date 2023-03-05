@@ -1,0 +1,14 @@
+# Xmake
+.xmake/
+build/
+package/
+vsxmake2015/
+vsxmake2017/
+vsxmake2019/
+vsxmake2022/
+
+# VSCode
+.vscode
+
+# MacOS
+.DS_Store
