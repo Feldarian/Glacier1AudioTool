@@ -2,39 +2,47 @@
 // Created by Andrej Redeky.
 // Copyright © 2015-2023 Feldarian Softworks. All rights reserved.
 // SPDX-License-Identifier: EUPL-1.2
+//
 
 #pragma once
 
 template <typename TypeInput, typename... TypesToCompareWith>
 concept IsAnyOfTypes = (std::same_as<TypeInput, TypesToCompareWith> || ...);
 
-template<typename UTFCharType>
+template <typename UTFCharType>
 concept IsUTF8CharType = IsAnyOfTypes<UTFCharType, char, char8_t, int8_t, uint8_t>;
+
+static_assert(std::same_as<char16_t, UChar>, "ICU UChar typedef is not char16_t!");
 
 #ifdef _WIN32
 
-template<typename UTFCharType>
+template <typename UTFCharType>
 concept IsUTF16CharType = IsAnyOfTypes<UTFCharType, wchar_t, char16_t, int16_t, uint16_t, UChar>;
 
-template<typename UTFCharType>
+template <typename UTFCharType>
 concept IsUTF32CharType = IsAnyOfTypes<UTFCharType, char32_t, int32_t, uint32_t, UChar32>;
 
 #else
 
-template<typename UTFCharType>
+static_assert(std::same_as<wchar_t, UChar32>, "STD wchar_t had unexpected size!");
+
+template <typename UTFCharType>
 concept IsUTF16CharType = IsAnyOfTypes<UTFCharType, char16_t, int16_t, uint16_t, UChar>;
 
-template<typename UTFCharType>
+template <typename UTFCharType>
 concept IsUTF32CharType = IsAnyOfTypes<UTFCharType, wchar_t, char32_t, int32_t, uint32_t, UChar32>;
 
 #endif
 
-template<typename UTFCharType>
-concept IsUTFCharType = IsUTF8CharType<UTFCharType> || IsUTF16CharType<UTFCharType> || IsUTF32CharType<UTFCharType>;
+template <typename UTFCharType>
+concept IsUTFNativeCharType = IsAnyOfTypes<UTFCharType, char, wchar_t>;
+
+template <typename UTFCharType>
+concept IsUTFCharType = IsUTF8CharType<UTFCharType> || IsUTF16CharType<UTFCharType> || IsUTF32CharType<UTFCharType> || IsUTFNativeCharType<UTFCharType>;
 
 template <typename UTFCharTypeOutput, typename UTFCharTypeInput>
 requires IsUTFCharType<UTFCharTypeOutput> && IsUTFCharType<UTFCharTypeInput>
-const std::basic_string<UTFCharTypeOutput>& ToUTF(std::basic_string<UTFCharTypeOutput>& buffer, const std::basic_string_view<UTFCharTypeInput> utf)
+const std::basic_string<UTFCharTypeOutput> &ToUTF(std::basic_string<UTFCharTypeOutput> &buffer, const std::basic_string_view<UTFCharTypeInput> utf)
 {
   UErrorCode errorCode = U_ZERO_ERROR;
 
@@ -54,7 +62,7 @@ const std::basic_string<UTFCharTypeOutput>& ToUTF(std::basic_string<UTFCharTypeO
       u_strToUTF8(buffer.data(), buffer.size(), &length, reinterpret_cast<const UChar *>(utf.data()), utf.size(), &errorCode);
     else if constexpr (IsUTF32CharType<UTFCharTypeInput>)
     {
-      auto* reinterpretedBuffer = reinterpret_cast<uint8_t *>(buffer.data());
+      auto *reinterpretedBuffer = reinterpret_cast<uint8_t *>(buffer.data());
       const auto reinterpretedBufferSize = buffer.size();
       for (const auto utf32Char : utf)
       {
@@ -73,9 +81,9 @@ const std::basic_string<UTFCharTypeOutput>& ToUTF(std::basic_string<UTFCharTypeO
       length = utf.size();
     }
     else if constexpr (IsUTF8CharType<UTFCharTypeInput>)
-      u_strFromUTF8(reinterpret_cast<UChar *>(buffer.data()), buffer.size(), &length, reinterpret_cast<const char*>(utf.data()), utf.size(), &errorCode);
+      u_strFromUTF8(reinterpret_cast<UChar *>(buffer.data()), buffer.size(), &length, reinterpret_cast<const char *>(utf.data()), utf.size(), &errorCode);
     else if constexpr (IsUTF32CharType<UTFCharTypeInput>)
-      u_strFromUTF32(reinterpret_cast<UChar *>(buffer.data()), buffer.size(), &length, reinterpret_cast<const UChar32*>(utf.data()), utf.size(), &errorCode);
+      u_strFromUTF32(reinterpret_cast<UChar *>(buffer.data()), buffer.size(), &length, reinterpret_cast<const UChar32 *>(utf.data()), utf.size(), &errorCode);
   }
   else if constexpr (IsUTF32CharType<UTFCharTypeOutput>)
   {
@@ -86,24 +94,26 @@ const std::basic_string<UTFCharTypeOutput>& ToUTF(std::basic_string<UTFCharTypeO
     }
     else if constexpr (IsUTF8CharType<UTFCharTypeInput>)
     {
-      auto* reinterpretedBuffer = reinterpret_cast<UChar32 *>(buffer.data());
+      auto *reinterpretedBuffer = reinterpret_cast<UChar32 *>(buffer.data());
       const auto reinterpretedBufferSize = buffer.size();
-      const auto* inputBuffer = utf.data();
+      const auto *inputBuffer = utf.data();
       const auto inputBufferSize = utf.size();
-      for (size_t inputOffset = 0; inputOffset < inputBufferSize;) {
-        auto& outputChar = reinterpretedBuffer[offset++];
+      for (size_t inputOffset = 0; inputOffset < inputBufferSize;)
+      {
+        auto &outputChar = reinterpretedBuffer[offset++];
         U8_NEXT(inputBuffer, inputOffset, inputBufferSize, outputChar);
       }
       length = offset;
     }
     else if constexpr (IsUTF16CharType<UTFCharTypeInput>)
     {
-      auto* reinterpretedBuffer = reinterpret_cast<UChar32 *>(buffer.data());
+      auto *reinterpretedBuffer = reinterpret_cast<UChar32 *>(buffer.data());
       const auto reinterpretedBufferSize = buffer.size();
-      const auto* inputBuffer = utf.data();
+      const auto *inputBuffer = utf.data();
       const auto inputBufferSize = utf.size();
-      for (size_t inputOffset = 0; inputOffset < inputBufferSize;) {
-        auto& outputChar = reinterpretedBuffer[offset++];
+      for (size_t inputOffset = 0; inputOffset < inputBufferSize;)
+      {
+        auto &outputChar = reinterpretedBuffer[offset++];
         U16_NEXT(inputBuffer, inputOffset, inputBufferSize, outputChar);
       }
       length = offset;
@@ -119,28 +129,28 @@ const std::basic_string<UTFCharTypeOutput>& ToUTF(std::basic_string<UTFCharTypeO
 
 template <typename UTFCharTypeOutput, typename UTFCharTypeInput>
 requires IsUTFCharType<UTFCharTypeOutput> && IsUTFCharType<UTFCharTypeInput>
-const std::basic_string<UTFCharTypeOutput>& ToUTF(std::basic_string<UTFCharTypeOutput>& buffer, const std::basic_string<UTFCharTypeInput>& utf)
+const std::basic_string<UTFCharTypeOutput> &ToUTF(std::basic_string<UTFCharTypeOutput> &buffer, const std::basic_string<UTFCharTypeInput> &utf)
 {
   return ToUTF<UTFCharTypeOutput>(buffer, std::basic_string_view<UTFCharTypeInput>(utf));
 }
 
 template <typename UTFCharTypeOutput, typename UTFCharTypeInput, size_t UTFInputSize>
 requires IsUTFCharType<UTFCharTypeOutput> && IsUTFCharType<UTFCharTypeInput>
-const std::basic_string<UTFCharTypeOutput>& ToUTF(std::basic_string<UTFCharTypeOutput>& buffer, const UTFCharTypeInput (& utf)[UTFInputSize])
+const std::basic_string<UTFCharTypeOutput> &ToUTF(std::basic_string<UTFCharTypeOutput> &buffer, const UTFCharTypeInput (&utf)[UTFInputSize])
 {
   return ToUTF<UTFCharTypeOutput>(buffer, std::basic_string_view<UTFCharTypeInput>(utf, UTFInputSize - 1));
 }
 
 template <typename UTFCharTypeOutput, typename UTFCharTypeInput>
 requires IsUTFCharType<UTFCharTypeOutput> && IsUTFCharType<UTFCharTypeInput>
-const std::basic_string<UTFCharTypeOutput>& ToUTF(std::basic_string<UTFCharTypeOutput>& buffer, const UTFCharTypeInput* utf, const size_t length)
+const std::basic_string<UTFCharTypeOutput> &ToUTF(std::basic_string<UTFCharTypeOutput> &buffer, const UTFCharTypeInput *utf, const size_t length)
 {
   return ToUTF<UTFCharTypeOutput>(buffer, std::basic_string_view<UTFCharTypeInput>(utf, length));
 }
 
 template <typename UTFCharTypeOutput, typename UTFCharTypeInput>
 requires IsUTFCharType<UTFCharTypeOutput> && IsUTFCharType<UTFCharTypeInput>
-const std::basic_string<UTFCharTypeOutput>& ToUTF(const std::basic_string_view<UTFCharTypeInput> utf)
+const std::basic_string<UTFCharTypeOutput> &ToUTF(const std::basic_string_view<UTFCharTypeInput> utf)
 {
   thread_local static std::basic_string<UTFCharTypeOutput> utfOut;
   return ToUTF<UTFCharTypeOutput>(utfOut, utf);
@@ -148,21 +158,21 @@ const std::basic_string<UTFCharTypeOutput>& ToUTF(const std::basic_string_view<U
 
 template <typename UTFCharTypeOutput, typename UTFCharTypeInput>
 requires IsUTFCharType<UTFCharTypeOutput> && IsUTFCharType<UTFCharTypeInput>
-const std::basic_string<UTFCharTypeOutput>& ToUTF(const std::basic_string<UTFCharTypeInput>& utf)
+const std::basic_string<UTFCharTypeOutput> &ToUTF(const std::basic_string<UTFCharTypeInput> &utf)
 {
   return ToUTF<UTFCharTypeOutput>(std::basic_string_view<UTFCharTypeInput>(utf));
 }
 
 template <typename UTFCharTypeOutput, typename UTFCharTypeInput, size_t UTFInputSize>
 requires IsUTFCharType<UTFCharTypeOutput> && IsUTFCharType<UTFCharTypeInput>
-const std::basic_string<UTFCharTypeOutput>& ToUTF(const UTFCharTypeInput (& utf)[UTFInputSize])
+const std::basic_string<UTFCharTypeOutput> &ToUTF(const UTFCharTypeInput (&utf)[UTFInputSize])
 {
   return ToUTF<UTFCharTypeOutput>(std::basic_string_view<UTFCharTypeInput>(utf, UTFInputSize - 1));
 }
 
 template <typename UTFCharTypeOutput, typename UTFCharTypeInput>
 requires IsUTFCharType<UTFCharTypeOutput> && IsUTFCharType<UTFCharTypeInput>
-const std::basic_string<UTFCharTypeOutput>& ToUTF(const UTFCharTypeInput* utf, const size_t length)
+const std::basic_string<UTFCharTypeOutput> &ToUTF(const UTFCharTypeInput *utf, const size_t length)
 {
   return ToUTF<UTFCharTypeOutput>(std::basic_string_view<UTFCharTypeInput>(utf, length));
 }
@@ -170,12 +180,13 @@ const std::basic_string<UTFCharTypeOutput>& ToUTF(const UTFCharTypeInput* utf, c
 // TODO - iterate codepoints and compare manually for better efficiency
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight = UTFCharTypeLeft>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-int32_t UTFCaseInsensitiveCompare(const std::basic_string_view<UTFCharTypeLeft> left, const std::basic_string_view<UTFCharTypeRight> right) {
+int32_t UTFCaseInsensitiveCompare(const std::basic_string_view<UTFCharTypeLeft> left, const std::basic_string_view<UTFCharTypeRight> right)
+{
   thread_local static std::basic_string<UChar> leftConverted;
-  const auto* leftData = ToUTF(leftConverted, left).c_str();
+  const auto *leftData = ToUTF(leftConverted, left).c_str();
 
   thread_local static std::basic_string<UChar> rightConverted;
-  const auto* rightData = ToUTF(rightConverted, right).c_str();
+  const auto *rightData = ToUTF(rightConverted, right).c_str();
 
   UErrorCode errorCode = U_ZERO_ERROR;
   return u_strCaseCompare(leftData, leftConverted.size(), rightData, rightConverted.size(), 0, &errorCode);
@@ -183,91 +194,106 @@ int32_t UTFCaseInsensitiveCompare(const std::basic_string_view<UTFCharTypeLeft> 
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight = UTFCharTypeLeft>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-int32_t UTFCaseInsensitiveCompare(const std::basic_string_view<UTFCharTypeLeft> left, const std::basic_string<UTFCharTypeRight>& right) {
+int32_t UTFCaseInsensitiveCompare(const std::basic_string_view<UTFCharTypeLeft> left, const std::basic_string<UTFCharTypeRight> &right)
+{
   return UTFCaseInsensitiveCompare(left, std::basic_string_view<UTFCharTypeRight>(right));
 }
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight = UTFCharTypeLeft, size_t UTFSizeRight>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-int32_t UTFCaseInsensitiveCompare(const std::basic_string_view<UTFCharTypeLeft> left, const UTFCharTypeRight (& right)[UTFSizeRight]) {
+int32_t UTFCaseInsensitiveCompare(const std::basic_string_view<UTFCharTypeLeft> left, const UTFCharTypeRight (&right)[UTFSizeRight])
+{
   return UTFCaseInsensitiveCompare(left, std::basic_string_view<UTFCharTypeRight>(right, UTFSizeRight - 1));
 }
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight = UTFCharTypeLeft>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-int32_t UTFCaseInsensitiveCompare(const std::basic_string_view<UTFCharTypeLeft> left, const UTFCharTypeRight* right, const size_t rightLength) {
+int32_t UTFCaseInsensitiveCompare(const std::basic_string_view<UTFCharTypeLeft> left, const UTFCharTypeRight *right, const size_t rightLength)
+{
   return UTFCaseInsensitiveCompare(left, std::basic_string_view<UTFCharTypeRight>(right, rightLength));
 }
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight = UTFCharTypeLeft>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-int32_t UTFCaseInsensitiveCompare(const std::basic_string<UTFCharTypeLeft>& left, const std::basic_string_view<UTFCharTypeRight> right) {
+int32_t UTFCaseInsensitiveCompare(const std::basic_string<UTFCharTypeLeft> &left, const std::basic_string_view<UTFCharTypeRight> right)
+{
   return UTFCaseInsensitiveCompare(std::basic_string_view<UTFCharTypeLeft>(left), right);
 }
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight = UTFCharTypeLeft>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-int32_t UTFCaseInsensitiveCompare(const std::basic_string<UTFCharTypeLeft>& left, const std::basic_string<UTFCharTypeRight>& right) {
+int32_t UTFCaseInsensitiveCompare(const std::basic_string<UTFCharTypeLeft> &left, const std::basic_string<UTFCharTypeRight> &right)
+{
   return UTFCaseInsensitiveCompare(std::basic_string_view<UTFCharTypeLeft>(left), std::basic_string_view<UTFCharTypeRight>(right));
 }
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight = UTFCharTypeLeft, size_t UTFSizeRight>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-int32_t UTFCaseInsensitiveCompare(const std::basic_string<UTFCharTypeLeft>& left, const UTFCharTypeRight (& right)[UTFSizeRight]) {
+int32_t UTFCaseInsensitiveCompare(const std::basic_string<UTFCharTypeLeft> &left, const UTFCharTypeRight (&right)[UTFSizeRight])
+{
   return UTFCaseInsensitiveCompare(std::basic_string_view<UTFCharTypeLeft>(left), std::basic_string_view<UTFCharTypeRight>(right, UTFSizeRight - 1));
 }
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight = UTFCharTypeLeft>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-int32_t UTFCaseInsensitiveCompare(const std::basic_string<UTFCharTypeLeft>& left, const UTFCharTypeRight* right, const size_t rightLength) {
+int32_t UTFCaseInsensitiveCompare(const std::basic_string<UTFCharTypeLeft> &left, const UTFCharTypeRight *right, const size_t rightLength)
+{
   return UTFCaseInsensitiveCompare(std::basic_string_view<UTFCharTypeLeft>(left), std::basic_string_view<UTFCharTypeRight>(right, rightLength));
 }
 
 template <typename UTFCharTypeLeft, size_t UTFSizeLeft, typename UTFCharTypeRight = UTFCharTypeLeft>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-int32_t UTFCaseInsensitiveCompare(const UTFCharTypeLeft (& left)[UTFSizeLeft], const std::basic_string_view<UTFCharTypeRight> right) {
+int32_t UTFCaseInsensitiveCompare(const UTFCharTypeLeft (&left)[UTFSizeLeft], const std::basic_string_view<UTFCharTypeRight> right)
+{
   return UTFCaseInsensitiveCompare(std::basic_string_view<UTFCharTypeLeft>(left, UTFSizeLeft - 1), right);
 }
 
 template <typename UTFCharTypeLeft, size_t UTFSizeLeft, typename UTFCharTypeRight = UTFCharTypeLeft>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-int32_t UTFCaseInsensitiveCompare(const UTFCharTypeLeft (& left)[UTFSizeLeft], const std::basic_string<UTFCharTypeRight>& right) {
+int32_t UTFCaseInsensitiveCompare(const UTFCharTypeLeft (&left)[UTFSizeLeft], const std::basic_string<UTFCharTypeRight> &right)
+{
   return UTFCaseInsensitiveCompare(std::basic_string_view<UTFCharTypeLeft>(left, UTFSizeLeft - 1), std::basic_string_view<UTFCharTypeRight>(right));
 }
 
 template <typename UTFCharTypeLeft, size_t UTFSizeLeft, typename UTFCharTypeRight = UTFCharTypeLeft, size_t UTFSizeRight>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-int32_t UTFCaseInsensitiveCompare(const UTFCharTypeLeft (& left)[UTFSizeLeft], const UTFCharTypeRight (& right)[UTFSizeRight]) {
+int32_t UTFCaseInsensitiveCompare(const UTFCharTypeLeft (&left)[UTFSizeLeft], const UTFCharTypeRight (&right)[UTFSizeRight])
+{
   return UTFCaseInsensitiveCompare(std::basic_string_view<UTFCharTypeLeft>(left, UTFSizeLeft - 1), std::basic_string_view<UTFCharTypeRight>(right, UTFSizeRight - 1));
 }
 
 template <typename UTFCharTypeLeft, size_t UTFSizeLeft, typename UTFCharTypeRight = UTFCharTypeLeft>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-int32_t UTFCaseInsensitiveCompare(const UTFCharTypeLeft (& left)[UTFSizeLeft], const UTFCharTypeRight* right, const size_t rightLength) {
+int32_t UTFCaseInsensitiveCompare(const UTFCharTypeLeft (&left)[UTFSizeLeft], const UTFCharTypeRight *right, const size_t rightLength)
+{
   return UTFCaseInsensitiveCompare(std::basic_string_view<UTFCharTypeLeft>(left, UTFSizeLeft - 1), std::basic_string_view<UTFCharTypeRight>(right, rightLength));
 }
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight = UTFCharTypeLeft>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-int32_t UTFCaseInsensitiveCompare(const UTFCharTypeLeft* left, const size_t leftLength, const std::basic_string_view<UTFCharTypeRight> right) {
+int32_t UTFCaseInsensitiveCompare(const UTFCharTypeLeft *left, const size_t leftLength, const std::basic_string_view<UTFCharTypeRight> right)
+{
   return UTFCaseInsensitiveCompare(std::basic_string_view<UTFCharTypeLeft>(left, leftLength), right);
 }
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight = UTFCharTypeLeft>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-int32_t UTFCaseInsensitiveCompare(const UTFCharTypeLeft* left, const size_t leftLength, const std::basic_string<UTFCharTypeRight>& right) {
+int32_t UTFCaseInsensitiveCompare(const UTFCharTypeLeft *left, const size_t leftLength, const std::basic_string<UTFCharTypeRight> &right)
+{
   return UTFCaseInsensitiveCompare(std::basic_string_view<UTFCharTypeLeft>(left, leftLength), std::basic_string_view<UTFCharTypeRight>(right));
 }
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight = UTFCharTypeLeft, size_t UTFSizeRight>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-int32_t UTFCaseInsensitiveCompare(const UTFCharTypeLeft* left, const size_t leftLength, const UTFCharTypeRight (& right)[UTFSizeRight]) {
+int32_t UTFCaseInsensitiveCompare(const UTFCharTypeLeft *left, const size_t leftLength, const UTFCharTypeRight (&right)[UTFSizeRight])
+{
   return UTFCaseInsensitiveCompare(std::basic_string_view<UTFCharTypeLeft>(left, leftLength), std::basic_string_view<UTFCharTypeRight>(right, UTFSizeRight - 1));
 }
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight = UTFCharTypeLeft>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-int32_t UTFCaseInsensitiveCompare(const UTFCharTypeLeft* left, const size_t leftLength, const UTFCharTypeRight* right, const size_t rightLength) {
+int32_t UTFCaseInsensitiveCompare(const UTFCharTypeLeft *left, const size_t leftLength, const UTFCharTypeRight *right, const size_t rightLength)
+{
   return UTFCaseInsensitiveCompare(std::basic_string_view<UTFCharTypeLeft>(left, leftLength), std::basic_string_view<UTFCharTypeRight>(right, rightLength));
 }
 
@@ -301,7 +327,7 @@ template <typename UTFCharTypeLeft, typename UTFCharTypeRight = UTFCharTypeLeft>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
 struct UTFInsensitiveCompareLess
 {
-  bool operator()(const std::basic_string<UTFCharTypeLeft>& left, const std::basic_string<UTFCharTypeRight>& right) const
+  bool operator()(const std::basic_string<UTFCharTypeLeft> &left, const std::basic_string<UTFCharTypeRight> &right) const
   {
     return UTFCaseInsensitiveCompare(left, right) < 0;
   }
@@ -341,6 +367,149 @@ using PathSetCI = std::set<std::filesystem::path, PathCaseInsensitiveCompareLess
 
 using PathSet = std::set<std::filesystem::path>;
 
+class UTFGlyphRangesBuilder : public Singleton<UTFGlyphRangesBuilder>
+{
+public:
+  static constexpr auto CodepointInvalid{ 0u };
+  static constexpr auto CodepointMax{ 0x10FFFFu };
+
+  UTFGlyphRangesBuilder()
+  {
+    // Basic Latin (ASCII) + Latin-1 Supplement
+    AddRange({0x0020, 0x00FF});
+
+    // Invalid Unicode Character
+    Add(0xFFFD);
+  }
+
+  void Clear()
+  {
+    glyphsInUse.reset();
+
+    // Basic Latin (ASCII) + Latin-1 Supplement
+    AddRange({0x0020, 0x00FF});
+
+    // Invalid Unicode Character
+    Add(0xFFFD);
+  }
+
+  bool NeedsBuild() const
+  {
+    return newGlyphsAdded;
+  }
+
+  std::vector<std::pair<uint32_t, uint32_t>> Build()
+  {
+    std::vector<std::pair<uint32_t, uint32_t>> glyphRanges;
+
+    std::unique_lock lock(dataMutex);
+
+    std::pair<uint32_t, uint32_t> glyphRange{0, 0};
+    for (uint32_t glyph = 1; glyph <= CodepointMax; ++glyph)
+    {
+      if (glyphsInUse.test(glyph))
+      {
+        if (glyphRange.first == 0)
+          glyphRange.first = glyph;
+
+        glyphRange.second = glyph;
+      }
+      else
+      {
+        if (glyphRange.first != 0)
+        {
+          glyphRanges.emplace_back(glyphRange);
+          glyphRange = {0, 0};
+        }
+      }
+    }
+
+    if (glyphRange.first != 0)
+      glyphRanges.emplace_back(glyphRange);
+
+    newGlyphsAdded = false;
+    return glyphRanges;
+  }
+
+  void AddRange(std::pair<uint32_t, uint32_t> glyphRange)
+  {
+    for (auto glyph = glyphRange.first; glyph <= glyphRange.second; ++glyph)
+      Add(glyph);
+  }
+
+  void Add(uint32_t glyph)
+  {
+    if (glyph == 0 || glyph > CodepointMax)
+      return;
+
+    std::unique_lock lock(dataMutex);
+    newGlyphsAdded |= !glyphsInUse.test(glyph);
+    glyphsInUse.set(glyph);
+  }
+
+  template <typename UTFCharType>
+  requires IsUTFCharType<UTFCharType>
+  void AddText(const std::basic_string_view<UTFCharType> utf)
+  {
+    if constexpr (IsUTF32CharType<UTFCharType>)
+    {
+      for (const auto glyph : utf)
+        Add(static_cast<uint32_t>(glyph));
+    }
+    else if constexpr (IsUTF16CharType<UTFCharType>)
+    {
+      const auto *utfData = utf.data();
+      const auto utfSize = utf.size();
+      for (size_t utfOffset = 0; utfOffset < utfSize;)
+      {
+        uint32_t glyph = 0;
+        U16_NEXT(utfData, utfOffset, utfSize, glyph);
+
+        Add(glyph);
+      }
+    }
+    else if constexpr (IsUTF8CharType<UTFCharType>)
+    {
+      const auto *utfData = utf.data();
+      const auto utfSize = utf.size();
+      for (size_t utfOffset = 0; utfOffset < utfSize;)
+      {
+        uint32_t glyph = 0;
+        U8_NEXT(utfData, utfOffset, utfSize, glyph);
+
+        Add(glyph);
+      }
+    }
+  }
+
+  template <typename UTFCharType>
+  requires IsUTFCharType<UTFCharType>
+  void AddText(const std::basic_string<UTFCharType> &utf)
+  {
+    AddText(std::basic_string_view<UTFCharType>(utf));
+  }
+
+  template <typename UTFCharType, size_t UTFSize>
+  requires IsUTFCharType<UTFCharType>
+  void AddText(const UTFCharType (&utf)[UTFSize])
+  {
+    AddText(std::basic_string_view<UTFCharType>(utf, UTFSize - 1));
+  }
+
+  template <typename UTFCharType>
+  requires IsUTFCharType<UTFCharType>
+  void AddText(const UTFCharType *utf, const size_t length)
+  {
+    AddText(std::basic_string_view<UTFCharType>(utf, length));
+  }
+
+private:
+  std::bitset<CodepointMax + 1> glyphsInUse;
+  bool newGlyphsAdded = false;
+
+  mutable std::mutex dataMutex;
+};
+
 template <typename UTFCharType>
 requires IsUTFCharType<UTFCharType>
 class UTFLocalizationInstance
@@ -348,61 +517,42 @@ class UTFLocalizationInstance
 public:
   inline static const std::basic_string<UTFCharType> Empty;
 
-  const std::basic_string<UTFCharType>& GetLanguage() const
-  {
-    return localizationLanguage;
-  }
-
-  bool Load(const std::filesystem::path& localizationPath)
+  void Clear()
   {
     localizationMap.clear();
-    localizationLanguage.clear();
+  }
 
-    if (!exists(localizationPath))
-      return false;
+  bool Load(const toml::table &localizationTable)
+  {
+    UTFToTypeMapCI<UTFCharType, std::basic_string<UTFCharType>> addLocalizationMap;
 
-    if (UTFCaseInsensitiveCompare(localizationPath.extension().native(), ".toml") != 0)
-      return false;
-
-    const auto& fileName = ToUTF<char>(localizationPath.stem().native());
-    const auto languageSeparatorPosition = fileName.rfind('_');
-    const auto language = languageSeparatorPosition == std::string::npos ? fileName : fileName.substr(languageSeparatorPosition + 1);
-    if (language.empty())
-      return false;
-
-    const auto localizationFile = toml::parse_file(localizationPath.native());
-    if (localizationFile.failed())
-      return false;
-
-    const auto localizationGroup = localizationFile["localization"];
-    if (!localizationGroup.is_table())
-        return false;
-
-    for (auto&& [key, value] : *localizationGroup.as_table())
+    for (const auto &[key, value] : localizationTable)
     {
       if (!value.is_string())
-      {
-        localizationMap.clear();
         return false;
-      }
 
-      if (!localizationMap.try_emplace(std::string(key.str()), *value.as_string()).second)
-      {
-        localizationMap.clear();
-        return false;
-      }
+      auto keyUTF = ToUTF<UTFCharType>(key.str());
+      auto valueUTF = ToUTF<UTFCharType>(**value.as_string());
+
+      UTFGlyphRangesBuilder::Get().AddText(keyUTF);
+      UTFGlyphRangesBuilder::Get().AddText(valueUTF);
+      addLocalizationMap.insert_or_assign(std::move(keyUTF), std::move(valueUTF));
     }
 
-    localizationLanguage = std::move(language);
+    // if everything went well so far, merge loaded data with existing one
+
+    for (auto &&[key, value] : addLocalizationMap)
+      localizationMap.insert_or_assign(std::move(key), std::move(value));
+
     return true;
   }
 
-  const std::basic_string<UTFCharType>& Localize(const std::basic_string_view<UTFCharType> key) const
+  const std::basic_string<UTFCharType> &Localize(const std::basic_string_view<UTFCharType> key) const
   {
     return Localize(std::basic_string<UTFCharType>(key));
   }
-  
-  const std::basic_string<UTFCharType>& Localize(const std::basic_string<UTFCharType>& key) const
+
+  const std::basic_string<UTFCharType> &Localize(const std::basic_string<UTFCharType> &key) const
   {
     const auto localizationIt = localizationMap.find(key);
     if (localizationIt == localizationMap.end())
@@ -410,42 +560,42 @@ public:
 
     return localizationIt->second;
   }
-  
+
   template <size_t UTFCharTypeSize>
-  const std::basic_string<UTFCharType>& Localize(const UTFCharType (& key)[UTFCharTypeSize]) const
+  const std::basic_string<UTFCharType> &Localize(const UTFCharType (&key)[UTFCharTypeSize]) const
   {
     return Localize(std::basic_string<UTFCharType>(key, UTFCharTypeSize - 1));
   }
-  
-  const std::basic_string<UTFCharType>& Localize(const UTFCharType* key, const size_t length) const
+
+  const std::basic_string<UTFCharType> &Localize(const UTFCharType *key, const size_t length) const
   {
     return Localize(std::basic_string<UTFCharType>(key, length));
   }
 
   template <typename UTFCharTypeOther>
   requires IsUTFCharType<UTFCharTypeOther> && !std::same_as<UTFCharType, UTFCharTypeOther>
-  const std::basic_string<UTFCharType>& Localize(const std::basic_string_view<UTFCharTypeOther> key) const
+  const std::basic_string<UTFCharType> &Localize(const std::basic_string_view<UTFCharTypeOther> key) const
   {
     return Localize(ToUTF<UTFCharType>(key));
   }
-  
+
   template <typename UTFCharTypeOther>
   requires IsUTFCharType<UTFCharTypeOther> && !std::same_as<UTFCharType, UTFCharTypeOther>
-  const std::basic_string<UTFCharType>& Localize(const std::basic_string<UTFCharTypeOther>& key) const
+  const std::basic_string<UTFCharType> &Localize(const std::basic_string<UTFCharTypeOther> &key) const
   {
     return Localize(ToUTF<UTFCharType>(key));
   }
-  
+
   template <typename UTFCharTypeOther, size_t UTFCharTypeOtherSize>
   requires IsUTFCharType<UTFCharTypeOther> && !std::same_as<UTFCharType, UTFCharTypeOther>
-  const std::basic_string<UTFCharType>& Localize(const UTFCharTypeOther (& key)[UTFCharTypeOtherSize]) const
+  const std::basic_string<UTFCharType> &Localize(const UTFCharTypeOther (&key)[UTFCharTypeOtherSize]) const
   {
     return Localize(ToUTF<UTFCharType>(key));
   }
-  
+
   template <typename UTFCharTypeOther>
   requires IsUTFCharType<UTFCharTypeOther> && !std::same_as<UTFCharType, UTFCharTypeOther>
-  const std::basic_string<UTFCharType>& Localize(const UTFCharTypeOther* key, const size_t length) const
+  const std::basic_string<UTFCharType> &Localize(const UTFCharTypeOther *key, const size_t length) const
   {
     return Localize(ToUTF<UTFCharType>(key, length));
   }
@@ -457,214 +607,220 @@ private:
 
 template <typename UTFCharType>
 requires IsUTFCharType<UTFCharType>
-class UTFLocalizationManager
+class UTFLocalizationManager : public Singleton<UTFLocalizationManager<UTFCharType>>
 {
   using LocalizationInstance = UTFLocalizationInstance<UTFCharType>;
 
 public:
-  bool LoadLocalization(const std::filesystem::path& localizationPath, bool reload = false)
+  bool LoadLocalization(const std::filesystem::path &localizationPath)
   {
-    auto [localizationInstanceIt, emplaced] = localizationInstancesMap.try_emplace(localizationPath, LocalizationInstance{});
-    if (!emplaced && !reload)
-      return true;
-    
-    auto& localizationInstance = localizationInstanceIt->second;
-    auto originalLanguage = localizationInstance.GetLanguage();
-    assert(emplaced || !originalLanguage.empty());
-    
     if (!exists(localizationPath))
-    {
-      if (!emplaced)
-        std::ranges::remove(languageToLocalizationPathsMap[originalLanguage], localizationPath);
-      localizationInstancesMap.erase(localizationInstanceIt);
       return false;
+
+    if (UTFCaseInsensitiveCompare(localizationPath.extension().native(), L".toml") != 0)
+      return false;
+
+    const auto localizationFile = toml::parse_file(localizationPath.native());
+    if (localizationFile.failed())
+      return false;
+
+    const auto& fileName = ToUTF<UTFCharType>(localizationPath.stem().native());
+    const auto languageNameSeparatorPosition = fileName.rfind(static_cast<UTFCharType>('_'));
+    auto languageName = languageNameSeparatorPosition == std::basic_string<UTFCharType>::npos ? fileName : fileName.substr(languageNameSeparatorPosition + 1);
+
+    const auto languageGroup = localizationFile["language"];
+    if (languageGroup.is_table())
+    {
+      const auto &languageNameValue = languageGroup["name"];
+      if (languageNameValue.is_string())
+        languageName = ToUTF<UTFCharType>(**languageNameValue.as_string());
     }
 
-    if (!localizationInstance.Load(localizationPath))
-    {
-      if (!emplaced)
-        std::ranges::remove(languageToLocalizationPathsMap[originalLanguage], localizationPath);
-      localizationInstancesMap.erase(localizationInstanceIt);
+    if (languageName.empty())
       return false;
+
+    UTFGlyphRangesBuilder::Get().AddText(languageName);
+
+    const auto localizationTableValue = localizationFile["localization"];
+    if (!localizationTableValue.is_table())
+      return false;
+
+    const auto localizationTable = *localizationTableValue.as_table();
+
+    std::unique_lock lock(dataMutex);
+
+    const auto [localizationInstanceIt, localizationInstanceEmplaced] = localizationInstancesMap.try_emplace(languageName, LocalizationInstance{});
+    const auto localizationLoaded = localizationInstanceIt->second.Load(localizationTable);
+
+    if (localizationInstanceEmplaced)
+    {
+      if (!localizationLoaded)
+        localizationInstancesMap.erase(localizationInstanceIt);
+
+      SetDefaultLanguage(defaultLocalizationLanguage);
+      SetLanguage(localizationLanguage);
     }
 
-    if (!emplaced)
-    {
-      if (UTFCaseInsensitiveCompare(originalLanguage, localizationInstance.GetLanguage()) != 0)
-      {
-        std::ranges::remove(languageToLocalizationPathsMap[originalLanguage], localizationPath);
-        languageToLocalizationPathsMap[localizationInstance.GetLanguage()].emplace_back(localizationPath);
-      }
-    }
-    else
-      languageToLocalizationPathsMap[localizationInstance.GetLanguage()].emplace_back(localizationPath);
-
-    return true;
-  }
-
-  bool UnloadLocalization(const std::filesystem::path& localizationPath)
-  {
-    const auto localizationInstanceIt = localizationInstancesMap.find(localizationPath);
-    if (localizationInstanceIt == localizationInstancesMap.cend())
-      return false;
-    
-    std::ranges::remove(languageToLocalizationPathsMap[localizationInstanceIt->second.GetLanguage()], localizationPath);
-    localizationInstancesMap.erase(localizationInstanceIt);
-    return true;
-  }
-
-  void SetDefaultLanguage(const std::basic_string_view<UTFCharType> language)
-  {
-    defaultLanguage = language;
-  }
-
-  const std::basic_string<UTFCharType>& GetDefaultLanguage() const
-  {
-    return defaultLanguage;
-  }
-
-  void SetLanguage(const std::basic_string_view<UTFCharType> language)
-  {
-    currentLanguage = language;
+    return localizationLoaded;
   }
 
   const std::vector<std::basic_string<UTFCharType>> GetAvailableLanguages() const
   {
-    const auto languagesRange = languageToLocalizationPathsMap | std::views::keys;
-    return { languagesRange.begin(), languagesRange.end() };
+    std::shared_lock lock(dataMutex);
+
+    const auto languagesRange = localizationInstancesMap | std::views::keys;
+    return {languagesRange.begin(), languagesRange.end()};
   }
 
-  const std::basic_string<UTFCharType>& GetLanguage() const
+  bool SetDefaultLanguage(const std::basic_string<UTFCharType> &language)
   {
-    return currentLanguage.empty() ? defaultLanguage : currentLanguage;
+    if (language.empty())
+      return false;
+
+    std::unique_lock lock(dataMutex);
+
+    auto localizationInstanceIt = localizationInstancesMap.find(language);
+    if (localizationInstanceIt == localizationInstancesMap.cend())
+      return false;
+
+    defaultLocalizationLanguage = localizationInstanceIt->first;
+    defaultLocalizationInstance = &localizationInstanceIt->second;
+    return true;
   }
 
-  const std::basic_string<UTFCharType>& GetLocalizationLanguage(const std::filesystem::path& localizationPath) const
+  const std::basic_string<UTFCharType> &GetDefaultLanguage() const
   {
-    return LocalizationInstance::Empty;
+    std::shared_lock lock(dataMutex);
+
+    return defaultLocalizationLanguage;
   }
-  
-  const std::basic_string<UTFCharType>& Localize(const std::basic_string_view<UTFCharType> key) const
+
+  bool SetLanguage(const std::basic_string<UTFCharType> &language)
   {
-    const auto& localized = LocalizeInternal(key, currentLanguage);
+    if (language.empty())
+      return false;
+
+    std::unique_lock lock(dataMutex);
+
+    auto localizationInstanceIt = localizationInstancesMap.find(language);
+    if (localizationInstanceIt == localizationInstancesMap.cend())
+      return false;
+
+    localizationLanguage = localizationInstanceIt->first;
+    localizationInstance = &localizationInstanceIt->second;
+    return true;
+  }
+
+  const std::basic_string<UTFCharType> &GetLanguage() const
+  {
+    std::shared_lock lock(dataMutex);
+
+    return localizationLanguage.empty() ? GetDefaultLanguage() : localizationLanguage;
+  }
+
+  const std::basic_string<UTFCharType> &Localize(const std::basic_string_view<UTFCharType> key) const
+  {
+    const auto &localized = localizationInstance ? localizationInstance->Localize(key) : LocalizationInstance::Empty;
     if (!localized.empty())
       return localized;
 
-    return LocalizeInternal(key, defaultLanguage);
+    return defaultLocalizationInstance ? defaultLocalizationInstance->Localize(key) : LocalizationInstance::Empty;
   }
 
-  const std::basic_string<UTFCharType>& Localize(const std::basic_string<UTFCharType>& key) const
+  const std::basic_string<UTFCharType> &Localize(const std::basic_string<UTFCharType> &key) const
   {
     return Localize(std::basic_string_view<UTFCharType>(key));
   }
-  
+
   template <size_t UTFCharTypeSize>
-  const std::basic_string<UTFCharType>& Localize(const UTFCharType (& key)[UTFCharTypeSize]) const
+  const std::basic_string<UTFCharType> &Localize(const UTFCharType (&key)[UTFCharTypeSize]) const
   {
     return Localize(std::basic_string_view<UTFCharType>(key, UTFCharTypeSize - 1));
   }
-  
-  const std::basic_string<UTFCharType>& Localize(const UTFCharType* key, const size_t length) const
+
+  const std::basic_string<UTFCharType> &Localize(const UTFCharType *key, const size_t length) const
   {
     return Localize(std::basic_string_view<UTFCharType>(key, length));
   }
 
   template <typename UTFCharTypeOther>
   requires IsUTFCharType<UTFCharTypeOther> && !std::same_as<UTFCharType, UTFCharTypeOther>
-  const std::basic_string<UTFCharType>& Localize(const std::basic_string_view<UTFCharTypeOther> key) const
+  const std::basic_string<UTFCharType> &Localize(const std::basic_string_view<UTFCharTypeOther> key) const
   {
     return Localize(ToUTF<UTFCharType>(key));
   }
-  
+
   template <typename UTFCharTypeOther>
   requires IsUTFCharType<UTFCharTypeOther> && !std::same_as<UTFCharType, UTFCharTypeOther>
-  const std::basic_string<UTFCharType>& Localize(const std::basic_string<UTFCharTypeOther>& key) const
+  const std::basic_string<UTFCharType> &Localize(const std::basic_string<UTFCharTypeOther> &key) const
   {
     return Localize(ToUTF<UTFCharType>(key));
   }
-  
+
   template <typename UTFCharTypeOther, size_t UTFCharTypeOtherSize>
   requires IsUTFCharType<UTFCharTypeOther> && !std::same_as<UTFCharType, UTFCharTypeOther>
-  const std::basic_string<UTFCharType>& Localize(const UTFCharTypeOther (& key)[UTFCharTypeOtherSize]) const
+  const std::basic_string<UTFCharType> &Localize(const UTFCharTypeOther (&key)[UTFCharTypeOtherSize]) const
   {
     return Localize(ToUTF<UTFCharType>(key));
   }
-  
+
   template <typename UTFCharTypeOther>
   requires IsUTFCharType<UTFCharTypeOther> && !std::same_as<UTFCharType, UTFCharTypeOther>
-  const std::basic_string<UTFCharType>& Localize(const UTFCharTypeOther* key, const size_t length) const
+  const std::basic_string<UTFCharType> &Localize(const UTFCharTypeOther *key, const size_t length) const
   {
     return Localize(ToUTF<UTFCharType>(key, length));
   }
 
   template <typename... FormatArgs>
-  const std::basic_string<UTFCharType>& LocalizeFormat(const std::basic_string_view<UTFCharType> key, FormatArgs&&... args) const
+  requires IsUTFNativeCharType<UTFCharType>
+  const std::basic_string<UTFCharType> &LocalizeFormat(const std::basic_string_view<UTFCharType> key, FormatArgs &&...args) const
   {
+    std::shared_lock lock(dataMutex);
+
     thread_local static std::basic_string<UTFCharType> utfOut;
     return LocalizeFormatInternal(utfOut, key, std::forward<FormatArgs>(args)...);
   }
-  
+
   template <typename... FormatArgs>
-  const std::basic_string<UTFCharType>& LocalizeFormat(const std::basic_string<UTFCharType>& key, FormatArgs&&... args) const
+  requires IsUTFNativeCharType<UTFCharType>
+  const std::basic_string<UTFCharType> &LocalizeFormat(const std::basic_string<UTFCharType> &key, FormatArgs &&...args) const
   {
     return LocalizeFormat(std::basic_string_view<UTFCharType>(key), std::forward<FormatArgs>(args)...);
   }
-  
+
   template <size_t UTFCharTypeSize, typename... FormatArgs>
-  const std::basic_string<UTFCharType>& LocalizeFormat(const UTFCharType (& key)[UTFCharTypeSize], FormatArgs&&... args) const
+  requires IsUTFNativeCharType<UTFCharType>
+  const std::basic_string<UTFCharType> &LocalizeFormat(const UTFCharType (&key)[UTFCharTypeSize], FormatArgs &&...args) const
   {
     return LocalizeFormat(std::basic_string_view<UTFCharType>(key, UTFCharTypeSize - 1), std::forward<FormatArgs>(args)...);
   }
-  
+
   template <typename UTFCharTypeOther, typename... FormatArgs>
-  requires IsUTFCharType<UTFCharTypeOther> && !std::same_as<UTFCharType, UTFCharTypeOther>
-  const std::basic_string<UTFCharType>& LocalizeFormat(const std::basic_string_view<UTFCharTypeOther> key, FormatArgs&&... args) const
+  requires IsUTFNativeCharType<UTFCharType> && IsUTFCharType<UTFCharTypeOther> && !std::same_as<UTFCharType, UTFCharTypeOther>
+  const std::basic_string<UTFCharType> &LocalizeFormat(const std::basic_string_view<UTFCharTypeOther> key, FormatArgs &&...args) const
   {
     return LocalizeFormat(ToUTF<UTFCharType>(key), std::forward<FormatArgs>(args)...);
   }
-  
+
   template <typename UTFCharTypeOther, typename... FormatArgs>
-  requires IsUTFCharType<UTFCharTypeOther> && !std::same_as<UTFCharType, UTFCharTypeOther>
-  const std::basic_string<UTFCharType>& LocalizeFormat(const std::basic_string<UTFCharTypeOther>& key, FormatArgs&&... args) const
+  requires IsUTFNativeCharType<UTFCharType> && IsUTFCharType<UTFCharTypeOther> && !std::same_as<UTFCharType, UTFCharTypeOther>
+  const std::basic_string<UTFCharType> &LocalizeFormat(const std::basic_string<UTFCharTypeOther> &key, FormatArgs &&...args) const
   {
     return LocalizeFormat(ToUTF<UTFCharType>(key), std::forward<FormatArgs>(args)...);
   }
-  
+
   template <typename UTFCharTypeOther, size_t UTFCharTypeOtherSize, typename... FormatArgs>
-  requires IsUTFCharType<UTFCharTypeOther> && !std::same_as<UTFCharType, UTFCharTypeOther>
-  const std::basic_string<UTFCharType>& LocalizeFormat(const UTFCharTypeOther (& key)[UTFCharTypeOtherSize], FormatArgs&&... args) const
+  requires IsUTFNativeCharType<UTFCharType> && IsUTFCharType<UTFCharTypeOther> && !std::same_as<UTFCharType, UTFCharTypeOther>
+  const std::basic_string<UTFCharType> &LocalizeFormat(const UTFCharTypeOther (&key)[UTFCharTypeOtherSize], FormatArgs &&...args) const
   {
     return LocalizeFormat(ToUTF<UTFCharType>(key), std::forward<FormatArgs>(args)...);
   }
 
 private:
-  const std::basic_string<UTFCharType>& LocalizeInternal(const std::basic_string_view<UTFCharType> key, const std::basic_string<UTFCharType>& language) const
-  {
-    if (language.empty())
-      return LocalizationInstance::Empty;
-
-    auto languageToLocalizationPathIt = languageToLocalizationPathsMap.find(language);
-    if (languageToLocalizationPathIt == languageToLocalizationPathsMap.cend())
-      return LocalizationInstance::Empty;
-
-    for (const auto& localizationPath : languageToLocalizationPathIt->second)
-    {
-      const auto localizationInstanceIt = localizationInstancesMap.find(localizationPath);
-      if (localizationInstanceIt == localizationInstancesMap.cend())
-        continue;
-      
-      const auto& localized = localizationInstanceIt->second.Localize(key);
-      if (!localized.empty())
-        return localized;
-    }
-
-    return LocalizationInstance::Empty;
-  }
-
   template <typename... FormatArgs>
-  const std::basic_string<UTFCharType>& LocalizeFormatInternal(std::basic_string<UTFCharType>& buffer, const std::basic_string_view<UTFCharType> key, FormatArgs&&... args) const
+  const std::basic_string<UTFCharType> &LocalizeFormatInternal(std::basic_string<UTFCharType> &buffer, const std::basic_string_view<UTFCharType> key, FormatArgs &&...args) const
   {
-    const auto& localizedFormat = Localize(key);
+    const auto &localizedFormat = Localize(key);
     if (localizedFormat.empty())
       return localizedFormat;
 
@@ -682,8 +838,11 @@ private:
     return buffer;
   }
 
-  UTFToTypeMapCI<UTFCharType, std::vector<std::filesystem::path>> languageToLocalizationPathsMap;
-  PathToTypeMapCI<LocalizationInstance> localizationInstancesMap;
-  std::basic_string<UTFCharType> defaultLanguage;
-  std::basic_string<UTFCharType> currentLanguage;
+  UTFToTypeMapCI<UTFCharType, LocalizationInstance> localizationInstancesMap;
+  std::basic_string<UTFCharType> defaultLocalizationLanguage;
+  LocalizationInstance *defaultLocalizationInstance = nullptr;
+  std::basic_string<UTFCharType> localizationLanguage;
+  LocalizationInstance *localizationInstance = nullptr;
+
+  mutable std::shared_mutex dataMutex;
 };

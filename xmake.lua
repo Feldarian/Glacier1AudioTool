@@ -10,11 +10,11 @@ add_rules("plugin.vsxmake.autoupdate")
 add_rules("c.unity_build")
 add_rules("c++.unity_build")
 
-add_defines("UNICODE", "_UNICODE")
+add_defines("UNICODE=1", "_UNICODE=1")
 
 if (is_plat("windows")) then
   add_cxflags("/bigobj", "/MP", "/utf-8")
-  add_defines("_CRT_SECURE_NO_WARNINGS", "WIN32_LEAN_AND_MEAN", "NOMINMAX", "WINVER=_WIN32_WINNT_WIN10", "_WIN32_WINNT=_WIN32_WINNT_WIN10", "NTDDI=NTDDI_WIN10_19H1")
+  add_defines("_CRT_SECURE_NO_WARNINGS=1", "WIN32_LEAN_AND_MEAN=1", "NOMINMAX=1", "WINVER=_WIN32_WINNT_WIN10", "_WIN32_WINNT=_WIN32_WINNT_WIN10", "NTDDI=NTDDI_WIN10_19H1", "ENABLE_SNDFILE_WINDOWS_PROTOTYPES=1")
 end
 
 local vsRuntime = "MD"
@@ -46,7 +46,7 @@ end
 
 set_runtimes(vsRuntime);
 
-add_defines("IMGUI_DISABLE_OBSOLETE_FUNCTIONS", "ENABLE_SNDFILE_WINDOWS_PROTOTYPES")
+add_defines("IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1", "GL_GLEXT_PROTOTYPES=1")
 
 add_vectorexts("mmx", "sse", "sse2")
 
@@ -60,7 +60,7 @@ add_requires("vcpkg::libsamplerate 0.2.2", { configs = { shared = true }, alias 
 add_requires("toml++ 3.3.0", { configs = { header_only = true } })
 
 local imguiUserConfig = path.absolute("src/ImGuiConfig.hpp");
-add_requires("imgui v1.89.3-docking", { configs = { sdl2 = false, opengl3 = false, wchar32 = true, freetype = true, user_config = imguiUserConfig } })
+add_requires("imgui v1.89.3-docking", { configs = { wchar32 = true, freetype = true, user_config = imguiUserConfig } })
 
 function CopyDataToDirecotry(targetDir)
   os.rm(targetDir .. "/data")
@@ -113,6 +113,7 @@ target("HitmanAudioTool")
     os.mkdir(target:installdir() .. "/EUPL-1.2")
     os.cp("EUPL-1.2/*", target:installdir() .. "/EUPL-1.2")
 
+    os.cp("README.md", target:installdir())
     os.cp("LICENSE.md", target:installdir())
     os.cp("LICENSE_ThirdParty.md", target:installdir())
 

@@ -46,24 +46,6 @@ float GetAlignedItemWidth(const int64_t acItemsCount)
          static_cast<float>(acItemsCount);
 }
 
-const ImWchar *GetGlyphRanges()
-{
-  static const ImWchar ranges[] = {
-      0x0020,
-      0x00FF, // Basic Latin + Latin Supplement
-      0x0100,
-      0x017F, // Latin Extended-A
-      0x0180,
-      0x024F, // Latin Extended-B
-      0x2C60,
-      0x2C7F, // Latin Extended-C
-      0xA720,
-      0xA7FF, // Latin Extended-D
-      0,
-  };
-  return &ranges[0];
-}
-
 std::wstring BrowseDirectoryDialog()
 {
   BROWSEINFOW bi;
@@ -283,22 +265,6 @@ std::vector<std::filesystem::path> GetAllFilesInDirectory(const std::filesystem:
   return filesWithExtension;
 }
 
-std::wstring GetTemporaryFilePath()
-{
-  std::wstring lpTempPathBuffer(MAX_PATH, '\0');
-  std::wstring szTempFileName(MAX_PATH, '\0');
-
-  const auto dwRetVal = GetTempPathW(MAX_PATH, lpTempPathBuffer.data());
-  if (dwRetVal > MAX_PATH || (dwRetVal == 0))
-    return {};
-
-  const auto uRetVal = GetTempFileNameW(lpTempPathBuffer.data(), L"HAT", 0, szTempFileName.data());
-  if (uRetVal == 0)
-    return {};
-
-  return szTempFileName;
-}
-
 const std::wstring &GetProgramPath()
 {
   static std::wstring outPath;
@@ -314,14 +280,22 @@ const std::wstring &GetProgramPath()
   }
 
   outPath.resize(wcslen(outPath.c_str()));
-  outPath = std::filesystem::path(outPath).parent_path().native();
+  
+  const auto lastSeparatorPosition = outPath.find_last_of(L"\\/");
+  if (lastSeparatorPosition == std::wstring::npos || lastSeparatorPosition == 0)
+  {
+    outPath.clear();
+    return outPath;
+  }
+  
+  outPath.resize(lastSeparatorPosition);
   return outPath;
 }
 
 int32_t DisplayError(std::string_view message, std::string_view title, bool yesNo)
 {
   if (title.empty())
-    title = LocalizationManager.Localize("MESSAGEBOX_ERROR_GENERIC_TITLE");
+    title = LocalizationManager::Get().Localize("MESSAGEBOX_ERROR_GENERIC_TITLE");
 
   return MessageBoxA(nullptr, message.data(), title.data(), MB_ICONERROR | (yesNo ? MB_YESNOCANCEL : MB_OK));
 }
@@ -332,7 +306,7 @@ int32_t DisplayWarning(std::string_view message, std::string_view title, bool ye
     return IDCLOSE;
   
   if (title.empty())
-    title = LocalizationManager.Localize("MESSAGEBOX_WARNING_GENERIC_TITLE");
+    title = LocalizationManager::Get().Localize("MESSAGEBOX_WARNING_GENERIC_TITLE");
 
   return MessageBoxA(nullptr, message.data(), title.data(), MB_ICONWARNING | (yesNo ? MB_YESNOCANCEL : MB_OK));
 }

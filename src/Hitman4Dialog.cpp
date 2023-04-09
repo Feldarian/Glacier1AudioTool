@@ -8,7 +8,7 @@
 
 #include "Hitman4Dialog.hpp"
 
-HitmanSoundRecord Hitman4WHDRecord::Hitman4WHDRecordGeneric::ToHitmanSoundRecord() const
+HitmanSoundRecord Hitman4WHDRecord::Hitman4WHDRecordMission::ToHitmanSoundRecord() const
 {
   assert(filePathLength > 0 && filePathLength < 0x004F4850);
 
@@ -33,7 +33,7 @@ HitmanSoundRecord Hitman4WHDRecord::Hitman4WHDRecordGeneric::ToHitmanSoundRecord
   };
 }
 
-void Hitman4WHDRecord::Hitman4WHDRecordGeneric::FromHitmanSoundRecord(const HitmanSoundRecord &soundRecord)
+void Hitman4WHDRecord::Hitman4WHDRecordMission::FromHitmanSoundRecord(const HitmanSoundRecord &soundRecord)
 {
   assert(formatTag != 4096 || formatTag == soundRecord.formatTag);
 
@@ -135,7 +135,7 @@ HitmanSoundRecord Hitman4WHDRecord::ToHitmanSoundRecord() const
   assert(streams.formatTag != 17 || streams.bitsPerSample == 4);
   assert(streams.formatTag != 4096 || streams.bitsPerSample == 0);
 
-  assert(generic.formatTag != 17 || generic.blockAlign == 1024);
+  assert(mission.formatTag != 17 || mission.blockAlign == 1024);
 
   assert(streams.formatTag != 1 || streams.fmtExtra == 0xCDCDCDCD);
   assert(streams.formatTag != 17 || streams.fmtExtra == 2041);
@@ -154,7 +154,7 @@ HitmanSoundRecord Hitman4WHDRecord::ToHitmanSoundRecord() const
     case 0:
       return concatenated.ToHitmanSoundRecord();
     default:
-      return generic.ToHitmanSoundRecord();
+      return mission.ToHitmanSoundRecord();
   }
 }
 
@@ -167,7 +167,7 @@ void Hitman4WHDRecord::FromHitmanSoundRecord(const HitmanSoundRecord &soundRecor
     case 0:
       return concatenated.FromHitmanSoundRecord(soundRecord);
     default:
-      return generic.FromHitmanSoundRecord(soundRecord);
+      return mission.FromHitmanSoundRecord(soundRecord);
   }
 }
 
@@ -340,7 +340,7 @@ bool Hitman4WHDFile::BuildArchivePaths(const std::filesystem::path &basePath, co
       whdPtr += sizeof Hitman4WHDRecord;
 
       bool nullBytesCheckPassed = true;
-      for (const auto nullByte : whdRecord->generic.nullBytes)
+      for (const auto nullByte : whdRecord->mission.nullBytes)
         nullBytesCheckPassed &= nullByte == 0;
       if (!nullBytesCheckPassed && whdRecord->streams.id != 0x004F4850)
       {
@@ -352,7 +352,7 @@ bool Hitman4WHDFile::BuildArchivePaths(const std::filesystem::path &basePath, co
         whdPtr -= 3 * sizeof uint32_t;
       }
 
-      std::filesystem::path filePath = ToUTF<wchar_t>(std::string_view(data.data() + whdRecord->generic.filePathOffset));
+      std::filesystem::path filePath = ToUTF<wchar_t>(std::string_view(data.data() + whdRecord->mission.filePathOffset));
       if (UTFCaseInsensitiveCompare(filePath.extension().native(), L".wav") != 0)
         return Clear(false);
 
@@ -400,7 +400,7 @@ bool Hitman4WHDFile::Load(const std::filesystem::path &basePath, PathSetCI& arch
       whdPtr += sizeof Hitman4WHDRecord;
 
       bool nullBytesCheckPassed = true;
-      for (const auto nullByte : whdRecord->generic.nullBytes)
+      for (const auto nullByte : whdRecord->mission.nullBytes)
         nullBytesCheckPassed &= nullByte == 0;
       if (!nullBytesCheckPassed && whdRecord->streams.id != 0x004F4850)
       {
@@ -412,7 +412,7 @@ bool Hitman4WHDFile::Load(const std::filesystem::path &basePath, PathSetCI& arch
         whdPtr -= 3 * sizeof uint32_t;
       }
 
-      std::filesystem::path filePath = ToUTF<wchar_t>(std::string_view(data.data() + whdRecord->generic.filePathOffset));
+      std::filesystem::path filePath = ToUTF<wchar_t>(std::string_view(data.data() + whdRecord->mission.filePathOffset));
       if (UTFCaseInsensitiveCompare(filePath.extension().native(), L".wav") != 0)
         return Clear(false);
 
@@ -499,7 +499,7 @@ bool Hitman4Dialog::ImportSingle(const std::filesystem::path &importFolderPath,
     whdRecordsIt = whdRecordsMap.find(filePath.native());
     if (fileIt == fileMap.end() || whdRecordsIt == whdRecordsMap.end())
     {
-      DisplayWarning(LocalizationManager.LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", ToUTF<char>(importFilePath.native())));
+      DisplayWarning(LocalizationManager::Get().LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", ToUTF<char>(importFilePath.native())));
       return false;
     }
   }
@@ -520,7 +520,7 @@ bool Hitman4Dialog::LoadImpl(const std::filesystem::path &loadPath)
   const auto scenesPath = loadPath.parent_path() / L"Scenes";
   if (!exists(scenesPath))
   {
-    DisplayError(LocalizationManager.Localize("HITMAN_23_DIALOG_ERROR_MISSING_SCENES"));
+    DisplayError(LocalizationManager::Get().Localize("HITMAN_23_DIALOG_ERROR_MISSING_SCENES"));
     return false;
   }
 
@@ -566,7 +566,7 @@ bool Hitman4Dialog::LoadImpl(const std::filesystem::path &loadPath)
   if (!options.common.checkOriginality)
     return true;
 
-  std::filesystem::path originalDataPath = GetProgramPath();
+  originalDataPath = GetProgramPath();
   if (originalDataPath.empty())
     return Clear(false);
 
@@ -574,7 +574,7 @@ bool Hitman4Dialog::LoadImpl(const std::filesystem::path &loadPath)
   originalDataPath /= L"records";
   originalDataPath /= L"h4";
 
-  if (!LoadOriginalData(originalDataPath))
+  if (!LoadOriginalData())
     return Clear(false);
 
   return true;
@@ -601,20 +601,5 @@ bool Hitman4Dialog::SaveImpl(const std::filesystem::path &savePath)
 
 void Hitman4Dialog::DrawDialog()
 {
-  std::filesystem::path originalDataPath;
-  if (!progressNextActive.load())
-  {
-    originalDataPath = GetProgramPath();
-
-    if (!originalDataPath.empty() && !fileMap.empty())
-    {
-      originalDataPath /= L"data";
-      originalDataPath /= L"records";
-      originalDataPath /= L"h4";
-    }
-    else
-      originalDataPath.clear();
-  }
-
-  DrawHitmanDialog(originalDataPath, L"Blood Money", L"Hitman 4 Streams (pc_eng.str)\0pc_eng.str\0", L"pc_eng.str");
+  DrawHitmanDialog(L"Blood Money", L"Hitman 4 Streams (pc_eng.str)\0pc_eng.str\0", L"pc_eng.str");
 }

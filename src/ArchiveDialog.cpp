@@ -166,7 +166,9 @@ bool ArchiveDialog::Load(const std::filesystem::path &loadPath)
   if (loadPath.empty())
     return false;
 
-  progressMessage = LocalizationManager.Localize("ARCHIVE_DIALOG_LOAD_PROGRESS_READING_ARCHIVE");
+  UTFGlyphRangesBuilder::Get().AddText(loadPath.native());
+
+  progressMessage = LocalizationManager::Get().Localize("ARCHIVE_DIALOG_LOAD_PROGRESS_READING_ARCHIVE");
   progressNext = 0;
   progressNextTotal = 1;
   progressNextActive = true;
@@ -191,7 +193,14 @@ bool ArchiveDialog::Load(const std::filesystem::path &loadPath)
     }
 
     if (LoadImpl(loadPath))
+    {
+      // TODO - this is causing a lot of synchronizations at the end of loading
+      //        best would be to do this on the main thread
+      for (const auto& archivePath : archivePaths)
+        UTFGlyphRangesBuilder::Get().AddText(archivePath.native());
+
       path = loadPath;
+    }
     else
       Clear();
 
@@ -213,7 +222,7 @@ bool ArchiveDialog::Import(const std::filesystem::path &importFolderPath)
   if (importFolderPath.empty())
     return false;
 
-  progressMessage = LocalizationManager.Localize("ARCHIVE_DIALOG_IMPORT_PROGRESS_IMPORTING_DATA");
+  progressMessage = LocalizationManager::Get().Localize("ARCHIVE_DIALOG_IMPORT_PROGRESS_IMPORTING_DATA");
   progressNext = 0;
   progressNextTotal = 1;
   progressNextActive = true;
@@ -236,7 +245,7 @@ bool ArchiveDialog::Import(const std::filesystem::path &importFolderPath)
     {
       {
         std::unique_lock progressMessageLock(progressMessageMutex);
-        progressMessage = LocalizationManager.LocalizeFormat("ARCHIVE_DIALOG_IMPORT_PROGRESS_IMPORTING_FILE", ToUTF<char>(relative(importFilePath, importFolderPath).native()));
+        progressMessage = LocalizationManager::Get().LocalizeFormat("ARCHIVE_DIALOG_IMPORT_PROGRESS_IMPORTING_FILE", ToUTF<char>(relative(importFilePath, importFolderPath).native()));
         ++progressNext;
       }
 
@@ -260,8 +269,8 @@ bool ArchiveDialog::Export(const std::filesystem::path &exportFolderPath)
 {
   if (exportFolderPath.empty())
     return false;
-  
-  progressMessage = LocalizationManager.Localize("ARCHIVE_DIALOG_EXPORT_PROGRESS_EXPORTING_DATA");
+
+  progressMessage = LocalizationManager::Get().Localize("ARCHIVE_DIALOG_EXPORT_PROGRESS_EXPORTING_DATA");
   progressNext = 0;
   progressNextTotal = 1;
   progressNextActive = true;
@@ -282,7 +291,7 @@ bool ArchiveDialog::Export(const std::filesystem::path &exportFolderPath)
     {
       {
         std::unique_lock progressMessageLock(progressMessageMutex);
-        progressMessage = LocalizationManager.LocalizeFormat("ARCHIVE_DIALOG_IMPORT_PROGRESS_EXPORTING_FILE", ToUTF<char>(exportFilePath.native()));
+        progressMessage = LocalizationManager::Get().LocalizeFormat("ARCHIVE_DIALOG_IMPORT_PROGRESS_EXPORTING_FILE", ToUTF<char>(exportFilePath.native()));
         ++progressNext;
       }
 
@@ -306,8 +315,10 @@ bool ArchiveDialog::Save(const std::filesystem::path &savePath, bool async)
 {
   if (savePath.empty())
     return false;
-  
-  progressMessage = LocalizationManager.Localize("ARCHIVE_DIALOG_SAVE_PROGRESS_SAVING_ARCHIVE");
+
+  UTFGlyphRangesBuilder::Get().AddText(savePath.native());
+
+  progressMessage = LocalizationManager::Get().Localize("ARCHIVE_DIALOG_SAVE_PROGRESS_SAVING_ARCHIVE");
   progressNext = 0;
   progressNextTotal = 1;
 
@@ -348,8 +359,8 @@ int32_t ArchiveDialog::UnsavedChangesPopup() const
   if (!archiveRoot.IsDirty())
     return 0;
 
-  const auto msgBoxResult = DisplayWarning(LocalizationManager.Localize("ARCHIVE_DIALOG_UNSAVED_CHANGES_MESSAGE"),
-      LocalizationManager.Localize("ARCHIVE_DIALOG_UNSAVED_CHANGES_TITLE"), true);
+  const auto msgBoxResult = DisplayWarning(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_UNSAVED_CHANGES_MESSAGE"),
+      LocalizationManager::Get().Localize("ARCHIVE_DIALOG_UNSAVED_CHANGES_TITLE"), true);
 
   switch (msgBoxResult)
   {
@@ -389,7 +400,7 @@ void ArchiveDialog::DrawBaseDialog(std::wstring_view dialogName, std::wstring_vi
   if (progressActive)
     ImGui::BeginDisabled();
 
-  if (ImGui::Button(LocalizationManager.Localize("ARCHIVE_DIALOG_OPEN").c_str(), ImVec2(itemWidth, 0)))
+  if (ImGui::Button(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_OPEN").c_str(), ImVec2(itemWidth, 0)))
     GetAndLoad(filters, defaultFilename);
 
   if (!progressActive && path.empty())
@@ -397,22 +408,22 @@ void ArchiveDialog::DrawBaseDialog(std::wstring_view dialogName, std::wstring_vi
 
   ImGui::SameLine();
 
-  if (ImGui::Button(LocalizationManager.Localize("ARCHIVE_DIALOG_SAVE").c_str(), ImVec2(itemWidth, 0)))
+  if (ImGui::Button(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_SAVE").c_str(), ImVec2(itemWidth, 0)))
     Save(path, true);
 
   ImGui::SameLine();
 
-  if (ImGui::Button(LocalizationManager.Localize("ARCHIVE_DIALOG_SAVE_INTO").c_str(), ImVec2(itemWidth, 0)))
+  if (ImGui::Button(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_SAVE_INTO").c_str(), ImVec2(itemWidth, 0)))
     GetAndSave(filters, defaultFilename);
 
   ImGui::SameLine();
 
-  if (ImGui::Button(LocalizationManager.Localize("ARCHIVE_DIALOG_EXPORT_TO").c_str(), ImVec2(itemWidth, 0)))
+  if (ImGui::Button(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_EXPORT_TO").c_str(), ImVec2(itemWidth, 0)))
     GetAndExport();
 
   ImGui::SameLine();
 
-  if (ImGui::Button(LocalizationManager.Localize("ARCHIVE_DIALOG_IMPORT_FROM").c_str(), ImVec2(itemWidth, 0)))
+  if (ImGui::Button(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_IMPORT_FROM").c_str(), ImVec2(itemWidth, 0)))
     GetAndImport();
 
   if (progressActive)
@@ -426,7 +437,7 @@ void ArchiveDialog::DrawBaseDialog(std::wstring_view dialogName, std::wstring_vi
     {
       auto progressCurrent = progressNext.load();
 
-      const auto progressSummary = LocalizationManager.LocalizeFormat("ARCHIVE_DIALOG_PROGRESS_SUMMARY", progressCurrent, progressTotal);
+      const auto progressSummary = LocalizationManager::Get().LocalizeFormat("ARCHIVE_DIALOG_PROGRESS_SUMMARY", progressCurrent, progressTotal);
       if (progressMessage.empty())
         ImGui::TextUnformatted(progressSummary.c_str());
       else
@@ -440,10 +451,10 @@ void ArchiveDialog::DrawBaseDialog(std::wstring_view dialogName, std::wstring_vi
     if (path.empty())
     {
       ImGui::EndDisabled();
-      ImGui::TextUnformatted(LocalizationManager.Localize("ARCHIVE_DIALOG_NO_ARCHIVE").c_str());
+      ImGui::TextUnformatted(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_NO_ARCHIVE").c_str());
     }
     else
-      ImGui::TextUnformatted(LocalizationManager.LocalizeFormat("ARCHIVE_DIALOG_LOADED_ARCHIVE", ToUTF<char>(path.native()).c_str()).c_str());
+      ImGui::TextUnformatted(LocalizationManager::Get().LocalizeFormat("ARCHIVE_DIALOG_LOADED_ARCHIVE", ToUTF<char>(path.native()).c_str()).c_str());
 
     ImGui::Separator();
 

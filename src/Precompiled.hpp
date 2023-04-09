@@ -19,11 +19,13 @@ extern "C"
 #include <toml++/toml.h>
 
 #include <array>
+#include <bitset>
 #include <compare>
 #include <filesystem>
 #include <fstream>
 #include <map>
 #include <set>
+#include <shared_mutex>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -34,4 +36,4 @@ extern "C"
 
 #include "Localization.hpp"
 
-inline UTFLocalizationManager<char> LocalizationManager;
+using LocalizationManager = UTFLocalizationManager<char>;

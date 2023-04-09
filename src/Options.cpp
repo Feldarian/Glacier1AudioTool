@@ -7,6 +7,10 @@
 
 #include "Options.hpp"
 
+#include "Hitman1Dialog.hpp"
+#include "Hitman23Dialog.hpp"
+#include "Hitman4Dialog.hpp"
+
 void CommonSettings::Load(const toml::table &aInputRoot)
 {
   ResetToDefaults();
@@ -22,13 +26,13 @@ void CommonSettings::Load(const toml::table &aInputRoot)
   transcodeToOriginalFormat = commonTable["transcode_to_original_format"].value_or(transcodeToOriginalFormat);
   directImport = commonTable["direct_import"].value_or(directImport);
 
-  LocalizationManager.SetLanguage(commonTable["language"].value_or(LocalizationManager.GetLanguage()));
+  LocalizationManager::Get().SetLanguage(commonTable["language"].value_or(LocalizationManager::Get().GetLanguage()));
 }
 
 void CommonSettings::Save(toml::table &aOutputRoot) const
 {
   toml::table commonTable;
-  
+
   commonTable.emplace("disable_warnings", disableWarnings);
   commonTable.emplace("convert_to_game_format", convertToGameFormat);
   commonTable.emplace("check_originality", checkOriginality);
@@ -38,7 +42,7 @@ void CommonSettings::Save(toml::table &aOutputRoot) const
   commonTable.emplace("transcode_to_original_format", transcodeToOriginalFormat);
   commonTable.emplace("direct_import", directImport);
 
-  commonTable.emplace("language", LocalizationManager.GetLanguage());
+  commonTable.emplace("language", LocalizationManager::Get().GetLanguage());
 
   aOutputRoot.emplace("common", std::move(commonTable));
 }
@@ -50,24 +54,32 @@ void CommonSettings::ResetToDefaults()
 
 void CommonSettings::DrawDialog()
 {
-  if (!ImGui::TreeNodeEx(LocalizationManager.Localize("SETTINGS_DIALOG_COMMON_GROUP").c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+  if (!ImGui::TreeNodeEx(LocalizationManager::Get().Localize("SETTINGS_DIALOG_COMMON_GROUP").c_str(), ImGuiTreeNodeFlags_DefaultOpen))
     return;
-  
-  if (ImGui::BeginCombo(LocalizationManager.Localize("SETTINGS_DIALOG_LANGUAGE").c_str(), LocalizationManager.GetLanguage().c_str()))
+
+  if (ImGui::BeginCombo(LocalizationManager::Get().Localize("SETTINGS_DIALOG_LANGUAGE").c_str(), LocalizationManager::Get().GetLanguage().c_str()))
   {
-    const auto availableLanguages = LocalizationManager.GetAvailableLanguages();
+    const auto availableLanguages = LocalizationManager::Get().GetAvailableLanguages();
     for (const auto& language : availableLanguages)
     {
-      bool selected = UTFCaseInsensitiveCompare(LocalizationManager.GetLanguage(), language) == 0;
+      bool selected = UTFCaseInsensitiveCompare(LocalizationManager::Get().GetLanguage(), language) == 0;
       if (ImGui::Selectable(language.c_str(), &selected))
-        LocalizationManager.SetLanguage(language);
+        LocalizationManager::Get().SetLanguage(language);
     }
     ImGui::EndCombo();
   }
 
-  ImGui::Checkbox(LocalizationManager.Localize("SETTINGS_DIALOG_DISABLE_WARNINGS").c_str(), &disableWarnings);
+  ImGui::Checkbox(LocalizationManager::Get().Localize("SETTINGS_DIALOG_DISABLE_WARNINGS").c_str(), &disableWarnings);
 
-  ImGui::Checkbox(LocalizationManager.Localize("SETTINGS_DIALOG_CHECK_DATA_ORIGINALITY").c_str(), &checkOriginality);
+  bool prevCheckOriginality = checkOriginality;
+  ImGui::Checkbox(LocalizationManager::Get().Localize("SETTINGS_DIALOG_CHECK_DATA_ORIGINALITY").c_str(), &checkOriginality);
+
+  if (!prevCheckOriginality && checkOriginality)
+  {
+    Hitman1Dialog::Get().ReloadOriginalData();
+    Hitman23Dialog::Get().ReloadOriginalData();
+    Hitman4Dialog::Get().ReloadOriginalData();
+  }
 
   if (!checkOriginality && !importOriginalFiles)
     importOriginalFiles = true;
@@ -77,7 +89,7 @@ void CommonSettings::DrawDialog()
 
   ImGui::TreePush(&checkOriginality);
 
-  ImGui::Checkbox(LocalizationManager.Localize("SETTINGS_DIALOG_IMPORT_ORIGINAL_FILES").c_str(),
+  ImGui::Checkbox(LocalizationManager::Get().Localize("SETTINGS_DIALOG_IMPORT_ORIGINAL_FILES").c_str(),
                   &importOriginalFiles);
 
   ImGui::TreePop();
@@ -85,7 +97,7 @@ void CommonSettings::DrawDialog()
   if (!checkOriginality)
     ImGui::EndDisabled();
 
-  ImGui::Checkbox(LocalizationManager.Localize("SETTINGS_DIALOG_DIRECT_IMPORT").c_str(),
+  ImGui::Checkbox(LocalizationManager::Get().Localize("SETTINGS_DIALOG_DIRECT_IMPORT").c_str(),
                   &directImport);
 
   if (directImport)
@@ -94,22 +106,22 @@ void CommonSettings::DrawDialog()
   ImGui::TreePush(&directImport);
 
   convertToGameFormat &= !directImport;
-  ImGui::Checkbox(LocalizationManager.Localize("SETTINGS_DIALOG_CONVERT_TO_GAME_FORMAT").c_str(),
+  ImGui::Checkbox(LocalizationManager::Get().Localize("SETTINGS_DIALOG_CONVERT_TO_GAME_FORMAT").c_str(),
                   &convertToGameFormat);
 
   if (!convertToGameFormat)
     ImGui::BeginDisabled();
 
   ImGui::TreePush(&convertToGameFormat);
-    
+
   fixChannels &= convertToGameFormat;
-  ImGui::Checkbox(LocalizationManager.Localize("SETTINGS_DIALOG_FIX_CHANNELS").c_str(), &fixChannels);
+  ImGui::Checkbox(LocalizationManager::Get().Localize("SETTINGS_DIALOG_FIX_CHANNELS").c_str(), &fixChannels);
 
   fixSampleRate &= convertToGameFormat;
-  ImGui::Checkbox(LocalizationManager.Localize("SETTINGS_DIALOG_FIX_SAMPLE_RATE").c_str(), &fixSampleRate);
-  
+  ImGui::Checkbox(LocalizationManager::Get().Localize("SETTINGS_DIALOG_FIX_SAMPLE_RATE").c_str(), &fixSampleRate);
+
   transcodeToOriginalFormat &= convertToGameFormat;
-  ImGui::Checkbox(LocalizationManager.Localize("SETTINGS_DIALOG_TRANSCODE_TO_ORIGINAL_FORMAT").c_str(), &transcodeToOriginalFormat);
+  ImGui::Checkbox(LocalizationManager::Get().Localize("SETTINGS_DIALOG_TRANSCODE_TO_ORIGINAL_FORMAT").c_str(), &transcodeToOriginalFormat);
 
   ImGui::TreePop();
 
@@ -148,7 +160,7 @@ void Options::Save() const
   optionsPath /= L"config.toml";
 
   toml::table config;
-  
+
   common.Save(config);
 
   std::ofstream(optionsPath, std::ios::trunc) << config;
@@ -163,7 +175,7 @@ void Options::ResetToDefaults()
 
 void Options::DrawDialog()
 {
-  if (!ImGui::BeginTabItem(LocalizationManager.Localize("SETTINGS_DIALOG_TITLE").c_str()))
+  if (!ImGui::BeginTabItem(LocalizationManager::Get().Localize("SETTINGS_DIALOG_TITLE").c_str()))
     return;
 
   common.DrawDialog();

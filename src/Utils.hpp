@@ -62,8 +62,6 @@ std::string ReadWholeTextFile(const std::filesystem::path &acpPath);
 
 float GetAlignedItemWidth(int64_t acItemsCount);
 
-const ImWchar *GetGlyphRanges();
-
 std::wstring BrowseDirectoryDialog();
 
 std::wstring OpenFileDialog(std::wstring_view filters, std::wstring fileName);
@@ -73,8 +71,6 @@ std::wstring SaveFileDialog(std::wstring_view filters, std::wstring fileName);
 
 std::vector<std::filesystem::path> GetAllFilesInDirectory(const std::filesystem::path &directory,
                                                           std::wstring_view extension, bool recursive);
-
-std::wstring GetTemporaryFilePath();
 
 const std::wstring &GetProgramPath();
 

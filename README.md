@@ -15,6 +15,7 @@
      * New localizations can be added by copying `data/localization/English.toml`, translating the entries and placing the copied file back into `data/localization`
      * For example, you could create Deutsch.toml which would contain translations to German language and place it in the mentioned folder
      * New option would then appear in the Options tab under Language
+     * If newly added language is missing glyphs in fonts used by the tool, you may add additional font defining them into `data/fonts` folder (note that fonts are currently being read in alphabetical order) 
      
 ### Future
  * Definitely some more cleanup/refactor of the source code

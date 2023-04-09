@@ -1,0 +1,15 @@
+﻿---
+BasedOnStyle: Microsoft
+IndentCaseLabels: 'true'
+IndentPPDirectives: AfterHash
+IndentWidth: '2'
+IndentWrappedFunctionNames: 'true'
+Language: Cpp
+PointerAlignment: Right
+SortIncludes: 'true'
+SpaceBeforeRangeBasedForLoopColon: 'true'
+Standard: Auto
+TabWidth: '2'
+UseTab: Never
+
+...

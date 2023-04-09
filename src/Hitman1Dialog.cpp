@@ -23,7 +23,7 @@ bool Hitman1Dialog::LoadImpl(const std::filesystem::path &loadPath)
   const auto archiveBinFilePath = loadPath.parent_path() / (loadPath.stem().native() + L".bin");
   if (!exists(archiveBinFilePath))
   {
-    DisplayError(LocalizationManager.Localize("HITMAN_1_DIALOG_ERROR_MISSING_BIN"));
+    DisplayError(LocalizationManager::Get().Localize("HITMAN_1_DIALOG_ERROR_MISSING_BIN"));
     return false;
   }
 
@@ -86,7 +86,7 @@ bool Hitman1Dialog::LoadImpl(const std::filesystem::path &loadPath)
   if (!options.common.checkOriginality)
     return true;
 
-  std::filesystem::path originalDataPath = GetProgramPath();
+  originalDataPath = GetProgramPath();
   if (originalDataPath.empty())
     return Clear(false);
 
@@ -94,7 +94,7 @@ bool Hitman1Dialog::LoadImpl(const std::filesystem::path &loadPath)
   originalDataPath /= L"records";
   originalDataPath /= L"h1";
 
-  if (!LoadOriginalData(originalDataPath))
+  if (!LoadOriginalData())
     return Clear(false);
 
   return true;
@@ -112,7 +112,7 @@ bool Hitman1Dialog::ImportSingle(const std::filesystem::path &importFolderPath,
     fileIt = fileMap.find(filePath.native());
     if (fileIt == fileMap.end())
     {
-      DisplayWarning(LocalizationManager.LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", ToUTF<char>(importFilePath.native())));
+      DisplayWarning(LocalizationManager::Get().LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", ToUTF<char>(importFilePath.native())));
       return false;
     }
   }
@@ -163,20 +163,5 @@ bool Hitman1Dialog::SaveImpl(const std::filesystem::path &savePath)
 
 void Hitman1Dialog::DrawDialog()
 {
-  std::filesystem::path originalDataPath;
-  if (!progressNextActive.load())
-  {
-    originalDataPath = GetProgramPath();
-
-    if (!originalDataPath.empty() && !fileMap.empty())
-    {
-      originalDataPath /= L"data";
-      originalDataPath /= L"records";
-      originalDataPath /= L"h1";
-    }
-    else
-      originalDataPath.clear();
-  }
-
-  DrawHitmanDialog(originalDataPath, L"Codename 47", L"Hitman 1 Speech (*.idx)\0*.idx\0", L"English.idx");
+  DrawHitmanDialog(L"Codename 47", L"Hitman 1 Speech (*.idx)\0*.idx\0", L"English.idx");
 }

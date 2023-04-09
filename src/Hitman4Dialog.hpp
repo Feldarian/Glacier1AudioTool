@@ -20,7 +20,7 @@ inline constexpr std::array<uint32_t, 4> terminateBytes{0, 0, 0, 0};
 
 union Hitman4WHDRecord
 {
-  struct Hitman4WHDRecordGeneric {
+  struct Hitman4WHDRecordMission {
     uint32_t filePathLength;
     uint32_t filePathOffset;
     uint16_t formatTag; // 1 - PCM 16-bit, 17 - IMA ADPCM, 4096 - OGG
@@ -38,7 +38,7 @@ union Hitman4WHDRecord
 
     HitmanSoundRecord ToHitmanSoundRecord() const;
     void FromHitmanSoundRecord(const HitmanSoundRecord& soundRecord);
-  } generic;
+  } mission;
 
   struct Hitman4WHDRecordConcatenated
   {

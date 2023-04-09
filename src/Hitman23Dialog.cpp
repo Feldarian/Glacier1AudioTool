@@ -317,7 +317,7 @@ bool Hitman23Dialog::ImportSingle(const std::filesystem::path &importFolderPath,
     whdRecordsIt = whdRecordsMap.find(filePath.native());
     if (fileIt == fileMap.end() || whdRecordsIt == whdRecordsMap.end())
     {
-      DisplayWarning(LocalizationManager.LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", ToUTF<char>(importFilePath.native())));
+      DisplayWarning(LocalizationManager::Get().LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", ToUTF<char>(importFilePath.native())));
       return false;
     }
   }
@@ -338,7 +338,7 @@ bool Hitman23Dialog::LoadImpl(const std::filesystem::path &loadPath)
   const auto scenesPath = loadPath.parent_path() / L"Scenes";
   if (!exists(scenesPath))
   {
-    DisplayError(LocalizationManager.Localize("HITMAN_23_DIALOG_ERROR_MISSING_SCENES"));
+    DisplayError(LocalizationManager::Get().Localize("HITMAN_23_DIALOG_ERROR_MISSING_SCENES"));
     return false;
   }
 
@@ -384,7 +384,7 @@ bool Hitman23Dialog::LoadImpl(const std::filesystem::path &loadPath)
   if (!options.common.checkOriginality)
     return true;
 
-  std::filesystem::path originalDataPath = GetProgramPath();
+  originalDataPath = GetProgramPath();
   if (originalDataPath.empty())
     return Clear(false);
 
@@ -392,7 +392,7 @@ bool Hitman23Dialog::LoadImpl(const std::filesystem::path &loadPath)
   originalDataPath /= L"records";
   originalDataPath /= streamsWAV.recordMap[0].data.get().data()[0] == 0x6F ? L"h2" : L"h3";
 
-  if (!LoadOriginalData(originalDataPath))
+  if (!LoadOriginalData())
     return Clear(false);
 
   return true;
@@ -419,20 +419,5 @@ bool Hitman23Dialog::SaveImpl(const std::filesystem::path &savePath)
 
 void Hitman23Dialog::DrawDialog()
 {
-  std::filesystem::path originalDataPath;
-  if (!progressNextActive.load())
-  {
-    originalDataPath = GetProgramPath();
-
-    if (!originalDataPath.empty() && !fileMap.empty())
-    {
-      originalDataPath /= L"data";
-      originalDataPath /= L"records";
-      originalDataPath /= streamsWAV.recordMap[0].data.get().data()[0] == 0x6F ? L"h2" : L"h3";
-    }
-    else
-      originalDataPath.clear();
-  }
-
-  DrawHitmanDialog(originalDataPath, L"Silent Assassin / Contracts", L"Hitman 2/3 Streams (streams.wav)\0streams.wav\0", L"streams.wav");
+  DrawHitmanDialog(L"Silent Assassin / Contracts", L"Hitman 2/3 Streams (streams.wav)\0streams.wav\0", L"streams.wav");
 }

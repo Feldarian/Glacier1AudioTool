@@ -170,9 +170,9 @@ class HitmanDialog : public ArchiveDialog
 public:
   bool Clear(bool retVal = false) override;
 
-  bool GenerateOriginalData(const std::filesystem::path& originalDataPath);
+  bool GenerateOriginalData();
 
-  bool LoadOriginalData(const std::filesystem::path& originalDataPath);
+  bool LoadOriginalData();
 
   bool ImportSingleHitmanFile(HitmanFile &hitmanFile, const std::filesystem::path &hitmanFilePath, std::vector<char> &data, bool doConversion);
 
@@ -180,9 +180,12 @@ public:
 
   bool ExportSingle(const std::filesystem::path &exportFolderPath, const std::filesystem::path &exportFilePath) const override;
 
-  void DrawHitmanDialog(const std::filesystem::path& originalDataPath, std::wstring_view dialogName, std::wstring_view filters, std::wstring_view defaultFilename);
+  void ReloadOriginalData();
+
+  void DrawHitmanDialog(std::wstring_view dialogName, std::wstring_view filters, std::wstring_view defaultFilename);
 
   UTFViewToTypeMapCI<wchar_t, HitmanFile> fileMap;
-  bool recheckOriginality = Options::Get().common.checkOriginality;
   Options options = Options::Get();
+  std::filesystem::path originalDataPath;
+  bool needsOriginalDataReload = false;
 };

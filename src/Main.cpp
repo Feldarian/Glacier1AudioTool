@@ -13,6 +13,62 @@
 #include "backends/imgui_impl_opengl3.h"
 #include "backends/imgui_impl_sdl2.h"
 
+bool BuildFontAtlas()
+{
+  if (!UTFGlyphRangesBuilder::Get().NeedsBuild())
+    return true;
+
+  std::vector<std::filesystem::path> searchPaths;
+
+  std::filesystem::path fontsPath = GetProgramPath();
+  fontsPath /= L"data";
+  fontsPath /= L"fonts";
+  if (!exists(fontsPath))
+    return false;
+
+  ImFontGlyphRangesBuilder builder;
+
+  const auto glyphRanges = UTFGlyphRangesBuilder::Get().Build();
+  for (const auto& glyphRange : glyphRanges)
+  {
+    uint32_t translatedGlyphRange[3]{glyphRange.first, glyphRange.second, 0};
+    builder.AddRanges(translatedGlyphRange);
+  }
+
+  static ImVector<ImWchar> imguiRanges;
+  imguiRanges.clear();
+
+  builder.BuildRanges(&imguiRanges);
+
+  ImFontConfig config;
+  config.SizePixels = 18;
+  config.OversampleH = 3;
+  config.OversampleV = 1;
+  config.MergeMode = false;
+
+  ImGuiIO &io = ImGui::GetIO();
+  io.Fonts->Clear();
+
+  const auto fonts = GetAllFilesInDirectory(fontsPath, L"", false);
+  for (const auto& font : fonts)
+  {
+    const auto fontExtension = font.extension();
+    if (UTFCaseInsensitiveCompare(fontExtension.native(), L".ttf") != 0 && UTFCaseInsensitiveCompare(fontExtension.native(), L".otf") != 0)
+      continue;
+
+    io.Fonts->AddFontFromFileTTF(ToUTF<char>(font.native()).c_str(), config.SizePixels, &config, imguiRanges.Data);
+    config.MergeMode = true;
+  }
+
+  if (!config.MergeMode)
+    io.Fonts->AddFontDefault(&config);
+
+  ImGui_ImplOpenGL3_DestroyFontsTexture();
+  ImGui_ImplOpenGL3_CreateFontsTexture();
+
+  return true;
+}
+
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 {
   std::filesystem::path dataPath = GetProgramPath();
@@ -27,15 +83,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
   if (!exists(localizationPath))
     return -3;
 
-  std::filesystem::path fontPath = dataPath / L"fonts";
-  if (!exists(localizationPath))
+  std::filesystem::path fontsPath = dataPath / L"fonts";
+  if (!exists(fontsPath))
     return -4;
 
   std::filesystem::path recordsData = dataPath / L"records";
   if (!exists(recordsData))
     return -5;
 
-  LocalizationManager.SetDefaultLanguage("English");
   const auto localizationFilePaths = GetAllFilesInDirectory(localizationPath, L".toml", false);
   if (localizationFilePaths.empty())
     return -6;
@@ -43,26 +98,25 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
   bool foundEnglish = false;
   for (const auto& localizationFilePath : localizationFilePaths)
   {
-    if (!LocalizationManager.LoadLocalization(localizationFilePath))
-      return -6;
+    if (!LocalizationManager::Get().LoadLocalization(localizationFilePath))
+      return -7;
 
     if (UTFCaseInsensitiveCompare(localizationFilePath.stem().native(), "English") == 0)
       foundEnglish = true;
   }
   if (!foundEnglish)
-    return -7;
+    return -8;
 
-  fontPath /= L"NotoSans-Regular.ttf";
-  if (!exists(fontPath))
-    return -7;
+  if (!LocalizationManager::Get().SetDefaultLanguage("English"))
+    return -9;
 
   Options::Get().Load();
   Options::Get().Save();
 
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_GAMECONTROLLER) != 0)
   {
-    DisplayError(LocalizationManager.LocalizeFormat("ARCHIVE_DIALOG_IMPORT_PROGRESS_IMPORTING_FILE", SDL_GetError()));
-    return -8;
+    DisplayError(LocalizationManager::Get().LocalizeFormat("ARCHIVE_DIALOG_IMPORT_PROGRESS_IMPORTING_FILE", SDL_GetError()));
+    return -10;
   }
 
   const char *glsl_version = "#version 130";
@@ -98,14 +152,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
   ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
   ImGui_ImplOpenGL3_Init(glsl_version);
-
-  ImFontConfig config;
-  config.SizePixels = 18;
-  config.OversampleH = 3;
-  config.OversampleV = 3;
-  config.MergeMode = false;
-
-  io.Fonts->AddFontFromFileTTF(ToUTF<char>(fontPath.native()).c_str(), config.SizePixels, &config, GetGlyphRanges());
 
   constexpr ImVec4 clear_color(0.45f, 0.55f, 0.60f, 1.00f);
 
@@ -169,6 +215,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
         }
       }
     }
+
+    if (done)
+    {
+      switch (Hitman4Dialog::Get().UnsavedChangesPopup())
+      {
+        case 1: {
+          Hitman4Dialog::Get().Save(Hitman4Dialog::Get().GetPath(), false);
+          break;
+        }
+        case 0: {
+          break;
+        }
+        default:
+        case -1: {
+          done = false;
+          break;
+        }
+      }
+    }
+
+    BuildFontAtlas();
 
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL2_NewFrame();
