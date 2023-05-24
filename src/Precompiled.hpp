@@ -14,8 +14,6 @@ extern "C"
 #include <imgui.h>
 #include <scn/scn.h>
 #include <sndfile.hh>
-
-#define TOML_EXCEPTIONS 0
 #include <toml++/toml.h>
 
 #include <array>
@@ -31,9 +29,10 @@ extern "C"
 #include <variant>
 #include <vector>
 
+#include "Singleton.hpp"
+#include "UTF/UTF.hpp"
+
+using namespace UTF;
+
 #include "Options.hpp"
 #include "Utils.hpp"
-
-#include "Localization.hpp"
-
-using LocalizationManager = UTFLocalizationManager<char>;

@@ -46,7 +46,7 @@ end
 
 set_runtimes(vsRuntime);
 
-add_defines("IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1", "GL_GLEXT_PROTOTYPES=1")
+add_defines("IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1", "GL_GLEXT_PROTOTYPES=1", "TOML_EXCEPTIONS=0")
 
 add_vectorexts("mmx", "sse", "sse2")
 
@@ -56,7 +56,6 @@ add_requires("scnlib 1.1.2", { configs = { header_only = false } })
 add_requires("libsdl 2.26.3", { configs = { shared = true, use_sdlmain = true } })
 add_requires("libsndfile 1.2.0", { configs = { shared = true } })
 add_requires("xxhash v0.8.1")
-add_requires("vcpkg::libsamplerate 0.2.2", { configs = { shared = true }, alias = "libsamplerate" })
 add_requires("toml++ 3.3.0", { configs = { header_only = true } })
 
 local imguiUserConfig = path.absolute("src/ImGuiConfig.hpp");
@@ -67,6 +66,32 @@ function CopyDataToDirecotry(targetDir)
   os.mkdir(targetDir .. "/data")
   os.cp("data/*", targetDir .. "/data")
 end
+
+package("libsamplerate")
+  set_kind("library", {headeronly = true})
+  set_homepage("http://libsndfile.github.io/libsamplerate/")
+  set_description("An audio Sample Rate Conversion library")
+  set_license("BSD-2-Clause")
+
+  add_urls("https://github.com/libsndfile/libsamplerate/archive/$(version).tar.gz",
+           "https://github.com/libsndfile/libsamplerate.git")
+
+  add_versions("0.2.2", "16e881487f184250deb4fcb60432d7556ab12cb58caea71ef23960aec6c0405a")
+
+  add_deps("cmake")
+
+  on_install("windows", "linux", "macosx", "iphoneos", "mingw", "android", function (package)
+    local configs = {}
+    table.insert(configs, "-DBUILD_PROGRAMS=OFF")
+    table.insert(configs, "-DBUILD_EXAMPLES=OFF")
+    table.insert(configs, "-DBUILD_TESTING=OFF")
+    table.insert(configs, "-DCMAKE_BUILD_TYPE=" .. (package:debug() and "Debug" or "Release"))
+    table.insert(configs, "-DBUILD_SHARED_LIBS=" .. (package:config("shared") and "ON" or "OFF"))
+
+    import("package.tools.cmake").install(package, configs)
+  end)
+package_end()
+add_requires("libsamplerate 0.2.2", { configs = { shared = true } })
 
 target("HitmanAudioTool")
   set_rundir("$(projectdir)")

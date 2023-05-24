@@ -15,7 +15,7 @@
 
 bool BuildFontAtlas()
 {
-  if (!UTFGlyphRangesBuilder::Get().NeedsBuild())
+  if (!GlyphRangesBuilder::Get().NeedsBuild())
     return true;
 
   std::vector<std::filesystem::path> searchPaths;
@@ -28,7 +28,7 @@ bool BuildFontAtlas()
 
   ImFontGlyphRangesBuilder builder;
 
-  const auto glyphRanges = UTFGlyphRangesBuilder::Get().Build();
+  const auto glyphRanges = GlyphRangesBuilder::Get().Build();
   for (const auto& glyphRange : glyphRanges)
   {
     uint32_t translatedGlyphRange[3]{glyphRange.first, glyphRange.second, 0};

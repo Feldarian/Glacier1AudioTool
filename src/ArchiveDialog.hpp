@@ -73,7 +73,7 @@ protected:
   ArchiveDirectory archiveRoot;
 
   std::recursive_mutex progressMessageMutex;
-  std::string progressMessage;
+  String8 progressMessage;
   std::atomic_uint64_t progressNext = 0;
   std::atomic_uint64_t progressNextTotal = 0;
   std::atomic_bool progressNextActive = false;

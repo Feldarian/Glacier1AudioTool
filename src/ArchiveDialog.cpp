@@ -166,7 +166,7 @@ bool ArchiveDialog::Load(const std::filesystem::path &loadPath)
   if (loadPath.empty())
     return false;
 
-  UTFGlyphRangesBuilder::Get().AddText(loadPath.native());
+  GlyphRangesBuilder::Get().AddText(loadPath.native());
 
   progressMessage = LocalizationManager::Get().Localize("ARCHIVE_DIALOG_LOAD_PROGRESS_READING_ARCHIVE");
   progressNext = 0;
@@ -197,7 +197,7 @@ bool ArchiveDialog::Load(const std::filesystem::path &loadPath)
       // TODO - this is causing a lot of synchronizations at the end of loading
       //        best would be to do this on the main thread
       for (const auto& archivePath : archivePaths)
-        UTFGlyphRangesBuilder::Get().AddText(archivePath.native());
+        GlyphRangesBuilder::Get().AddText(archivePath.native());
 
       path = loadPath;
     }
@@ -316,7 +316,7 @@ bool ArchiveDialog::Save(const std::filesystem::path &savePath, bool async)
   if (savePath.empty())
     return false;
 
-  UTFGlyphRangesBuilder::Get().AddText(savePath.native());
+  GlyphRangesBuilder::Get().AddText(savePath.native());
 
   progressMessage = LocalizationManager::Get().Localize("ARCHIVE_DIALOG_SAVE_PROGRESS_SAVING_ARCHIVE");
   progressNext = 0;
@@ -437,11 +437,11 @@ void ArchiveDialog::DrawBaseDialog(std::wstring_view dialogName, std::wstring_vi
     {
       auto progressCurrent = progressNext.load();
 
-      const auto progressSummary = LocalizationManager::Get().LocalizeFormat("ARCHIVE_DIALOG_PROGRESS_SUMMARY", progressCurrent, progressTotal);
+      const auto& progressSummary = LocalizationManager::Get().LocalizeFormat("ARCHIVE_DIALOG_PROGRESS_SUMMARY", progressCurrent, progressTotal);
       if (progressMessage.empty())
         ImGui::TextUnformatted(progressSummary.c_str());
       else
-        ImGui::TextUnformatted(std::format("{}\n{}", progressSummary, progressMessage).c_str());
+        ImGui::TextUnformatted(std::format("{}\n{}", progressSummary.native(), progressMessage.native()).c_str());
     }
     else if (!progressMessage.empty())
       ImGui::TextUnformatted(progressMessage.c_str());

@@ -280,19 +280,19 @@ const std::wstring &GetProgramPath()
   }
 
   outPath.resize(wcslen(outPath.c_str()));
-  
+
   const auto lastSeparatorPosition = outPath.find_last_of(L"\\/");
   if (lastSeparatorPosition == std::wstring::npos || lastSeparatorPosition == 0)
   {
     outPath.clear();
     return outPath;
   }
-  
+
   outPath.resize(lastSeparatorPosition);
   return outPath;
 }
 
-int32_t DisplayError(std::string_view message, std::string_view title, bool yesNo)
+int32_t DisplayError(const StringView8 message, StringView8 title, bool yesNo)
 {
   if (title.empty())
     title = LocalizationManager::Get().Localize("MESSAGEBOX_ERROR_GENERIC_TITLE");
@@ -300,11 +300,11 @@ int32_t DisplayError(std::string_view message, std::string_view title, bool yesN
   return MessageBoxA(nullptr, message.data(), title.data(), MB_ICONERROR | (yesNo ? MB_YESNOCANCEL : MB_OK));
 }
 
-int32_t DisplayWarning(std::string_view message, std::string_view title, bool yesNo)
+int32_t DisplayWarning(const StringView8 message, StringView8 title, bool yesNo)
 {
   if (!yesNo && Options::Get().common.disableWarnings)
     return IDCLOSE;
-  
+
   if (title.empty())
     title = LocalizationManager::Get().Localize("MESSAGEBOX_WARNING_GENERIC_TITLE");
 

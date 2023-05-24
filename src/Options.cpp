@@ -26,7 +26,7 @@ void CommonSettings::Load(const toml::table &aInputRoot)
   transcodeToOriginalFormat = commonTable["transcode_to_original_format"].value_or(transcodeToOriginalFormat);
   directImport = commonTable["direct_import"].value_or(directImport);
 
-  LocalizationManager::Get().SetLanguage(commonTable["language"].value_or(LocalizationManager::Get().GetLanguage()));
+  LocalizationManager::Get().SetLanguage(commonTable["language"].value_or(LocalizationManager::Get().GetLanguage().native()));
 }
 
 void CommonSettings::Save(toml::table &aOutputRoot) const
@@ -42,7 +42,7 @@ void CommonSettings::Save(toml::table &aOutputRoot) const
   commonTable.emplace("transcode_to_original_format", transcodeToOriginalFormat);
   commonTable.emplace("direct_import", directImport);
 
-  commonTable.emplace("language", LocalizationManager::Get().GetLanguage());
+  commonTable.emplace("language", LocalizationManager::Get().GetLanguage().native());
 
   aOutputRoot.emplace("common", std::move(commonTable));
 }
@@ -62,7 +62,7 @@ void CommonSettings::DrawDialog()
     const auto availableLanguages = LocalizationManager::Get().GetAvailableLanguages();
     for (const auto& language : availableLanguages)
     {
-      bool selected = UTFCaseInsensitiveCompare(LocalizationManager::Get().GetLanguage(), language) == 0;
+      bool selected = (LocalizationManager::Get().GetLanguage() <=> language) == std::strong_ordering::equivalent;
       if (ImGui::Selectable(language.c_str(), &selected))
         LocalizationManager::Get().SetLanguage(language);
     }

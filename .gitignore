@@ -2,6 +2,7 @@
 .xmake/
 build/
 package/
+install/
 vsxmake2015/
 vsxmake2017/
 vsxmake2019/

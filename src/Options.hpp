@@ -5,8 +5,9 @@
 
 #pragma once
 
-struct CommonSettings
+class CommonSettings
 {
+public:
   void Load(const toml::table &aInputRoot);
   void Save(toml::table &aOutputRoot) const;
   void ResetToDefaults();
@@ -25,19 +26,14 @@ struct CommonSettings
   bool directImport{false};
 };
 
-struct Options
+class Options : public Singleton<Options>
 {
+public:
   void Load();
   void Save() const;
   void ResetToDefaults();
 
   void DrawDialog();
-
-  static Options &Get()
-  {
-    static Options options;
-    return options;
-  }
 
   CommonSettings common{};
 };
