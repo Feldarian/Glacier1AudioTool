@@ -8,7 +8,7 @@
 
 #include "Hitman1Dialog.hpp"
 
-bool Hitman1Dialog::Clear(bool retVal)
+bool Hitman1Dialog::Clear(const bool retVal)
 {
   indexToKey.clear();
   lastModifiedDatesMap.clear();
@@ -16,12 +16,13 @@ bool Hitman1Dialog::Clear(bool retVal)
   return HitmanDialog::Clear(retVal);
 }
 
-bool Hitman1Dialog::LoadImpl(const std::filesystem::path &loadPath)
+bool Hitman1Dialog::LoadImpl(StringView8CI loadPathView)
 {
+  auto loadPath = loadPathView.path();
   Clear();
 
-  const auto archiveBinFilePath = loadPath.parent_path() / (loadPath.stem().native() + L".bin");
-  if (!exists(archiveBinFilePath))
+  const auto archiveBinFilePath = ChangeExtension(loadPathView, ".bin");
+  if (!exists(archiveBinFilePath.path()))
   {
     DisplayError(LocalizationManager::Get().Localize("HITMAN_1_DIALOG_ERROR_MISSING_BIN"));
     return false;
@@ -34,11 +35,10 @@ bool Hitman1Dialog::LoadImpl(const std::filesystem::path &loadPath)
   std::string archiveIdxLine;
   while (std::getline(archiveIdx, archiveIdxLine))
   {
-    std::wstring month, day, time;
+    std::string month, day, time;
     int64_t dataSize = 0;
-    std::wstring entryPath;
-    scn::scan(ToUTF<wchar_t>(archiveIdxLine), L"-rw-rw-r--   1 zope {} {} {} {} {}", dataSize, month, day, time,
-              entryPath);
+    std::string entryPath;
+    scn::scan(archiveIdxLine, "-rw-rw-r--   1 zope {} {} {} {} {}", dataSize, month, day, time, entryPath);
 
     if (!archivePaths.emplace(entryPath).second)
       return Clear(false);
@@ -51,11 +51,10 @@ bool Hitman1Dialog::LoadImpl(const std::filesystem::path &loadPath)
   archiveIdx.seekg(0);
   while (std::getline(archiveIdx, archiveIdxLine))
   {
-    std::wstring month, day, time;
+    std::string month, day, time;
     int64_t dataSize = 0;
-    std::wstring entryPath;
-    scn::scan(ToUTF<wchar_t>(archiveIdxLine), L"-rw-rw-r--   1 zope {} {} {} {} {}", dataSize, month, day, time,
-              entryPath);
+    std::string entryPath;
+    scn::scan(archiveIdxLine, "-rw-rw-r--   1 zope {} {} {} {} {}", dataSize, month, day, time, entryPath);
 
     auto archivePathIt = archivePaths.find(entryPath);
     if (archivePathIt == archivePaths.end())
@@ -65,7 +64,7 @@ bool Hitman1Dialog::LoadImpl(const std::filesystem::path &loadPath)
     if (!inserted)
       return Clear(false);
 
-    if (!lastModifiedDatesMap.try_emplace(archivePathIt->native(), std::format(L"{} {} {}", month, day, time)).second)
+    if (!lastModifiedDatesMap.try_emplace(archivePathIt->native(), std::format("{} {} {}", month, day, time)).second)
       return Clear(false);
 
     indexToKey.emplace_back(archivePathIt->native());
@@ -86,13 +85,15 @@ bool Hitman1Dialog::LoadImpl(const std::filesystem::path &loadPath)
   if (!options.common.checkOriginality)
     return true;
 
-  originalDataPath = GetProgramPath();
-  if (originalDataPath.empty())
+  auto dataPath = GetProgramPath().path();
+  if (dataPath.empty())
     return Clear(false);
 
-  originalDataPath /= L"data";
-  originalDataPath /= L"records";
-  originalDataPath /= L"h1";
+  dataPath /= L"data";
+  dataPath /= L"records";
+  dataPath /= L"h1";
+
+  originalDataPath = dataPath;
 
   if (!LoadOriginalData())
     return Clear(false);
@@ -100,31 +101,34 @@ bool Hitman1Dialog::LoadImpl(const std::filesystem::path &loadPath)
   return true;
 }
 
-bool Hitman1Dialog::ImportSingle(const std::filesystem::path &importFolderPath,
-    const std::filesystem::path &importFilePath)
+bool Hitman1Dialog::ImportSingle(const StringView8CI importFolderPathView, StringView8CI importFilePathView)
 {
-  auto filePath = relative(importFilePath, importFolderPath);
-  auto fileIt = fileMap.find(filePath.native());
+  const auto importFolderPath = importFolderPathView.path();
+  const auto importFilePath = importFilePathView.path();
+
+  auto filePath = String8CI(relative(importFilePath, importFolderPath));
+  auto fileIt = fileMap.find(filePath);
   if (fileIt == fileMap.end())
   {
-    const auto nextExtension = filePath.extension().native() == L".wav" ? L".ogg" : L".wav";
+    const StringView8CI nextExtension(filePath.path().extension() == StringView8CI(".wav") ? ".ogg" : ".wav");
     filePath = ChangeExtension(filePath, nextExtension);
-    fileIt = fileMap.find(filePath.native());
+    fileIt = fileMap.find(filePath);
     if (fileIt == fileMap.end())
     {
-      DisplayWarning(LocalizationManager::Get().LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", ToUTF<char>(importFilePath.native())));
+      DisplayWarning(LocalizationManager::Get().LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", importFilePathView));
       return false;
     }
   }
 
-  if (!ImportSingleHitmanFile(fileIt->second, filePath, importFilePath))
+  if (!ImportSingleHitmanFile(fileIt->second, filePath, importFilePathView))
     return false;
 
   return true;
 }
 
-bool Hitman1Dialog::SaveImpl(const std::filesystem::path &savePath)
+bool Hitman1Dialog::SaveImpl(StringView8CI savePathView)
 {
+  auto savePath = savePathView.path();
   const auto archiveBinFilePath = savePath.parent_path() / (savePath.stem().native() + L".bin");
 
   const auto oldSync = std::ios_base::sync_with_stdio(false);
@@ -149,8 +153,8 @@ bool Hitman1Dialog::SaveImpl(const std::filesystem::path &savePath)
 
     fileIt->second.Export(exportBytes);
 
-    archiveIdx << ToUTF<char>(std::format(L"-rw-rw-r--   1 zope {:12d} {} {}\n", exportBytes.size(),
-                                          lastModifiedDateIt->second, archivePathIt->native()));
+    archiveIdx << std::format("-rw-rw-r--   1 zope {:12d} {} {}\n", exportBytes.size(),
+                                          lastModifiedDateIt->second, *archivePathIt);
     archiveBin.write(exportBytes.data(), static_cast<int64_t>(exportBytes.size()));
 
     archiveRoot.GetFile(*archivePathIt).dirty = false;
@@ -163,5 +167,5 @@ bool Hitman1Dialog::SaveImpl(const std::filesystem::path &savePath)
 
 void Hitman1Dialog::DrawDialog()
 {
-  DrawHitmanDialog(L"Codename 47", L"Hitman 1 Speech (*.idx)\0*.idx\0", L"English.idx");
+  DrawHitmanDialog("Codename 47", "Hitman 1 Speech (*.idx)\0*.idx\0", "English.idx");
 }

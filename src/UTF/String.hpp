@@ -19,45 +19,49 @@ public:
   StringWrapper() = default;
 
   template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
+  requires IsUTFCharType<UTFCharTypeInput> && (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, UTFCharTypeInput>)
   StringWrapper(const std::basic_string_view<UTFCharTypeInput> other)
   {
     *this = other;
   }
 
   template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
+  requires IsUTFCharType<UTFCharTypeInput> && (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, UTFCharTypeInput>)
   StringWrapper(const std::basic_string<UTFCharTypeInput> &other)
   {
     *this = other;
   }
 
+  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>>>>
+  requires std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
   StringWrapper(std::basic_string<UTFCharType> &&other) noexcept
-  {
-    if constexpr (std::same_as<UTFStorageType, std::basic_string<UTFCharType>>)
-      utfData = std::move(other);
-    else
-      *this = other;
-  }
+    : utfData(std::move(other))
+  {}
 
   template <typename UTFCharTypeInput, size_t UTFInputSize>
-  requires IsUTFCharType<UTFCharTypeInput>
+  requires IsUTFCharType<UTFCharTypeInput> && (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, UTFCharTypeInput>)
   StringWrapper(const UTFCharTypeInput (&other)[UTFInputSize])
     : StringWrapper{ std::basic_string_view<UTFCharTypeInput>(other, UTFInputSize - 1) }
   {}
 
   template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
+  requires IsUTFCharType<UTFCharTypeInput> && (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, UTFCharTypeInput>)
   StringWrapper(const UTFCharTypeInput *other, const size_t length)
     : StringWrapper{ std::basic_string_view<UTFCharTypeInput>(other, length) }
   {}
 
+  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, wchar_t>>>
   StringWrapper(const std::filesystem::path &other)
     : StringWrapper{ other.native() }
   {}
 
+  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<wchar_t>>>>
+  StringWrapper(std::filesystem::path &&other) noexcept
+    : StringWrapper{ std::move(other.native()) }
+  {}
+
   template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
-  requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>>
+  requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>> && (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, UTFCharTypeInput>)
   StringWrapper(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, CaseSensitiveInput>& other)
     : StringWrapper{ other.native() }
   {}
@@ -71,125 +75,192 @@ public:
   {}
 
   template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
+  requires (IsUTF8CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput>) || (IsUTF16CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput>) || (IsUTF32CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput>)
   StringWrapper& operator=(const std::basic_string_view<UTFCharTypeInput> other)
   {
-    if constexpr (std::same_as<UTFStorageType, std::basic_string_view<UTFCharType>>)
-      utfData = other;
-
-    if constexpr (std::same_as<UTFStorageType, std::basic_string<UTFCharType>>)
-    {
-      UErrorCode errorCode = U_ZERO_ERROR;
-
-      resize(other.size() * std::max(1ull, sizeof(UTFCharTypeInput) / sizeof(UTFCharType)), static_cast<UTFCharType>(0));
-
-      size_t offset = 0;
-      int32_t length = 0;
-      if constexpr (IsUTF8CharType<UTFCharType>)
-      {
-        if constexpr (IsUTF8CharType<UTFCharTypeInput>)
-        {
-          std::memcpy(data(), other.data(), other.size());
-          length = other.size();
-        }
-
-        if constexpr (IsUTF16CharType<UTFCharTypeInput>)
-          u_strToUTF8(data(), size(), &length, reinterpret_cast<const UChar *>(other.data()), other.size(), &errorCode);
-
-        if constexpr (IsUTF32CharType<UTFCharTypeInput>)
-        {
-          auto *reinterpretedData = reinterpret_cast<uint8_t *>(data());
-          const auto reinterpretedDataSize = size();
-          for (const auto otherCodePoint : other)
-          {
-            [[maybe_unused]] bool wasError = false;
-            const auto codePoint = static_cast<uint32_t>(otherCodePoint);
-            U8_APPEND(reinterpretedData, offset, reinterpretedDataSize, codePoint, wasError);
-            length = offset;
-          }
-        }
-      }
-
-      if constexpr (IsUTF16CharType<UTFCharType>)
-      {
-        if constexpr (IsUTF8CharType<UTFCharTypeInput>)
-          u_strFromUTF8(reinterpret_cast<UChar *>(data()), size(), &length, reinterpret_cast<const char *>(other.data()), other.size(), &errorCode);
-
-        if constexpr (IsUTF16CharType<UTFCharTypeInput>)
-        {
-          std::memcpy(data(), other.data(), other.size() * sizeof UChar);
-          length = other.size();
-        }
-
-        if constexpr (IsUTF32CharType<UTFCharTypeInput>)
-          u_strFromUTF32(reinterpret_cast<UChar *>(data()), size(), &length, reinterpret_cast<const UChar32 *>(other.data()), other.size(), &errorCode);
-      }
-
-      if constexpr (IsUTF32CharType<UTFCharType>)
-      {
-        if constexpr (IsUTF8CharType<UTFCharTypeInput>)
-        {
-          auto *reinterpretedData = reinterpret_cast<UChar32 *>(data());
-          const auto *inputData = other.data();
-          const auto inputDataSize = other.size();
-          for (size_t inputOffset = 0; inputOffset < inputDataSize;)
-          {
-            auto &outputChar = reinterpretedData[offset++];
-            U8_NEXT(inputData, inputOffset, inputDataSize, outputChar);
-          }
-          length = offset;
-        }
-
-        if constexpr (IsUTF16CharType<UTFCharTypeInput>)
-        {
-          auto *reinterpretedData = reinterpret_cast<UChar32 *>(data());
-          const auto *inputData = other.data();
-          const auto inputDataSize = other.size();
-          for (size_t inputOffset = 0; inputOffset < inputDataSize;)
-          {
-            auto &outputChar = reinterpretedData[offset++];
-            U16_NEXT(inputData, inputOffset, inputDataSize, outputChar);
-          }
-          length = offset;
-        }
-
-        if constexpr (IsUTF32CharType<UTFCharTypeInput>)
-        {
-          std::memcpy(data(), other.data(), other.size());
-          length = other.size();
-        }
-      }
-
-      if (errorCode > U_ZERO_ERROR)
-        length = 0;
-
-      resize(length, static_cast<UTFCharType>(0));
-    }
+    if (other.empty())
+      utfData = {};
+    else
+      utfData = {reinterpret_cast<const UTFCharType *>(&other.front()), reinterpret_cast<const UTFCharType *>(&other.back()) + 1};
 
     return *this;
   }
 
   template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
+  requires IsUTF8CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
+  StringWrapper& operator=(const std::basic_string_view<UTFCharTypeInput> other)
+  {
+    UErrorCode errorCode = U_ZERO_ERROR;
+
+    resize(other.size() * std::max(1ull, sizeof(UTFCharTypeInput) / sizeof(UTFCharType)), static_cast<UTFCharType>(0));
+
+    int32_t length = 0;
+
+    u_strToUTF8(reinterpret_cast<char *>(data()), size(), &length, reinterpret_cast<const UChar *>(other.data()), other.size(), &errorCode);
+
+    if (errorCode > U_ZERO_ERROR)
+      length = 0;
+
+    resize(length, static_cast<UTFCharType>(0));
+
+    return *this;
+  }
+
+  template <typename UTFCharTypeInput>
+  requires IsUTF8CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
+  StringWrapper& operator=(const std::basic_string_view<UTFCharTypeInput> other)
+  {
+    UErrorCode errorCode = U_ZERO_ERROR;
+
+    resize(other.size() * std::max(1ull, sizeof(UTFCharTypeInput) / sizeof(UTFCharType)), static_cast<UTFCharType>(0));
+
+    size_t offset = 0;
+    int32_t length = 0;
+
+    auto *reinterpretedData = reinterpret_cast<uint8_t *>(data());
+    const auto reinterpretedDataSize = size();
+    for (const auto otherCodePoint : other)
+    {
+      [[maybe_unused]] bool wasError = false;
+      const auto codePoint = static_cast<uint32_t>(otherCodePoint);
+      U8_APPEND(reinterpretedData, offset, reinterpretedDataSize, codePoint, wasError);
+      length = offset;
+    }
+
+    if (errorCode > U_ZERO_ERROR)
+      length = 0;
+
+    resize(length, static_cast<UTFCharType>(0));
+
+    return *this;
+  }
+
+  template <typename UTFCharTypeInput>
+  requires IsUTF16CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
+  StringWrapper& operator=(const std::basic_string_view<UTFCharTypeInput> other)
+  {
+    UErrorCode errorCode = U_ZERO_ERROR;
+
+    resize(other.size() * std::max(1ull, sizeof(UTFCharTypeInput) / sizeof(UTFCharType)), static_cast<UTFCharType>(0));
+
+    int32_t length = 0;
+
+    u_strFromUTF8(reinterpret_cast<UChar *>(data()), size(), &length, reinterpret_cast<const char *>(other.data()), other.size(), &errorCode);
+
+    if (errorCode > U_ZERO_ERROR)
+      length = 0;
+
+    resize(length, static_cast<UTFCharType>(0));
+
+    return *this;
+  }
+
+  template <typename UTFCharTypeInput>
+  requires IsUTF16CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
+  StringWrapper& operator=(const std::basic_string_view<UTFCharTypeInput> other)
+  {
+    UErrorCode errorCode = U_ZERO_ERROR;
+
+    resize(other.size() * std::max(1ull, sizeof(UTFCharTypeInput) / sizeof(UTFCharType)), static_cast<UTFCharType>(0));
+
+    int32_t length = 0;
+
+    u_strFromUTF32(reinterpret_cast<UChar *>(data()), size(), &length, reinterpret_cast<const UChar32 *>(other.data()), other.size(), &errorCode);
+
+    if (errorCode > U_ZERO_ERROR)
+      length = 0;
+
+    resize(length, static_cast<UTFCharType>(0));
+
+    return *this;
+  }
+
+  template <typename UTFCharTypeInput>
+  requires IsUTF32CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
+  StringWrapper& operator=(const std::basic_string_view<UTFCharTypeInput> other)
+  {
+    UErrorCode errorCode = U_ZERO_ERROR;
+
+    resize(other.size() * std::max(1ull, sizeof(UTFCharTypeInput) / sizeof(UTFCharType)), static_cast<UTFCharType>(0));
+
+    size_t offset = 0;
+    int32_t length = 0;
+
+    auto *reinterpretedData = reinterpret_cast<UChar32 *>(data());
+    const auto *inputData = other.data();
+    const auto inputDataSize = other.size();
+    for (size_t inputOffset = 0; inputOffset < inputDataSize;)
+    {
+      auto &outputChar = reinterpretedData[offset++];
+      U8_NEXT(inputData, inputOffset, inputDataSize, outputChar);
+    }
+    length = offset;
+
+    if (errorCode > U_ZERO_ERROR)
+      length = 0;
+
+    resize(length, static_cast<UTFCharType>(0));
+
+    return *this;
+  }
+
+  template <typename UTFCharTypeInput>
+  requires IsUTF32CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
+  StringWrapper& operator=(const std::basic_string_view<UTFCharTypeInput> other)
+  {
+    UErrorCode errorCode = U_ZERO_ERROR;
+
+    resize(other.size() * std::max(1ull, sizeof(UTFCharTypeInput) / sizeof(UTFCharType)), static_cast<UTFCharType>(0));
+
+    size_t offset = 0;
+    int32_t length = 0;
+
+    auto *reinterpretedData = reinterpret_cast<UChar32 *>(data());
+    const auto *inputData = other.data();
+    const auto inputDataSize = other.size();
+    for (size_t inputOffset = 0; inputOffset < inputDataSize;)
+    {
+      auto &outputChar = reinterpretedData[offset++];
+      U16_NEXT(inputData, inputOffset, inputDataSize, outputChar);
+    }
+    length = offset;
+
+    if (errorCode > U_ZERO_ERROR)
+      length = 0;
+
+    resize(length, static_cast<UTFCharType>(0));
+
+    return *this;
+  }
+
+  template <typename UTFCharTypeInput>
+  requires IsUTFCharType<UTFCharTypeInput> && (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, UTFCharTypeInput>)
   StringWrapper& operator=(const std::basic_string<UTFCharTypeInput> &other)
   {
     return *this = std::basic_string_view<UTFCharTypeInput>(other);
   }
 
   template <typename UTFCharTypeInput, size_t UTFInputSize>
-  requires IsUTFCharType<UTFCharTypeInput>
+  requires IsUTFCharType<UTFCharTypeInput> && (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, UTFCharTypeInput>)
   StringWrapper& operator=(const UTFCharTypeInput (&other)[UTFInputSize])
   {
     return *this = std::basic_string_view<UTFCharTypeInput>(other, UTFInputSize - 1);
   }
 
+  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, wchar_t>>>
   StringWrapper& operator=(const std::filesystem::path& other)
   {
     return *this = other.native();
   }
 
+  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<wchar_t>>>>
+  StringWrapper& operator=(std::filesystem::path &&other) noexcept
+  {
+    return *this = std::move(other.native());
+  }
+
   template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
-  requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>>
+  requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>> && (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, UTFCharTypeInput>)
   StringWrapper& operator=(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, CaseSensitiveInput>& other)
   {
     return *this = other.native();
@@ -224,380 +295,406 @@ public:
   }
 
   template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
+  requires IsUTF8CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput>
   [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
   {
-    #define CODEPOINT_CASE_FIX(codepoint) if constexpr (!CaseSensitive) codepoint = u_tolower(codepoint)
-
-    if constexpr (IsUTF8CharType<UTFCharType>)
+    auto *reinterpretedData = reinterpret_cast<const uint8_t *>(data());
+    const auto reinterpretedDataSize = size();
+    size_t reinterpretedDataOffset = 0;
+    auto *reinterpretedInput = reinterpret_cast<const uint8_t *>(other.data());
+    const auto reinterpretedInputSize = other.size();
+    size_t reinterpretedInputOffset = 0;
+    auto glyph = CodepointInvalid;
+    auto glyphInput = CodepointInvalid;
+    while (reinterpretedDataOffset < reinterpretedDataSize && reinterpretedInputOffset < reinterpretedInputSize)
     {
-      if constexpr (IsUTF8CharType<UTFCharTypeInput>)
+      U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+      U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
+
+      if constexpr (!CaseSensitive)
       {
-        auto *reinterpretedData = reinterpret_cast<const uint8_t *>(data());
-        const auto reinterpretedDataSize = size();
-        size_t reinterpretedDataOffset = 0;
-        auto *reinterpretedInput = reinterpret_cast<const uint8_t *>(other.data());
-        const auto reinterpretedInputSize = other.size();
-        size_t reinterpretedInputOffset = 0;
-        auto glyph = CodepointInvalid;
-        auto glyphInput = CodepointInvalid;
-        while (reinterpretedDataOffset < reinterpretedDataSize && reinterpretedInputOffset < reinterpretedInputSize)
-        {
-          U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-          CODEPOINT_CASE_FIX(glyph);
-
-          U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-          CODEPOINT_CASE_FIX(glyphInput);
-
-          if (glyph != glyphInput)
-            return glyph <=> glyphInput;
-        }
-
-        if (reinterpretedDataOffset != reinterpretedDataSize)
-        {
-          U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-          CODEPOINT_CASE_FIX(glyph);
-        }
-        else
-          glyph = CodepointInvalid;
-
-        if (reinterpretedInputOffset != reinterpretedInputSize)
-        {
-          U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-          CODEPOINT_CASE_FIX(glyphInput);
-        }
-        else
-          glyphInput = CodepointInvalid;
-
-        return glyph <=> glyphInput;
+        glyph = u_tolower(glyph);
+        glyphInput = u_tolower(glyphInput);
       }
 
-      if constexpr (IsUTF16CharType<UTFCharTypeInput>)
-      {
-        auto *reinterpretedData = reinterpret_cast<const uint8_t *>(data());
-        const auto reinterpretedDataSize = size();
-        size_t reinterpretedDataOffset = 0;
-        auto *reinterpretedInput = reinterpret_cast<const UChar *>(other.data());
-        const auto reinterpretedInputSize = other.size();
-        size_t reinterpretedInputOffset = 0;
-        auto glyph = CodepointInvalid;
-        auto glyphInput = CodepointInvalid;
-        while (reinterpretedDataOffset < reinterpretedDataSize && reinterpretedInputOffset < reinterpretedInputSize)
-        {
-          U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-          CODEPOINT_CASE_FIX(glyph);
-
-          U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-          CODEPOINT_CASE_FIX(glyphInput);
-
-          if (glyph != glyphInput)
-            return glyph <=> glyphInput;
-        }
-
-        if (reinterpretedDataOffset != reinterpretedDataSize)
-        {
-          U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-          CODEPOINT_CASE_FIX(glyph);
-        }
-        else
-          glyph = CodepointInvalid;
-
-        if (reinterpretedInputOffset != reinterpretedInputSize)
-        {
-          U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-          CODEPOINT_CASE_FIX(glyphInput);
-        }
-        else
-          glyphInput = CodepointInvalid;
-
+      if (glyph != glyphInput)
         return glyph <=> glyphInput;
-      }
-
-      if constexpr (IsUTF32CharType<UTFCharTypeInput>)
-      {
-        auto *reinterpretedData = reinterpret_cast<const uint8_t *>(data());
-        const auto reinterpretedDataSize = size();
-        size_t reinterpretedDataOffset = 0;
-        size_t inputOffset = 0;
-        auto glyph = CodepointInvalid;
-        auto glyphInput = CodepointInvalid;
-        while (reinterpretedDataOffset < reinterpretedDataSize && inputOffset < other.size())
-        {
-          U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-          CODEPOINT_CASE_FIX(glyph);
-
-          glyphInput = static_cast<uint32_t>(other[inputOffset++]);
-          CODEPOINT_CASE_FIX(glyphInput);
-
-          if (glyph != glyphInput)
-            return glyph <=> glyphInput;
-        }
-
-        if (reinterpretedDataOffset != reinterpretedDataSize)
-        {
-          U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-          CODEPOINT_CASE_FIX(glyph);
-        }
-        else
-          glyph = CodepointInvalid;
-
-        if (inputOffset != other.size())
-        {
-          glyphInput = static_cast<uint32_t>(other[inputOffset]);
-          CODEPOINT_CASE_FIX(glyphInput);
-        }
-        else
-          glyphInput =  CodepointInvalid;
-
-        return glyph <=> glyphInput;
-      }
     }
 
-    if constexpr (IsUTF16CharType<UTFCharType>)
+    if (reinterpretedDataOffset != reinterpretedDataSize)
+      U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+    else
+      glyph = CodepointInvalid;
+
+    if (reinterpretedInputOffset != reinterpretedInputSize)
+      U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
+    else
+      glyphInput = CodepointInvalid;
+
+    if constexpr (!CaseSensitive)
     {
-      if constexpr (IsUTF8CharType<UTFCharTypeInput>)
-      {
-        auto *reinterpretedData = reinterpret_cast<const UChar *>(data());
-        const auto reinterpretedDataSize = size();
-        size_t reinterpretedDataOffset = 0;
-        auto *reinterpretedInput = reinterpret_cast<const uint8_t *>(other.data());
-        size_t reinterpretedInputOffset = 0;
-        const auto reinterpretedInputSize = other.size();
-        auto glyph = CodepointInvalid;
-        auto glyphInput = CodepointInvalid;
-        while (reinterpretedDataOffset < reinterpretedDataSize && reinterpretedInputOffset < reinterpretedInputSize)
-        {
-          U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-          CODEPOINT_CASE_FIX(glyph);
-
-          U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-          CODEPOINT_CASE_FIX(glyphInput);
-
-          if (glyph != glyphInput)
-            return glyph <=> glyphInput;
-        }
-
-        if (reinterpretedDataOffset != reinterpretedDataSize)
-        {
-          U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-          CODEPOINT_CASE_FIX(glyph);
-        }
-        else
-          glyph = CodepointInvalid;
-
-        if (reinterpretedInputOffset != reinterpretedInputSize)
-        {
-          U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-          CODEPOINT_CASE_FIX(glyphInput);
-        }
-        else
-          glyphInput = CodepointInvalid;
-
-        return glyph <=> glyphInput;
-      }
-
-      if constexpr (IsUTF16CharType<UTFCharTypeInput>)
-      {
-        auto *reinterpretedData = reinterpret_cast<const UChar *>(data());
-        const auto reinterpretedDataSize = size();
-        size_t reinterpretedDataOffset = 0;
-        auto *reinterpretedInput = reinterpret_cast<const UChar *>(other.data());
-        size_t reinterpretedInputOffset = 0;
-        const auto reinterpretedInputSize = other.size();
-        auto glyph = CodepointInvalid;
-        auto glyphInput = CodepointInvalid;
-        while (reinterpretedDataOffset < reinterpretedDataSize && reinterpretedInputOffset < reinterpretedInputSize)
-        {
-          U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-          CODEPOINT_CASE_FIX(glyph);
-
-          U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-          CODEPOINT_CASE_FIX(glyphInput);
-
-          if (glyph != glyphInput)
-            return glyph <=> glyphInput;
-        }
-
-        if (reinterpretedDataOffset != reinterpretedDataSize)
-        {
-          U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-          CODEPOINT_CASE_FIX(glyph);
-        }
-        else
-          glyph = CodepointInvalid;
-
-        if (reinterpretedInputOffset != reinterpretedInputSize)
-        {
-          U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-          CODEPOINT_CASE_FIX(glyphInput);
-        }
-        else
-          glyphInput = CodepointInvalid;
-
-        return glyph <=> glyphInput;
-      }
-
-      if constexpr (IsUTF32CharType<UTFCharTypeInput>)
-      {
-        auto *reinterpretedData = reinterpret_cast<const UChar *>(data());
-        const auto reinterpretedDataSize = size();
-        size_t reinterpretedDataOffset = 0;
-        size_t inputOffset = 0;
-        auto glyph = CodepointInvalid;
-        auto glyphInput = CodepointInvalid;
-        while (reinterpretedDataOffset < reinterpretedDataSize && inputOffset < other.size())
-        {
-          U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-          CODEPOINT_CASE_FIX(glyph);
-
-          glyphInput = static_cast<uint32_t>(other[inputOffset++]);
-          CODEPOINT_CASE_FIX(glyphInput);
-
-          if (glyph != glyphInput)
-            return glyph <=> glyphInput;
-        }
-
-        if (reinterpretedDataOffset != reinterpretedDataSize)
-        {
-          U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-          CODEPOINT_CASE_FIX(glyph);
-        }
-        else
-          glyph = CodepointInvalid;
-
-        if (inputOffset != other.size())
-        {
-          glyphInput = static_cast<uint32_t>(other[inputOffset]);
-          CODEPOINT_CASE_FIX(glyphInput);
-        }
-        else
-          glyphInput =  CodepointInvalid;
-
-        return glyph <=> glyphInput;
-      }
+      glyph = u_tolower(glyph);
+      glyphInput = u_tolower(glyphInput);
     }
 
-    if constexpr (IsUTF32CharType<UTFCharType>)
+    return glyph <=> glyphInput;
+  }
+
+  template <typename UTFCharTypeInput>
+  requires IsUTF8CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput>
+  [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
+  {
+    auto *reinterpretedData = reinterpret_cast<const uint8_t *>(data());
+    const auto reinterpretedDataSize = size();
+    size_t reinterpretedDataOffset = 0;
+    auto *reinterpretedInput = reinterpret_cast<const UChar *>(other.data());
+    const auto reinterpretedInputSize = other.size();
+    size_t reinterpretedInputOffset = 0;
+    auto glyph = CodepointInvalid;
+    auto glyphInput = CodepointInvalid;
+    while (reinterpretedDataOffset < reinterpretedDataSize && reinterpretedInputOffset < reinterpretedInputSize)
     {
-      if constexpr (IsUTF8CharType<UTFCharTypeInput>)
+      U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+      U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
+
+      if constexpr (!CaseSensitive)
       {
-        auto *reinterpretedInput = reinterpret_cast<const uint8_t *>(other.data());
-        const auto reinterpretedInputSize = other.size();
-        size_t reinterpretedInputOffset = 0;
-        size_t dataOffset = 0;
-        auto glyph = CodepointInvalid;
-        auto glyphInput = CodepointInvalid;
-        while (dataOffset < size() && reinterpretedInputOffset < reinterpretedInputSize)
-        {
-          glyph = static_cast<uint32_t>(utfData[dataOffset++]);
-          CODEPOINT_CASE_FIX(glyph);
-
-          U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-          CODEPOINT_CASE_FIX(glyphInput);
-
-          if (glyph != glyphInput)
-            return glyph <=> glyphInput;
-        }
-
-        if (dataOffset != size())
-        {
-          glyph = static_cast<uint32_t>(utfData[dataOffset]);
-          CODEPOINT_CASE_FIX(glyph);
-        }
-        else
-          glyph = CodepointInvalid;
-
-        if (reinterpretedInputOffset != reinterpretedInputSize)
-        {
-          U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-          CODEPOINT_CASE_FIX(glyphInput);
-        }
-        else
-          glyphInput = CodepointInvalid;
-
-        return glyph <=> glyphInput;
+        glyph = u_tolower(glyph);
+        glyphInput = u_tolower(glyphInput);
       }
 
-      if constexpr (IsUTF16CharType<UTFCharTypeInput>)
-      {
-        auto *reinterpretedInput = reinterpret_cast<const UChar *>(other.data());
-        const auto reinterpretedInputSize = other.size();
-        size_t reinterpretedInputOffset = 0;
-        size_t dataOffset = 0;
-        auto glyph = CodepointInvalid;
-        auto glyphInput = CodepointInvalid;
-        while (dataOffset < size() && reinterpretedInputOffset < reinterpretedInputSize)
-        {
-          glyph = static_cast<uint32_t>(utfData[dataOffset++]);
-          CODEPOINT_CASE_FIX(glyph);
-
-          U16_NEXT(reinterpretedInput, reinterpretedInputSize, reinterpretedInputOffset, glyphInput);
-          CODEPOINT_CASE_FIX(glyphInput);
-
-          if (glyphInput != glyph)
-            return glyphInput <=> glyph;
-        }
-
-        if (dataOffset != size())
-        {
-          glyph = static_cast<uint32_t>(utfData[dataOffset]);
-          CODEPOINT_CASE_FIX(glyph);
-        }
-        else
-          glyph = CodepointInvalid;
-
-        if (reinterpretedInputOffset != reinterpretedInputSize)
-        {
-          U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-          CODEPOINT_CASE_FIX(glyphInput);
-        }
-        else
-          glyphInput = CodepointInvalid;
-
+      if (glyph != glyphInput)
         return glyph <=> glyphInput;
-      }
-
-      if constexpr (IsUTF32CharType<UTFCharTypeInput>)
-      {
-        size_t inputOffset = 0;
-        size_t dataOffset = 0;
-        auto glyph = CodepointInvalid;
-        auto glyphInput = CodepointInvalid;
-        while (dataOffset < size() && inputOffset < other.size())
-        {
-          glyph = static_cast<uint32_t>(utfData[dataOffset++]);
-          CODEPOINT_CASE_FIX(glyph);
-
-          glyphInput = static_cast<uint32_t>(other[inputOffset++]);
-          CODEPOINT_CASE_FIX(glyphInput);
-
-          if (glyphInput != glyph)
-            return glyphInput <=> glyph;
-        }
-
-        if (dataOffset != size())
-        {
-          glyph = static_cast<uint32_t>(utfData[dataOffset]);
-          CODEPOINT_CASE_FIX(glyph);
-        }
-        else
-          glyph = CodepointInvalid;
-
-        if (inputOffset != other.size())
-        {
-          glyphInput = static_cast<uint32_t>(other[inputOffset]);
-          CODEPOINT_CASE_FIX(glyphInput);
-        }
-        else
-          glyphInput = CodepointInvalid;
-
-        return glyph <=> glyphInput;
-      }
     }
 
-    #undef CODEPOINT_CASE_FIX
+    if (reinterpretedDataOffset != reinterpretedDataSize)
+      U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+    else
+      glyph = CodepointInvalid;
 
-    return 0 <=> 1;
+    if (reinterpretedInputOffset != reinterpretedInputSize)
+      U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
+    else
+      glyphInput = CodepointInvalid;
+
+    if constexpr (!CaseSensitive)
+    {
+      glyph = u_tolower(glyph);
+      glyphInput = u_tolower(glyphInput);
+    }
+
+    return glyph <=> glyphInput;
+  }
+
+  template <typename UTFCharTypeInput>
+  requires IsUTF8CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput>
+  [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
+  {
+    auto *reinterpretedData = reinterpret_cast<const uint8_t *>(data());
+    const auto reinterpretedDataSize = size();
+    size_t reinterpretedDataOffset = 0;
+    size_t inputOffset = 0;
+    auto glyph = CodepointInvalid;
+    auto glyphInput = CodepointInvalid;
+    while (reinterpretedDataOffset < reinterpretedDataSize && inputOffset < other.size())
+    {
+      U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+      glyphInput = static_cast<uint32_t>(other[inputOffset++]);
+
+      if constexpr (!CaseSensitive)
+      {
+        glyph = u_tolower(glyph);
+        glyphInput = u_tolower(glyphInput);
+      }
+
+      if (glyph != glyphInput)
+        return glyph <=> glyphInput;
+    }
+
+    if (reinterpretedDataOffset != reinterpretedDataSize)
+      U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+    else
+      glyph = CodepointInvalid;
+
+    if (inputOffset != other.size())
+      glyphInput = static_cast<uint32_t>(other[inputOffset]);
+    else
+      glyphInput =  CodepointInvalid;
+
+    if constexpr (!CaseSensitive)
+    {
+      glyph = u_tolower(glyph);
+      glyphInput = u_tolower(glyphInput);
+    }
+
+    return glyph <=> glyphInput;
+  }
+
+  template <typename UTFCharTypeInput>
+  requires IsUTF16CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput>
+  [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
+  {
+    auto *reinterpretedData = reinterpret_cast<const UChar *>(data());
+    const auto reinterpretedDataSize = size();
+    size_t reinterpretedDataOffset = 0;
+    auto *reinterpretedInput = reinterpret_cast<const uint8_t *>(other.data());
+    const auto reinterpretedInputSize = other.size();
+    size_t reinterpretedInputOffset = 0;
+    auto glyph = CodepointInvalid;
+    auto glyphInput = CodepointInvalid;
+    while (reinterpretedDataOffset < reinterpretedDataSize && reinterpretedInputOffset < reinterpretedInputSize)
+    {
+      U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+      U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
+
+      if constexpr (!CaseSensitive)
+      {
+        glyph = u_tolower(glyph);
+        glyphInput = u_tolower(glyphInput);
+      }
+
+      if (glyph != glyphInput)
+        return glyph <=> glyphInput;
+    }
+
+    if (reinterpretedDataOffset != reinterpretedDataSize)
+      U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+    else
+      glyph = CodepointInvalid;
+
+    if (reinterpretedInputOffset != reinterpretedInputSize)
+      U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
+    else
+      glyphInput = CodepointInvalid;
+
+    if constexpr (!CaseSensitive)
+    {
+      glyph = u_tolower(glyph);
+      glyphInput = u_tolower(glyphInput);
+    }
+
+    return glyph <=> glyphInput;
+  }
+
+  template <typename UTFCharTypeInput>
+  requires IsUTF16CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput>
+  [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
+  {
+    auto *reinterpretedData = reinterpret_cast<const UChar *>(data());
+    const auto reinterpretedDataSize = size();
+    size_t reinterpretedDataOffset = 0;
+    auto *reinterpretedInput = reinterpret_cast<const UChar *>(other.data());
+    const auto reinterpretedInputSize = other.size();
+    size_t reinterpretedInputOffset = 0;
+    auto glyph = CodepointInvalid;
+    auto glyphInput = CodepointInvalid;
+    while (reinterpretedDataOffset < reinterpretedDataSize && reinterpretedInputOffset < reinterpretedInputSize)
+    {
+      U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+      U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
+
+      if constexpr (!CaseSensitive)
+      {
+        glyph = u_tolower(glyph);
+        glyphInput = u_tolower(glyphInput);
+      }
+
+      if (glyph != glyphInput)
+        return glyph <=> glyphInput;
+    }
+
+    if (reinterpretedDataOffset != reinterpretedDataSize)
+      U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+    else
+      glyph = CodepointInvalid;
+
+    if (reinterpretedInputOffset != reinterpretedInputSize)
+      U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
+    else
+      glyphInput = CodepointInvalid;
+
+    if constexpr (!CaseSensitive)
+    {
+      glyph = u_tolower(glyph);
+      glyphInput = u_tolower(glyphInput);
+    }
+
+    return glyph <=> glyphInput;
+  }
+
+  template <typename UTFCharTypeInput>
+  requires IsUTF16CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput>
+  [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
+  {
+    auto *reinterpretedData = reinterpret_cast<const UChar *>(data());
+    const auto reinterpretedDataSize = size();
+    size_t reinterpretedDataOffset = 0;
+    size_t inputOffset = 0;
+    auto glyph = CodepointInvalid;
+    auto glyphInput = CodepointInvalid;
+    while (reinterpretedDataOffset < reinterpretedDataSize && inputOffset < other.size())
+    {
+      U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+      glyphInput = static_cast<uint32_t>(other[inputOffset++]);
+
+      if constexpr (!CaseSensitive)
+      {
+        glyph = u_tolower(glyph);
+        glyphInput = u_tolower(glyphInput);
+      }
+
+      if (glyph != glyphInput)
+        return glyph <=> glyphInput;
+    }
+
+    if (reinterpretedDataOffset != reinterpretedDataSize)
+      U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+    else
+      glyph = CodepointInvalid;
+
+    if (inputOffset != other.size())
+      glyphInput = static_cast<uint32_t>(other[inputOffset]);
+    else
+      glyphInput =  CodepointInvalid;
+
+    if constexpr (!CaseSensitive)
+    {
+      glyph = u_tolower(glyph);
+      glyphInput = u_tolower(glyphInput);
+    }
+
+    return glyph <=> glyphInput;
+  }
+
+  template <typename UTFCharTypeInput>
+  requires IsUTF32CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput>
+  [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
+  {
+    auto *reinterpretedInput = reinterpret_cast<const uint8_t *>(other.data());
+    const auto reinterpretedInputSize = other.size();
+    size_t reinterpretedInputOffset = 0;
+    size_t dataOffset = 0;
+    auto glyph = CodepointInvalid;
+    auto glyphInput = CodepointInvalid;
+    while (dataOffset < size() && reinterpretedInputOffset < reinterpretedInputSize)
+    {
+      glyph = static_cast<uint32_t>(utfData[dataOffset++]);
+      U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
+
+      if constexpr (!CaseSensitive)
+      {
+        glyph = u_tolower(glyph);
+        glyphInput = u_tolower(glyphInput);
+      }
+
+      if (glyph != glyphInput)
+        return glyph <=> glyphInput;
+    }
+
+    if (dataOffset != size())
+      glyph = static_cast<uint32_t>(utfData[dataOffset]);
+    else
+      glyph = CodepointInvalid;
+
+    if (reinterpretedInputOffset != reinterpretedInputSize)
+      U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
+    else
+      glyphInput = CodepointInvalid;
+
+    if constexpr (!CaseSensitive)
+    {
+      glyph = u_tolower(glyph);
+      glyphInput = u_tolower(glyphInput);
+    }
+
+    return glyph <=> glyphInput;
+  }
+
+  template <typename UTFCharTypeInput>
+  requires IsUTF32CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput>
+  [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
+  {
+    auto *reinterpretedInput = reinterpret_cast<const UChar *>(other.data());
+    const auto reinterpretedInputSize = other.size();
+    size_t reinterpretedInputOffset = 0;
+    size_t dataOffset = 0;
+    auto glyph = CodepointInvalid;
+    auto glyphInput = CodepointInvalid;
+    while (dataOffset < size() && reinterpretedInputOffset < reinterpretedInputSize)
+    {
+      glyph = static_cast<uint32_t>(utfData[dataOffset++]);
+
+      U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
+
+      if constexpr (!CaseSensitive)
+      {
+        glyph = u_tolower(glyph);
+        glyphInput = u_tolower(glyphInput);
+      }
+
+      if (glyph != glyphInput)
+        return glyph <=> glyphInput;
+    }
+
+    if (dataOffset != size())
+      glyph = static_cast<uint32_t>(utfData[dataOffset]);
+    else
+      glyph = CodepointInvalid;
+
+    if (reinterpretedInputOffset != reinterpretedInputSize)
+      U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
+    else
+      glyphInput = CodepointInvalid;
+
+    if constexpr (!CaseSensitive)
+    {
+      glyph = u_tolower(glyph);
+      glyphInput = u_tolower(glyphInput);
+    }
+
+    return glyph <=> glyphInput;
+  }
+
+  template <typename UTFCharTypeInput>
+  requires IsUTF32CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput>
+  [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
+  {
+    size_t inputOffset = 0;
+    size_t dataOffset = 0;
+    auto glyph = CodepointInvalid;
+    auto glyphInput = CodepointInvalid;
+    while (dataOffset < size() && inputOffset < other.size())
+    {
+      glyph = static_cast<uint32_t>(utfData[dataOffset++]);
+      glyphInput = static_cast<uint32_t>(other[inputOffset++]);
+
+      if constexpr (!CaseSensitive)
+      {
+        glyph = u_tolower(glyph);
+        glyphInput = u_tolower(glyphInput);
+      }
+
+      if (glyphInput != glyph)
+        return glyphInput <=> glyph;
+    }
+
+    if (dataOffset != size())
+      glyph = static_cast<uint32_t>(utfData[dataOffset]);
+    else
+      glyph = CodepointInvalid;
+
+    if (inputOffset != other.size())
+      glyphInput = static_cast<uint32_t>(other[inputOffset]);
+    else
+      glyphInput = CodepointInvalid;
+
+    if constexpr (!CaseSensitive)
+    {
+      glyph = u_tolower(glyph);
+      glyphInput = u_tolower(glyphInput);
+    }
+
+    return glyph <=> glyphInput;
   }
 
   template <typename UTFCharTypeInput>
@@ -614,16 +711,23 @@ public:
     return *this <=> std::basic_string_view<UTFCharTypeInput>(other, UTFInputSize - 1);
   }
 
-  [[nodiscard]] auto operator<=>(const std::filesystem::path& other)
+  [[nodiscard]] auto operator<=>(const std::filesystem::path& other) const
   {
     return *this <=> other.native();
   }
 
-  template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
+  template <typename UTFStorageTypeInput, typename UTFCharTypeInput>
   requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>>
-  [[nodiscard]] auto operator<=>(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, CaseSensitiveInput>& other) const
+  [[nodiscard]] auto operator<=>(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, true>& other) const
   {
     return *this <=> other.native();
+  }
+
+  template <typename UTFStorageTypeInput, typename UTFCharTypeInput>
+  requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>>
+  [[nodiscard]] auto operator<=>(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, false>& other) const
+  {
+    return other <=> native();
   }
 
   [[nodiscard]] auto operator<=>(const StringWrapper& other) const
@@ -652,9 +756,9 @@ public:
     return (*this <=> other) == std::weak_ordering::equivalent;
   }
 
-  [[nodiscard]] bool operator==(const std::filesystem::path& other)
+  [[nodiscard]] bool operator==(const std::filesystem::path& other) const
   {
-    return (*this <=> other) == std::weak_ordering::equivalent;
+    return (*this <=> other.native()) == std::weak_ordering::equivalent;
   }
 
   template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
@@ -690,9 +794,9 @@ public:
     return (*this <=> other) != std::weak_ordering::equivalent;
   }
 
-  [[nodiscard]] bool operator!=(const std::filesystem::path& other)
+  [[nodiscard]] bool operator!=(const std::filesystem::path& other) const
   {
-    return (*this <=> other) != std::weak_ordering::equivalent;
+    return (*this <=> other.native()) != std::weak_ordering::equivalent;
   }
 
   template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
@@ -731,9 +835,9 @@ public:
     return cmp == std::weak_ordering::less || cmp == std::weak_ordering::equivalent;
   }
 
-  [[nodiscard]] bool operator<=(const std::filesystem::path& other)
+  [[nodiscard]] bool operator<=(const std::filesystem::path& other) const
   {
-    const auto cmp = *this <=> other;
+    const auto cmp = *this <=> other.native();
     return cmp == std::weak_ordering::less || cmp == std::weak_ordering::equivalent;
   }
 
@@ -775,9 +879,9 @@ public:
     return cmp == std::weak_ordering::greater || cmp == std::weak_ordering::equivalent;
   }
 
-  [[nodiscard]] bool operator>=(const std::filesystem::path& other)
+  [[nodiscard]] bool operator>=(const std::filesystem::path& other) const
   {
-    const auto cmp = *this <=> other;
+    const auto cmp = *this <=> other.native();
     return cmp == std::weak_ordering::greater || cmp == std::weak_ordering::equivalent;
   }
 
@@ -816,9 +920,9 @@ public:
     return (*this <=> other) == std::weak_ordering::less;
   }
 
-  [[nodiscard]] bool operator<(const std::filesystem::path& other)
+  [[nodiscard]] bool operator<(const std::filesystem::path& other) const
   {
-    return (*this <=> other) == std::weak_ordering::less;
+    return (*this <=> other.native()) == std::weak_ordering::less;
   }
 
   template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
@@ -854,9 +958,9 @@ public:
     return (*this <=> other) == std::weak_ordering::greater;
   }
 
-  [[nodiscard]] bool operator>(const std::filesystem::path& other)
+  [[nodiscard]] bool operator>(const std::filesystem::path& other) const
   {
-    return (*this <=> other) == std::weak_ordering::greater;
+    return (*this <=> other.native()) == std::weak_ordering::greater;
   }
 
   template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
@@ -916,7 +1020,14 @@ public:
 
   [[nodiscard]] const UTFCharType* c_str() const
   {
-    return utfData.data();
+    if constexpr (std::same_as<UTFStorageType, std::basic_string<UTFCharType>>)
+      return utfData.c_str();
+    else
+    {
+      thread_local static StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> utfDataNullTerminated;
+      utfDataNullTerminated = utfData;
+      return utfDataNullTerminated.c_str();
+    }
   }
 
   template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>>>>
@@ -964,6 +1075,14 @@ public:
   [[nodiscard]] const auto& native() const
   {
     return utfData;
+  }
+
+  [[nodiscard]] std::filesystem::path path() const
+  {
+    if constexpr (std::same_as<UTFCharType, wchar_t>)
+      return { utfData };
+    else
+      return StringWrapper<std::basic_string<wchar_t>, wchar_t, true>(utfData).path();
   }
 
   template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>>>>
@@ -1109,7 +1228,7 @@ struct StringHasher
 
   [[nodiscard]] size_t operator()(const std::filesystem::path &utf) const noexcept
   {
-    return operator()(std::basic_string_view<wchar_t>(utf.native()));
+    return operator()(std::basic_string_view(utf.native()));
   }
 
   template <typename UTFStorageType, typename UTFCharType, bool CaseSensitiveInput>
@@ -1132,6 +1251,26 @@ struct hash<UTF::StringWrapper<UTFStorageType, UTFCharType, CaseSensitive>>
   [[nodiscard]] size_t operator()(const UTF::StringWrapper<UTFStorageType, UTFCharType, CaseSensitive>& utf) const noexcept
   {
     return UTF::StringHasher<CaseSensitive>{}(utf);
+  }
+};
+
+template <typename UTFStorageType, typename UTFCharType, bool CaseSensitive, typename UTFCharTypeOutput>
+requires UTF::IsUTFCharType<UTFCharType> && UTF::IsAnyOfTypes<UTFStorageType, std::basic_string<UTFCharType>, std::basic_string_view<UTFCharType>>
+struct formatter<UTF::StringWrapper<UTFStorageType, UTFCharType, CaseSensitive>, UTFCharTypeOutput>
+{
+  template <typename FormatParseContext>
+  [[nodiscard]] auto parse(FormatParseContext& pc) const
+  {
+    return pc.end();
+  }
+
+  template<class FormatContext>
+  [[nodiscard]] auto format(const UTF::StringWrapper<UTFStorageType, UTFCharType, CaseSensitive>& utf, FormatContext& ctx) const
+  {
+    if constexpr (std::same_as<UTFCharType, UTFCharTypeOutput>)
+      return std::formatter<UTFStorageType, UTFCharTypeOutput>{}.format(utf.native(), ctx);
+    else
+      return std::formatter<UTF::StringWrapper<std::basic_string<UTFCharTypeOutput>, UTFCharTypeOutput, CaseSensitive>, UTFCharTypeOutput>{}.format(utf.native(), ctx);
   }
 };
 

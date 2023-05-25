@@ -13,15 +13,15 @@ class Hitman1Dialog final : public HitmanDialog, public Singleton<Hitman1Dialog>
 public:
   bool Clear(bool retVal = false) override;
 
-  bool ImportSingle(const std::filesystem::path &importFolderPath, const std::filesystem::path &importFilePath) override;
+  bool ImportSingle(StringView8CI importFolderPath, StringView8CI importFilePath) override;
 
-  bool LoadImpl(const std::filesystem::path &loadPath) override;
+  bool LoadImpl(StringView8CI loadPath) override;
 
-  bool SaveImpl(const std::filesystem::path &savePath) override;
+  bool SaveImpl(StringView8CI savePath) override;
 
   void DrawDialog() override;
 
-  std::vector<std::wstring_view> indexToKey;
+  std::vector<StringView8CI> indexToKey;
 
-  UTFViewToTypeMapCI<wchar_t, std::wstring> lastModifiedDatesMap;
+  std::map<StringView8CI, String8> lastModifiedDatesMap;
 };

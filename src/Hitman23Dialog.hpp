@@ -54,31 +54,31 @@ struct Hitman23WAVFile
 {
   bool Clear(bool retVal = false);
 
-  bool Load(const std::filesystem::path &loadPath, const UTFViewToTypeMapCI<wchar_t, Hitman23WHDRecord *> &whdRecordsMap,
-            UTFViewToTypeMapCI<wchar_t, HitmanFile>& fileMap, bool isMissionWAV);
+  bool Load(StringView8CI loadPath, const std::map<StringView8CI, Hitman23WHDRecord *> &whdRecordsMap,
+            std::map<StringView8CI, HitmanFile>& fileMap, bool isMissionWAV);
 
-  bool Save(const std::filesystem::path &savePath);
+  bool Save(StringView8CI savePath);
 
   Hitman23WAVHeader *header = nullptr;
   std::map<uint32_t, Hitman23WAVRecord> recordMap;
   std::vector<std::vector<char>> extraData;
-  std::filesystem::path path;
+  String8CI path;
 };
 
 struct Hitman23WHDFile
 {
   bool Clear(bool retVal = false);
 
-  bool BuildArchivePaths(const std::filesystem::path &basePath, const std::filesystem::path &loadPath, PathSetCI& archivePaths);
+  bool BuildArchivePaths(StringView8CI basePath, StringView8CI loadPath, std::set<String8CI>& archivePaths);
 
-  bool Load(const std::filesystem::path &basePath, PathSetCI& archivePaths, UTFViewToTypeMapCI<wchar_t, HitmanFile>& fileMap, UTFViewToTypeMapCI<wchar_t, std::vector<Hitman23WHDRecord *>>& whdRecordsMap);
+  bool Load(StringView8CI basePath, std::set<String8CI>& archivePaths, std::map<StringView8CI, HitmanFile>& fileMap, std::map<StringView8CI, std::vector<Hitman23WHDRecord *>>& whdRecordsMap);
 
-  bool Save(const Hitman23WAVFile &streamsWAV, const Hitman23WAVFile &missionWAV, const std::filesystem::path &savePath);
+  bool Save(const Hitman23WAVFile &streamsWAV, const Hitman23WAVFile &missionWAV, StringView8CI savePath);
 
   Hitman23WHDHeader *header = nullptr;
-  UTFViewToTypeMapCI<wchar_t, Hitman23WHDRecord *> recordMap;
+  std::map<StringView8CI, Hitman23WHDRecord *> recordMap;
   std::vector<char> data;
-  std::filesystem::path path;
+  String8CI path;
 };
 
 class Hitman23Dialog final : public HitmanDialog, public Singleton<Hitman23Dialog>
@@ -86,11 +86,11 @@ class Hitman23Dialog final : public HitmanDialog, public Singleton<Hitman23Dialo
 public:
   bool Clear(bool retVal = false) override;
 
-  bool ImportSingle(const std::filesystem::path &importFolderPath, const std::filesystem::path &importFilePath) override;
+  bool ImportSingle(StringView8CI importFolderPath, StringView8CI importFilePath) override;
 
-  bool LoadImpl(const std::filesystem::path &loadPath) override;
+  bool LoadImpl(StringView8CI loadPath) override;
 
-  bool SaveImpl(const std::filesystem::path &savePath) override;
+  bool SaveImpl(StringView8CI savePath) override;
 
   void DrawDialog() override;
 
@@ -98,7 +98,7 @@ public:
   std::vector<Hitman23WAVFile> wavFiles;
   Hitman23WAVFile streamsWAV;
 
-  UTFViewToTypeMapCI<wchar_t, std::vector<Hitman23WHDRecord *>> whdRecordsMap;
+  std::map<StringView8CI, std::vector<Hitman23WHDRecord *>> whdRecordsMap;
 
-  std::filesystem::path basePath;
+  String8CI basePath;
 };

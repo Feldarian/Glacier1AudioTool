@@ -8,7 +8,7 @@
 
 #include "ArchiveDialog.hpp"
 
-bool ArchiveDirectory::Clear(bool retVal)
+bool ArchiveDirectory::Clear(const bool retVal)
 {
   directories.clear();
   files.clear();
@@ -16,7 +16,7 @@ bool ArchiveDirectory::Clear(bool retVal)
   return retVal;
 }
 
-ArchiveDirectory& ArchiveDirectory::GetDirectory(std::vector<std::wstring_view>& pathStems)
+ArchiveDirectory& ArchiveDirectory::GetDirectory(std::vector<StringView8CI>& pathStems)
 {
   if (pathStems.size() > 1)
   {
@@ -29,13 +29,13 @@ ArchiveDirectory& ArchiveDirectory::GetDirectory(std::vector<std::wstring_view>&
   return directories[pathStems.front()];
 }
 
-ArchiveDirectory& ArchiveDirectory::GetDirectory(const std::filesystem::path& path)
+ArchiveDirectory& ArchiveDirectory::GetDirectory(const StringView8CI path)
 {
   auto pathStems = GetPathStems(path);
   return GetDirectory(pathStems);
 }
 
-ArchiveFile& ArchiveDirectory::GetFile(std::vector<std::wstring_view>& pathStems)
+ArchiveFile& ArchiveDirectory::GetFile(std::vector<StringView8CI>& pathStems)
 {
   if (pathStems.size() > 1)
   {
@@ -48,7 +48,7 @@ ArchiveFile& ArchiveDirectory::GetFile(std::vector<std::wstring_view>& pathStems
   return files[pathStems.front()];
 }
 
-ArchiveFile& ArchiveDirectory::GetFile(const std::filesystem::path& path)
+ArchiveFile& ArchiveDirectory::GetFile(const StringView8CI path)
 {
   auto pathStems = GetPathStems(path);
   return GetFile(pathStems);
@@ -106,9 +106,9 @@ void ArchiveDirectory::CleanOriginal()
     file.original = true;
 }
 
-void ArchiveDirectory::DrawTree(std::wstring_view thisPath) const
+void ArchiveDirectory::DrawTree(const StringView8CI thisPath) const
 {
-  if (!thisPath.empty() && !ImGui::TreeNode(ToUTF<char>(thisPath).c_str()))
+  if (!thisPath.empty() && !ImGui::TreeNode(String8(thisPath).c_str()))
     return;
 
   const auto checkOriginality = Options::Get().common.checkOriginality;
@@ -139,7 +139,7 @@ void ArchiveDirectory::DrawTree(std::wstring_view thisPath) const
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, 0));
 
-    ImGui::Selectable(ToUTF<char>(filePath).c_str());
+    ImGui::Selectable(String8(filePath).c_str());
 
     ImGui::PopStyleVar(2);
     ImGui::PopStyleColor(3);
@@ -152,7 +152,7 @@ void ArchiveDirectory::DrawTree(std::wstring_view thisPath) const
     ImGui::TreePop();
 }
 
-bool ArchiveDialog::Clear(bool retVal)
+bool ArchiveDialog::Clear(const bool retVal)
 {
   path.clear();
   archivePaths.clear();
@@ -161,19 +161,19 @@ bool ArchiveDialog::Clear(bool retVal)
   return retVal;
 }
 
-bool ArchiveDialog::Load(const std::filesystem::path &loadPath)
+bool ArchiveDialog::Load(StringView8CI loadPath)
 {
   if (loadPath.empty())
     return false;
 
-  GlyphRangesBuilder::Get().AddText(loadPath.native());
+  GlyphRangesBuilder::Get().AddText(loadPath);
 
   progressMessage = LocalizationManager::Get().Localize("ARCHIVE_DIALOG_LOAD_PROGRESS_READING_ARCHIVE");
   progressNext = 0;
   progressNextTotal = 1;
   progressNextActive = true;
 
-  std::thread([loadPath, this] {
+  std::thread([loadPath = String8CI(loadPath), this] {
     switch (UnsavedChangesPopup())
     {
       case 1: {
@@ -197,7 +197,7 @@ bool ArchiveDialog::Load(const std::filesystem::path &loadPath)
       // TODO - this is causing a lot of synchronizations at the end of loading
       //        best would be to do this on the main thread
       for (const auto& archivePath : archivePaths)
-        GlyphRangesBuilder::Get().AddText(archivePath.native());
+        GlyphRangesBuilder::Get().AddText(archivePath);
 
       path = loadPath;
     }
@@ -212,12 +212,12 @@ bool ArchiveDialog::Load(const std::filesystem::path &loadPath)
   return true;
 }
 
-bool ArchiveDialog::GetAndLoad(std::wstring_view filters, std::wstring_view defaultFilename)
+bool ArchiveDialog::GetAndLoad(const StringView8CI filters, const StringView8CI defaultFilename)
 {
-  return Load(OpenFileDialog(filters, defaultFilename.data()));
+  return Load(OpenFileDialog(filters, defaultFilename));
 }
 
-bool ArchiveDialog::Import(const std::filesystem::path &importFolderPath)
+bool ArchiveDialog::Import(const StringView8CI importFolderPath)
 {
   if (importFolderPath.empty())
     return false;
@@ -227,8 +227,8 @@ bool ArchiveDialog::Import(const std::filesystem::path &importFolderPath)
   progressNextTotal = 1;
   progressNextActive = true;
 
-  std::thread([importFolderPath, this] {
-    const auto allImportFiles = GetAllFilesInDirectory(importFolderPath, L"", true);
+  std::thread([importFolderPath = String8CI(importFolderPath), this] {
+    const auto allImportFiles = GetAllFilesInDirectory(importFolderPath, "", true);
 
     if (allImportFiles.empty())
     {
@@ -245,7 +245,7 @@ bool ArchiveDialog::Import(const std::filesystem::path &importFolderPath)
     {
       {
         std::unique_lock progressMessageLock(progressMessageMutex);
-        progressMessage = LocalizationManager::Get().LocalizeFormat("ARCHIVE_DIALOG_IMPORT_PROGRESS_IMPORTING_FILE", ToUTF<char>(relative(importFilePath, importFolderPath).native()));
+        progressMessage = LocalizationManager::Get().LocalizeFormat("ARCHIVE_DIALOG_IMPORT_PROGRESS_IMPORTING_FILE", String8(relative(importFilePath.path(), importFolderPath.path())));
         ++progressNext;
       }
 
@@ -265,7 +265,7 @@ bool ArchiveDialog::GetAndImport()
   return Import(BrowseDirectoryDialog());
 }
 
-bool ArchiveDialog::Export(const std::filesystem::path &exportFolderPath)
+bool ArchiveDialog::Export(const StringView8CI exportFolderPath)
 {
   if (exportFolderPath.empty())
     return false;
@@ -275,7 +275,7 @@ bool ArchiveDialog::Export(const std::filesystem::path &exportFolderPath)
   progressNextTotal = 1;
   progressNextActive = true;
 
-  std::thread([exportFolderPath, this] {
+  std::thread([exportFolderPath = String8CI(exportFolderPath), this] {
     if (archivePaths.empty())
     {
       std::unique_lock progressMessageLock(progressMessageMutex);
@@ -291,7 +291,7 @@ bool ArchiveDialog::Export(const std::filesystem::path &exportFolderPath)
     {
       {
         std::unique_lock progressMessageLock(progressMessageMutex);
-        progressMessage = LocalizationManager::Get().LocalizeFormat("ARCHIVE_DIALOG_IMPORT_PROGRESS_EXPORTING_FILE", ToUTF<char>(exportFilePath.native()));
+        progressMessage = LocalizationManager::Get().LocalizeFormat("ARCHIVE_DIALOG_IMPORT_PROGRESS_EXPORTING_FILE", exportFilePath);
         ++progressNext;
       }
 
@@ -311,12 +311,12 @@ bool ArchiveDialog::GetAndExport()
   return Export(BrowseDirectoryDialog());
 }
 
-bool ArchiveDialog::Save(const std::filesystem::path &savePath, bool async)
+bool ArchiveDialog::Save(const StringView8CI savePath, bool async)
 {
   if (savePath.empty())
     return false;
 
-  GlyphRangesBuilder::Get().AddText(savePath.native());
+  GlyphRangesBuilder::Get().AddText(savePath);
 
   progressMessage = LocalizationManager::Get().Localize("ARCHIVE_DIALOG_SAVE_PROGRESS_SAVING_ARCHIVE");
   progressNext = 0;
@@ -324,7 +324,7 @@ bool ArchiveDialog::Save(const std::filesystem::path &savePath, bool async)
 
   progressNextActive = true;
 
-  std::thread saveThread([savePath, async, this] {
+  std::thread saveThread([savePath = String8CI(savePath), async, this] {
     if (archivePaths.empty())
     {
       std::unique_lock progressMessageLock(progressMessageMutex);
@@ -334,7 +334,7 @@ bool ArchiveDialog::Save(const std::filesystem::path &savePath, bool async)
     }
 
     if (SaveImpl(savePath))
-      path = savePath;
+      path = std::move(savePath);
 
     std::unique_lock progressMessageLock(progressMessageMutex);
     progressMessage.clear();
@@ -349,9 +349,9 @@ bool ArchiveDialog::Save(const std::filesystem::path &savePath, bool async)
   return true;
 }
 
-bool ArchiveDialog::GetAndSave(std::wstring_view filters, std::wstring_view defaultFilename)
+bool ArchiveDialog::GetAndSave(const StringView8CI filters, const StringView8CI defaultFilename)
 {
-  return Save(SaveFileDialog(filters, defaultFilename.data()), true);
+  return Save(SaveFileDialog(filters, defaultFilename), true);
 }
 
 int32_t ArchiveDialog::UnsavedChangesPopup() const
@@ -378,7 +378,7 @@ int32_t ArchiveDialog::UnsavedChangesPopup() const
   }
 }
 
-const std::filesystem::path & ArchiveDialog::GetPath() const
+StringView8CI ArchiveDialog::GetPath() const
 {
   return path;
 }
@@ -388,11 +388,11 @@ bool ArchiveDialog::IsInProgress() const
   return progressNextActive.load();
 }
 
-void ArchiveDialog::DrawBaseDialog(std::wstring_view dialogName, std::wstring_view filters, std::wstring_view defaultFilename)
+void ArchiveDialog::DrawBaseDialog(const StringView8CI dialogName, const StringView8CI filters, const StringView8CI defaultFilename)
 {
-  auto progressActive = progressNextActive.load();
+  const auto progressActive = progressNextActive.load();
 
-  if (!ImGui::BeginTabItem(ToUTF<char>(dialogName).c_str()))
+  if (!ImGui::BeginTabItem(dialogName.c_str()))
     return;
 
   const auto itemWidth = GetAlignedItemWidth(5);
@@ -441,7 +441,7 @@ void ArchiveDialog::DrawBaseDialog(std::wstring_view dialogName, std::wstring_vi
       if (progressMessage.empty())
         ImGui::TextUnformatted(progressSummary.c_str());
       else
-        ImGui::TextUnformatted(std::format("{}\n{}", progressSummary.native(), progressMessage.native()).c_str());
+        ImGui::TextUnformatted(std::format("{}\n{}", progressSummary, progressMessage).c_str());
     }
     else if (!progressMessage.empty())
       ImGui::TextUnformatted(progressMessage.c_str());
@@ -454,7 +454,7 @@ void ArchiveDialog::DrawBaseDialog(std::wstring_view dialogName, std::wstring_vi
       ImGui::TextUnformatted(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_NO_ARCHIVE").c_str());
     }
     else
-      ImGui::TextUnformatted(LocalizationManager::Get().LocalizeFormat("ARCHIVE_DIALOG_LOADED_ARCHIVE", ToUTF<char>(path.native()).c_str()).c_str());
+      ImGui::TextUnformatted(LocalizationManager::Get().LocalizeFormat("ARCHIVE_DIALOG_LOADED_ARCHIVE", path).c_str());
 
     ImGui::Separator();
 

@@ -59,16 +59,17 @@ private:
 class LocalizationManager : public Singleton<LocalizationManager>
 {
 public:
-  bool LoadLocalization(const std::filesystem::path &localizationPath)
+  bool LoadLocalization(StringView8CI localizationPathView)
   {
+    const auto localizationPath = localizationPathView.path();
     if (!exists(localizationPath))
       return false;
 
-    const auto localizationFile = toml::parse_file(localizationPath.native());
+    const auto localizationFile = toml::parse_file(localizationPathView.native());
     if (localizationFile.failed())
       return false;
 
-    String8CI languageName{ localizationPath.stem() };
+    String8CI languageName(localizationPath.stem());
     const auto languageNameSeparatorPosition = languageName.native().rfind('_');
     if (languageNameSeparatorPosition != String8CI::npos)
       languageName = languageName.native().substr(languageNameSeparatorPosition + 1);
@@ -124,7 +125,7 @@ public:
 
     std::lock_guard lock(dataMutex);
 
-    auto localizationInstanceIt = localizationInstancesMap.find(language);
+    const auto localizationInstanceIt = localizationInstancesMap.find(language);
     if (localizationInstanceIt == localizationInstancesMap.cend())
       return false;
 
@@ -147,7 +148,7 @@ public:
 
     std::lock_guard lock(dataMutex);
 
-    auto localizationInstanceIt = localizationInstancesMap.find(language);
+    const auto localizationInstanceIt = localizationInstancesMap.find(language);
     if (localizationInstanceIt == localizationInstancesMap.cend())
       return false;
 
@@ -164,21 +165,23 @@ public:
   }
 
   template <typename UTFStorageType, typename UTFCharType, bool CaseSensitive>
-  requires IsUTFCharType<UTFCharType> && IsAnyOfTypes<UTFStorageType, std::basic_string<UTFCharType>, std::basic_string_view<UTFCharType>>
+  requires IsUTF8CharType<UTFCharType> && !CaseSensitive
   const String8 &Localize(const StringWrapper<UTFStorageType, UTFCharType, CaseSensitive> &key) const
   {
-    if constexpr (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> && IsUTF8CharType<UTFCharType> && !CaseSensitive)
-    {
-      std::shared_lock lock(dataMutex);
+    std::shared_lock lock(dataMutex);
 
-      const auto &localized = localizationInstance ? localizationInstance->Localize(key) : LocalizationInstance::Empty;
-      if (!localized.empty())
-        return localized;
+    const auto &localized = localizationInstance ? localizationInstance->Localize(key) : LocalizationInstance::Empty;
+    if (!localized.empty())
+      return localized;
 
-      return defaultLocalizationInstance ? defaultLocalizationInstance->Localize(key) : LocalizationInstance::Empty;
-    }
-    else
-      return Localize(String8CI{ key });
+    return defaultLocalizationInstance ? defaultLocalizationInstance->Localize(key) : LocalizationInstance::Empty;
+  }
+
+  template <typename UTFStorageType, typename UTFCharType, bool CaseSensitive>
+  requires !IsUTF8CharType<UTFCharType>
+  const String8 &Localize(const StringWrapper<UTFStorageType, UTFCharType, CaseSensitive> &key) const
+  {
+    return Localize(String8CI{ key });
   }
 
   template <typename UTFCharTypeInput>

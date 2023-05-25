@@ -36,7 +36,7 @@ public:
 
     std::lock_guard lock(dataMutex);
 
-    std::pair<uint32_t, uint32_t> glyphRange{CodepointInvalid, CodepointInvalid};
+    std::pair glyphRange{CodepointInvalid, CodepointInvalid};
     for (uint32_t glyph = 1; glyph <= CodepointMax; ++glyph)
     {
       if (glyphsInUse.test(glyph))
@@ -63,13 +63,13 @@ public:
     return glyphRanges;
   }
 
-  void AddRange(std::pair<uint32_t, uint32_t> glyphRange)
+  void AddRange(const std::pair<uint32_t, uint32_t> glyphRange)
   {
     for (auto glyph = glyphRange.first; glyph <= glyphRange.second; ++glyph)
       Add(glyph);
   }
 
-  void Add(uint32_t glyph)
+  void Add(const uint32_t glyph)
   {
     if (glyph == CodepointInvalid || glyph > CodepointMax)
       return;
@@ -80,40 +80,41 @@ public:
   }
 
   template <typename UTFCharType>
-  requires IsUTFCharType<UTFCharType>
+  requires IsUTF8CharType<UTFCharType>
   void AddText(const std::basic_string_view<UTFCharType> utf)
   {
-    if constexpr (IsUTF8CharType<UTFCharType>)
+    const auto *utfData = utf.data();
+    const auto utfSize = utf.size();
+    for (size_t utfOffset = 0; utfOffset < utfSize;)
     {
-      const auto *utfData = utf.data();
-      const auto utfSize = utf.size();
-      for (size_t utfOffset = 0; utfOffset < utfSize;)
-      {
-        uint32_t glyph = CodepointInvalid;
-        U8_NEXT(utfData, utfOffset, utfSize, glyph);
+      uint32_t glyph = CodepointInvalid;
+      U8_NEXT(utfData, utfOffset, utfSize, glyph);
 
-        Add(glyph);
-      }
+      Add(glyph);
     }
+  }
 
-    if constexpr (IsUTF16CharType<UTFCharType>)
+  template <typename UTFCharType>
+  requires IsUTF16CharType<UTFCharType>
+  void AddText(const std::basic_string_view<UTFCharType> utf)
+  {
+    const auto *utfData = utf.data();
+    const auto utfSize = utf.size();
+    for (size_t utfOffset = 0; utfOffset < utfSize;)
     {
-      const auto *utfData = utf.data();
-      const auto utfSize = utf.size();
-      for (size_t utfOffset = 0; utfOffset < utfSize;)
-      {
-        uint32_t glyph = CodepointInvalid;
-        U16_NEXT(utfData, utfOffset, utfSize, glyph);
+      uint32_t glyph = CodepointInvalid;
+      U16_NEXT(utfData, utfOffset, utfSize, glyph);
 
-        Add(glyph);
-      }
+      Add(glyph);
     }
+  }
 
-    if constexpr (IsUTF32CharType<UTFCharType>)
-    {
-      for (const auto glyph : utf)
-        Add(static_cast<uint32_t>(glyph));
-    }
+  template <typename UTFCharType>
+  requires IsUTF32CharType<UTFCharType>
+  void AddText(const std::basic_string_view<UTFCharType> utf)
+  {
+    for (const auto glyph : utf)
+      Add(static_cast<uint32_t>(glyph));
   }
 
   template <typename UTFCharType>

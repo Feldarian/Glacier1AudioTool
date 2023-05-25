@@ -18,9 +18,7 @@ bool BuildFontAtlas()
   if (!GlyphRangesBuilder::Get().NeedsBuild())
     return true;
 
-  std::vector<std::filesystem::path> searchPaths;
-
-  std::filesystem::path fontsPath = GetProgramPath();
+  auto fontsPath = GetProgramPath().path();
   fontsPath /= L"data";
   fontsPath /= L"fonts";
   if (!exists(fontsPath))
@@ -31,7 +29,7 @@ bool BuildFontAtlas()
   const auto glyphRanges = GlyphRangesBuilder::Get().Build();
   for (const auto& glyphRange : glyphRanges)
   {
-    uint32_t translatedGlyphRange[3]{glyphRange.first, glyphRange.second, 0};
+    const uint32_t translatedGlyphRange[3]{glyphRange.first, glyphRange.second, 0};
     builder.AddRanges(translatedGlyphRange);
   }
 
@@ -46,17 +44,17 @@ bool BuildFontAtlas()
   config.OversampleV = 1;
   config.MergeMode = false;
 
-  ImGuiIO &io = ImGui::GetIO();
+  const ImGuiIO &io = ImGui::GetIO();
   io.Fonts->Clear();
 
-  const auto fonts = GetAllFilesInDirectory(fontsPath, L"", false);
+  const auto fonts = GetAllFilesInDirectory(String8CI(fontsPath), "", false);
   for (const auto& font : fonts)
   {
-    const auto fontExtension = font.extension();
-    if (UTFCaseInsensitiveCompare(fontExtension.native(), L".ttf") != 0 && UTFCaseInsensitiveCompare(fontExtension.native(), L".otf") != 0)
+    const auto fontExtension = font.path().extension();
+    if (fontExtension != StringView8CI(".ttf") && fontExtension != StringView8CI(".otf"))
       continue;
 
-    io.Fonts->AddFontFromFileTTF(ToUTF<char>(font.native()).c_str(), config.SizePixels, &config, imguiRanges.Data);
+    io.Fonts->AddFontFromFileTTF(font.c_str(), config.SizePixels, &config, imguiRanges.Data);
     config.MergeMode = true;
   }
 
@@ -71,7 +69,7 @@ bool BuildFontAtlas()
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 {
-  std::filesystem::path dataPath = GetProgramPath();
+  auto dataPath = GetProgramPath().path();
   if (dataPath.empty())
     return -1;
 
@@ -79,19 +77,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
   if (!exists(dataPath))
     return -2;
 
-  std::filesystem::path localizationPath = dataPath / L"localization";
+  const auto localizationPath = dataPath / L"localization";
   if (!exists(localizationPath))
     return -3;
 
-  std::filesystem::path fontsPath = dataPath / L"fonts";
+  const auto fontsPath = dataPath / L"fonts";
   if (!exists(fontsPath))
     return -4;
 
-  std::filesystem::path recordsData = dataPath / L"records";
+  const auto recordsData = dataPath / L"records";
   if (!exists(recordsData))
     return -5;
 
-  const auto localizationFilePaths = GetAllFilesInDirectory(localizationPath, L".toml", false);
+  const auto localizationFilePaths = GetAllFilesInDirectory(String8CI(localizationPath), ".toml", false);
   if (localizationFilePaths.empty())
     return -6;
 
@@ -101,7 +99,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
     if (!LocalizationManager::Get().LoadLocalization(localizationFilePath))
       return -7;
 
-    if (UTFCaseInsensitiveCompare(localizationFilePath.stem().native(), "English") == 0)
+    if (localizationFilePath.path().stem() == StringView8CI("English"))
       foundEnglish = true;
   }
   if (!foundEnglish)

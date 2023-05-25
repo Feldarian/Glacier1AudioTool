@@ -51,12 +51,12 @@ void Hitman4WHDRecord::Hitman4WHDRecordMission::FromHitmanSoundRecord(const Hitm
 HitmanSoundRecord Hitman4WHDRecord::Hitman4WHDRecordConcatenated::ToHitmanSoundRecord() const
 {
   assert(nullByte == 0);
-  
+
   const auto resBitsPerSample = static_cast<uint16_t>(formatTag == 4096 ? 16 : bitsPerSample);
   const auto resChannels = static_cast<uint16_t>(channels);
   const auto resBlockAlign = static_cast<uint16_t>(formatTag == 4096 ? 2 * channels : blockAlign);
   const auto resFmtExtra = static_cast<uint16_t>(formatTag == 17 ? fmtExtra : 1);
-  
+
   assert(resBlockAlign == 2 * channels || formatTag == 17);
   assert(resBlockAlign != 1024 || formatTag == 17);
 
@@ -91,12 +91,12 @@ void Hitman4WHDRecord::Hitman4WHDRecordConcatenated::FromHitmanSoundRecord(const
 HitmanSoundRecord Hitman4WHDRecord::Hitman4WHDRecordStreams::ToHitmanSoundRecord() const
 {
   assert(id == 0x004F4850);
-  
+
   const auto resBitsPerSample = static_cast<uint16_t>(formatTag == 4096 ? 16 : bitsPerSample);
   const auto resChannels = static_cast<uint16_t>(channels);
   const auto resBlockAlign = static_cast<uint16_t>(formatTag == 4096 || formatTag == 1 ? 2 * channels : 1024);
   const auto resFmtExtra = static_cast<uint16_t>(formatTag == 17 ? fmtExtra : 1);
-  
+
   assert(resBlockAlign == 2 * channels || formatTag == 17);
   assert(resBlockAlign != 1024 || formatTag == 17);
 
@@ -140,7 +140,7 @@ HitmanSoundRecord Hitman4WHDRecord::ToHitmanSoundRecord() const
   assert(streams.formatTag != 1 || streams.fmtExtra == 0xCDCDCDCD);
   assert(streams.formatTag != 17 || streams.fmtExtra == 2041);
   assert(streams.formatTag != 4096 || streams.fmtExtra == 0x004F3E93);
-  
+
   assert(streams.unk2C == 0 || ((streams.formatTag == 17 || streams.formatTag == 1) && streams.id == 0x004F4850));
 
   assert(streams.nullBytes[0] == 0);
@@ -159,7 +159,7 @@ HitmanSoundRecord Hitman4WHDRecord::ToHitmanSoundRecord() const
 }
 
 void Hitman4WHDRecord::FromHitmanSoundRecord(const HitmanSoundRecord &soundRecord)
-{  
+{
   switch (streams.id)
   {
     case 0x004F4850:
@@ -171,7 +171,7 @@ void Hitman4WHDRecord::FromHitmanSoundRecord(const HitmanSoundRecord &soundRecor
   }
 }
 
-bool Hitman4WAVFile::Clear(bool retVal)
+bool Hitman4WAVFile::Clear(const bool retVal)
 {
   header = nullptr;
   recordMap.clear();
@@ -182,8 +182,7 @@ bool Hitman4WAVFile::Clear(bool retVal)
   return retVal;
 }
 
-bool Hitman4WAVFile::Load(const std::filesystem::path &loadPath, const UTFViewToTypeMapCI<wchar_t, Hitman4WHDRecord *> &whdRecordsMap,
-                   UTFViewToTypeMapCI<wchar_t, HitmanFile>& fileMap, const bool isMissionWAV)
+bool Hitman4WAVFile::Load(const StringView8CI loadPath, const std::map<StringView8CI, Hitman4WHDRecord *> &whdRecordsMap, std::map<StringView8CI, HitmanFile>& fileMap, const bool isMissionWAV)
 {
   Clear();
 
@@ -225,7 +224,7 @@ bool Hitman4WAVFile::Load(const std::filesystem::path &loadPath, const UTFViewTo
     return true;
 
   extraData.reserve(2 * offsetToWAVFileDataMap.size() + 1);
-  
+
   uint32_t currOffset = 0;
   for (auto& [offset, wavFileData] : offsetToWAVFileDataMap)
   {
@@ -243,18 +242,18 @@ bool Hitman4WAVFile::Load(const std::filesystem::path &loadPath, const UTFViewTo
     auto& newData = wavFileData.file->data;
     newData.resize(wavFileData.record->streams.dataSize, 0);
     newData.shrink_to_fit();
-    
+
     auto trueOffset = offset >= wavData.size() ? resampledMap[offset] : offset;
     const auto *wavDataLIP = reinterpret_cast<const Hitman4LIPData *>(wavData.data() + trueOffset);
-    std::reference_wrapper<std::vector<char>> lipData = *static_cast<std::vector<char> *>(nullptr);
+    std::reference_wrapper lipData = *static_cast<std::vector<char> *>(nullptr);
     if (memcmp(wavDataLIP, "LIP ", sizeof uint32_t) == 0)
     {
       auto& emplacedLipData = lipsData.emplace_back();
-    
+
       emplacedLipData.resize(0x1000, 0);
       emplacedLipData.shrink_to_fit();
       std::memcpy(emplacedLipData.data(), wavData.data() + trueOffset, emplacedLipData.size());
-    
+
       lipData = emplacedLipData;
       trueOffset += static_cast<uint32_t>(emplacedLipData.size());
     }
@@ -272,7 +271,7 @@ bool Hitman4WAVFile::Load(const std::filesystem::path &loadPath, const UTFViewTo
     std::memcpy(newData.data(), wavData.data() + currOffset, wavData.size() - currOffset);
     recordMap.try_emplace(currOffset, Hitman4WAVRecord{newData, currOffset});
   }
-  
+
   header = reinterpret_cast<Hitman4WAVHeader *>(recordMap[0].data.get().data());
 
   path = loadPath;
@@ -280,8 +279,9 @@ bool Hitman4WAVFile::Load(const std::filesystem::path &loadPath, const UTFViewTo
   return true;
 }
 
-bool Hitman4WAVFile::Save(const std::filesystem::path &savePath)
+bool Hitman4WAVFile::Save(const StringView8CI savePathView)
 {
+  const auto savePath = savePathView.path();
   create_directories(savePath.parent_path());
 
   const auto oldSync = std::ios_base::sync_with_stdio(false);
@@ -305,7 +305,7 @@ bool Hitman4WAVFile::Save(const std::filesystem::path &savePath)
   return true;
 }
 
-bool Hitman4WHDFile::Clear(bool retVal)
+bool Hitman4WHDFile::Clear(const bool retVal)
 {
   header = nullptr;
   recordMap.clear();
@@ -315,10 +315,10 @@ bool Hitman4WHDFile::Clear(bool retVal)
   return retVal;
 }
 
-bool Hitman4WHDFile::BuildArchivePaths(const std::filesystem::path &basePath, const std::filesystem::path &loadPath, PathSetCI& archivePaths)
+bool Hitman4WHDFile::BuildArchivePaths(const StringView8CI basePathView, const StringView8CI loadPathView, std::set<String8CI>& archivePaths)
 {
   if (data.empty())
-    data = ReadWholeBinaryFile(loadPath);
+    data = ReadWholeBinaryFile(loadPathView);
 
   if (data.empty())
     return Clear(false);
@@ -352,16 +352,19 @@ bool Hitman4WHDFile::BuildArchivePaths(const std::filesystem::path &basePath, co
         whdPtr -= 3 * sizeof uint32_t;
       }
 
-      std::filesystem::path filePath = ToUTF<wchar_t>(std::string_view(data.data() + whdRecord->mission.filePathOffset));
-      if (UTFCaseInsensitiveCompare(filePath.extension().native(), L".wav") != 0)
+      auto filePath = StringW(data.data() + whdRecord->mission.filePathOffset).path();
+      if (filePath.extension() != StringView8CI(".wav"))
         return Clear(false);
 
       if (whdRecord->streams.dataInStreams == 0)
-        filePath = relative(loadPath.parent_path(), basePath) / loadPath.stem() / filePath;
+      {
+        auto loadPath = loadPathView.path();
+        filePath = relative(loadPath.parent_path(), basePathView.path()) / loadPath.stem() / filePath;
+      }
       else if (!filePath.has_parent_path())
         filePath = L"Streams" / filePath;
 
-      archivePaths.emplace(std::move(filePath));
+      archivePaths.emplace(filePath);
 
       ++iterCount;
     } while (!reinterpret_cast<uint32_t *>(whdPtr)[0] && reinterpret_cast<uint32_t *>(whdPtr)[1] && std::distance(whdPtr, &data.back() + 1) != 16);
@@ -370,12 +373,12 @@ bool Hitman4WHDFile::BuildArchivePaths(const std::filesystem::path &basePath, co
       whdPtr += 2 * sizeof uint32_t;
   }
 
-  path = loadPath;
+  path = loadPathView;
 
   return true;
 }
 
-bool Hitman4WHDFile::Load(const std::filesystem::path &basePath, PathSetCI& archivePaths, UTFViewToTypeMapCI<wchar_t, HitmanFile>& fileMap, UTFViewToTypeMapCI<wchar_t, std::vector<Hitman4WHDRecord *>>& whdRecordsMap)
+bool Hitman4WHDFile::Load(const StringView8CI basePathView, std::set<String8CI>& archivePaths, std::map<StringView8CI, HitmanFile>& fileMap, std::map<StringView8CI, std::vector<Hitman4WHDRecord *>>& whdRecordsMap)
 {
   if (data.empty())
     return Clear(false);
@@ -393,7 +396,7 @@ bool Hitman4WHDFile::Load(const std::filesystem::path &basePath, PathSetCI& arch
       whdPtr += 16 - (reinterpret_cast<uintptr_t>(whdPtr) % 16);
     while (memcmp(whdPtr, terminateBytes.data(), terminateBytes.size()) == 0)
       whdPtr += 16;
-    
+
     uint32_t iterCount = 0;
     do {
       auto *whdRecord = reinterpret_cast<Hitman4WHDRecord *>(whdPtr);
@@ -412,22 +415,25 @@ bool Hitman4WHDFile::Load(const std::filesystem::path &basePath, PathSetCI& arch
         whdPtr -= 3 * sizeof uint32_t;
       }
 
-      std::filesystem::path filePath = ToUTF<wchar_t>(std::string_view(data.data() + whdRecord->mission.filePathOffset));
-      if (UTFCaseInsensitiveCompare(filePath.extension().native(), L".wav") != 0)
+      auto filePath = StringW(data.data() + whdRecord->mission.filePathOffset).path();
+      if (filePath.extension() != StringView8CI(".wav"))
         return Clear(false);
 
       if (whdRecord->streams.dataInStreams == 0)
-        filePath = relative(path.parent_path(), basePath) / path.stem() / filePath;
+      {
+        const auto pathFS = path.path();
+        filePath = relative(pathFS.parent_path(), basePathView.path()) / pathFS.stem() / filePath;
+      }
       else if (!filePath.has_parent_path())
         filePath = L"Streams" / filePath;
-      
+
       auto filePathIt = archivePaths.find(filePath);
       if (filePathIt == archivePaths.end())
         continue;
 
       if (!recordMap.try_emplace(filePathIt->native(), whdRecord).second)
         return Clear(false);
-    
+
       auto whdRecordIt = whdRecordsMap.find(filePathIt->native());
       if (whdRecordIt == whdRecordsMap.cend())
         return Clear(false);
@@ -435,7 +441,7 @@ bool Hitman4WHDFile::Load(const std::filesystem::path &basePath, PathSetCI& arch
       auto fileIt = fileMap.find(filePathIt->native());
       if (fileIt == fileMap.cend())
         return Clear(false);
-    
+
       whdRecordIt->second.emplace_back(whdRecord);
       fileIt->second.archiveRecord = whdRecord->ToHitmanSoundRecord();
 
@@ -449,7 +455,7 @@ bool Hitman4WHDFile::Load(const std::filesystem::path &basePath, PathSetCI& arch
   return true;
 }
 
-bool Hitman4WHDFile::Save(const Hitman4WAVFile &streamsWAV, const Hitman4WAVFile &missionWAV, const std::filesystem::path &savePath)
+bool Hitman4WHDFile::Save(const Hitman4WAVFile &streamsWAV, const Hitman4WAVFile &missionWAV, const StringView8CI savePathView)
 {
   for (auto *whdRecord : recordMap | std::views::values)
   {
@@ -462,18 +468,18 @@ bool Hitman4WHDFile::Save(const Hitman4WAVFile &streamsWAV, const Hitman4WAVFile
 
   const auto oldSync = std::ios_base::sync_with_stdio(false);
 
-  std::ofstream whdData(savePath, std::ios::binary | std::ios::trunc);
+  std::ofstream whdData(savePathView.path(), std::ios::binary | std::ios::trunc);
   whdData.write(data.data(), data.size());
   whdData.close();
 
   std::ios_base::sync_with_stdio(oldSync);
 
-  path = savePath;
+  path = savePathView;
 
   return true;
 }
 
-bool Hitman4Dialog::Clear(bool retVal)
+bool Hitman4Dialog::Clear(const bool retVal)
 {
   whdFiles.clear();
   wavFiles.clear();
@@ -485,21 +491,20 @@ bool Hitman4Dialog::Clear(bool retVal)
   return HitmanDialog::Clear(retVal);
 }
 
-bool Hitman4Dialog::ImportSingle(const std::filesystem::path &importFolderPath,
-    const std::filesystem::path &importFilePath)
+bool Hitman4Dialog::ImportSingle(const StringView8CI importFolderPath, const StringView8CI importFilePath)
 {
-  auto filePath = relative(importFilePath, importFolderPath);
-  auto fileIt = fileMap.find(filePath.native());
-  auto whdRecordsIt = whdRecordsMap.find(filePath.native());
+  String8CI filePath = relative(importFilePath.path(), importFolderPath.path());
+  auto fileIt = fileMap.find(filePath);
+  auto whdRecordsIt = whdRecordsMap.find(filePath);
   if (fileIt == fileMap.end() || whdRecordsIt == whdRecordsMap.end())
   {
-    const auto nextExtension = filePath.extension().native() == L".wav" ? L".ogg" : L".wav";
+    const StringView8CI nextExtension = filePath.path().extension() == StringView8CI(".wav") ? ".ogg" : ".wav";
     filePath = ChangeExtension(filePath, nextExtension);
-    fileIt = fileMap.find(filePath.native());
-    whdRecordsIt = whdRecordsMap.find(filePath.native());
+    fileIt = fileMap.find(filePath);
+    whdRecordsIt = whdRecordsMap.find(filePath);
     if (fileIt == fileMap.end() || whdRecordsIt == whdRecordsMap.end())
     {
-      DisplayWarning(LocalizationManager::Get().LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", ToUTF<char>(importFilePath.native())));
+      DisplayWarning(LocalizationManager::Get().LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", importFilePath));
       return false;
     }
   }
@@ -513,23 +518,24 @@ bool Hitman4Dialog::ImportSingle(const std::filesystem::path &importFolderPath,
   return true;
 }
 
-bool Hitman4Dialog::LoadImpl(const std::filesystem::path &loadPath)
+bool Hitman4Dialog::LoadImpl(const StringView8CI loadPath)
 {
   Clear();
 
-  const auto scenesPath = loadPath.parent_path() / L"Scenes";
+  const auto rootPath = loadPath.path().parent_path();
+  const auto scenesPath = rootPath / L"Scenes";
   if (!exists(scenesPath))
   {
     DisplayError(LocalizationManager::Get().Localize("HITMAN_23_DIALOG_ERROR_MISSING_SCENES"));
     return false;
   }
 
-  const auto allWHDFiles = GetAllFilesInDirectory(scenesPath, L".whd", true);
+  const auto allWHDFiles = GetAllFilesInDirectory(String8CI(scenesPath), ".whd", true);
 
   whdFiles.reserve(allWHDFiles.size());
   wavFiles.reserve(allWHDFiles.size());
 
-  basePath = loadPath.parent_path();
+  basePath = rootPath;
 
   for (const auto &whdPath : allWHDFiles)
   {
@@ -540,11 +546,11 @@ bool Hitman4Dialog::LoadImpl(const std::filesystem::path &loadPath)
 
   for (const auto& archivePath : archivePaths)
   {
-    fileMap[archivePath.native()];
-    whdRecordsMap[archivePath.native()];
+    fileMap[archivePath];
+    whdRecordsMap[archivePath];
   }
 
-  UTFViewToTypeMapCI<wchar_t, Hitman4WHDRecord *> allWHDRecords;
+  std::map<StringView8CI, Hitman4WHDRecord *> allWHDRecords;
   for (auto &whdFile : whdFiles)
   {
     if (!whdFile.Load(basePath, archivePaths, fileMap, whdRecordsMap))
@@ -553,7 +559,7 @@ bool Hitman4Dialog::LoadImpl(const std::filesystem::path &loadPath)
     for (const auto& whdRecordMapKV : whdFile.recordMap)
       allWHDRecords.insert(whdRecordMapKV);
 
-    if (!wavFiles.emplace_back().Load(ChangeExtension(whdFile.path, L".wav"), whdFile.recordMap, fileMap, true))
+    if (!wavFiles.emplace_back().Load(ChangeExtension(whdFile.path, ".wav"), whdFile.recordMap, fileMap, true))
       return Clear(false);
   }
 
@@ -566,13 +572,15 @@ bool Hitman4Dialog::LoadImpl(const std::filesystem::path &loadPath)
   if (!options.common.checkOriginality)
     return true;
 
-  originalDataPath = GetProgramPath();
-  if (originalDataPath.empty())
+  auto dataPath = GetProgramPath().path();
+  if (dataPath.empty())
     return Clear(false);
 
-  originalDataPath /= L"data";
-  originalDataPath /= L"records";
-  originalDataPath /= L"h4";
+  dataPath /= L"data";
+  dataPath /= L"records";
+  dataPath /= L"h4";
+
+  originalDataPath = dataPath;
 
   if (!LoadOriginalData())
     return Clear(false);
@@ -580,16 +588,17 @@ bool Hitman4Dialog::LoadImpl(const std::filesystem::path &loadPath)
   return true;
 }
 
-bool Hitman4Dialog::SaveImpl(const std::filesystem::path &savePath)
+bool Hitman4Dialog::SaveImpl(const StringView8CI savePathView)
 {
-  const auto newBasePath = savePath.parent_path();
+  const auto newBasePath = savePathView.path().parent_path();
 
-  streamsWAV.Save(savePath);
+  streamsWAV.Save(savePathView);
 
   for (size_t i = 0; i < whdFiles.size(); ++i)
   {
-    wavFiles[i].Save(newBasePath / relative(wavFiles[i].path, basePath));
-    whdFiles[i].Save(streamsWAV, wavFiles[i], newBasePath / relative(whdFiles[i].path, basePath));
+    String8CI savePath = newBasePath / relative(wavFiles[i].path.path(), basePath.path());
+    wavFiles[i].Save(savePath);
+    whdFiles[i].Save(streamsWAV, wavFiles[i], savePath);
   }
 
   basePath = newBasePath;
@@ -601,5 +610,5 @@ bool Hitman4Dialog::SaveImpl(const std::filesystem::path &savePath)
 
 void Hitman4Dialog::DrawDialog()
 {
-  DrawHitmanDialog(L"Blood Money", L"Hitman 4 Streams (pc_eng.str)\0pc_eng.str\0", L"pc_eng.str");
+  DrawHitmanDialog("Blood Money", "Hitman 4 Streams (pc_eng.str)\0pc_eng.str\0", "pc_eng.str");
 }

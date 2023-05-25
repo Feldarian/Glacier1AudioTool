@@ -62,7 +62,7 @@ void CommonSettings::DrawDialog()
     const auto availableLanguages = LocalizationManager::Get().GetAvailableLanguages();
     for (const auto& language : availableLanguages)
     {
-      bool selected = (LocalizationManager::Get().GetLanguage() <=> language) == std::strong_ordering::equivalent;
+      bool selected = LocalizationManager::Get().GetLanguage() == language;
       if (ImGui::Selectable(language.c_str(), &selected))
         LocalizationManager::Get().SetLanguage(language);
     }
@@ -71,7 +71,7 @@ void CommonSettings::DrawDialog()
 
   ImGui::Checkbox(LocalizationManager::Get().Localize("SETTINGS_DIALOG_DISABLE_WARNINGS").c_str(), &disableWarnings);
 
-  bool prevCheckOriginality = checkOriginality;
+  const bool prevCheckOriginality = checkOriginality;
   ImGui::Checkbox(LocalizationManager::Get().Localize("SETTINGS_DIALOG_CHECK_DATA_ORIGINALITY").c_str(), &checkOriginality);
 
   if (!prevCheckOriginality && checkOriginality)
@@ -138,7 +138,7 @@ void CommonSettings::DrawDialog()
 
 void Options::Load()
 {
-  std::filesystem::path optionsPath = GetProgramPath();
+  auto optionsPath = GetProgramPath().path();
   if (optionsPath.empty())
     return;
 
@@ -153,7 +153,7 @@ void Options::Load()
 
 void Options::Save() const
 {
-  std::filesystem::path optionsPath = GetProgramPath();
+  auto optionsPath = GetProgramPath().path();
   if (optionsPath.empty())
     return;
 

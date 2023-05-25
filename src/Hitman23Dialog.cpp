@@ -36,7 +36,7 @@ void Hitman23WHDRecord::FromHitmanSoundRecord(const HitmanSoundRecord &soundReco
   fmtExtra = soundRecord.fmtExtra;
 }
 
-bool Hitman23WAVFile::Clear(bool retVal)
+bool Hitman23WAVFile::Clear(const bool retVal)
 {
   header = nullptr;
   recordMap.clear();
@@ -46,8 +46,8 @@ bool Hitman23WAVFile::Clear(bool retVal)
   return retVal;
 }
 
-bool Hitman23WAVFile::Load(const std::filesystem::path &loadPath, const UTFViewToTypeMapCI<wchar_t, Hitman23WHDRecord *> &whdRecordsMap,
-                   UTFViewToTypeMapCI<wchar_t, HitmanFile>& fileMap, const bool isMissionWAV)
+bool Hitman23WAVFile::Load(const StringView8CI loadPath, const std::map<StringView8CI, Hitman23WHDRecord *> &whdRecordsMap,
+                           std::map<StringView8CI, HitmanFile>& fileMap, const bool isMissionWAV)
 {
   const auto wavData = ReadWholeBinaryFile(loadPath);
   if (wavData.empty())
@@ -133,8 +133,9 @@ bool Hitman23WAVFile::Load(const std::filesystem::path &loadPath, const UTFViewT
   return true;
 }
 
-bool Hitman23WAVFile::Save(const std::filesystem::path &savePath)
+bool Hitman23WAVFile::Save(const StringView8CI savePathView)
 {
+  const auto savePath = savePathView.path();
   create_directories(savePath.parent_path());
 
   const auto oldSync = std::ios_base::sync_with_stdio(false);
@@ -161,7 +162,7 @@ bool Hitman23WAVFile::Save(const std::filesystem::path &savePath)
   return true;
 }
 
-bool Hitman23WHDFile::Clear(bool retVal)
+bool Hitman23WHDFile::Clear(const bool retVal)
 {
   header = nullptr;
   recordMap.clear();
@@ -171,10 +172,10 @@ bool Hitman23WHDFile::Clear(bool retVal)
   return retVal;
 }
 
-bool Hitman23WHDFile::BuildArchivePaths(const std::filesystem::path &basePath, const std::filesystem::path &loadPath, PathSetCI& archivePaths)
+bool Hitman23WHDFile::BuildArchivePaths(const StringView8CI basePathView, const StringView8CI loadPathView, std::set<String8CI>& archivePaths)
 {
   if (data.empty())
-    data = ReadWholeBinaryFile(loadPath);
+    data = ReadWholeBinaryFile(loadPathView);
 
   if (data.empty())
     return Clear(false);
@@ -192,27 +193,30 @@ bool Hitman23WHDFile::BuildArchivePaths(const std::filesystem::path &basePath, c
       whdRecord = reinterpret_cast<Hitman23WHDRecord *>(whdPtr);
     }
     whdPtr += sizeof Hitman23WHDRecord;
-    
+
     assert(whdRecord->type == 0x06);
-    
-    std::filesystem::path filePath = ToUTF<wchar_t>(std::string_view(data.data() + whdRecord->filePathOffset));
-    if (UTFCaseInsensitiveCompare(filePath.extension().native(), L".wav") != 0)
+
+    auto filePath = StringW(data.data() + whdRecord->filePathOffset).path();
+    if (filePath.extension() != StringView8CI(".wav"))
       return Clear(false);
 
     if (whdRecord->dataInStreams == 0)
-      filePath = relative(loadPath.parent_path(), basePath) / loadPath.stem() / filePath;
+    {
+      auto loadPath = loadPathView.path();
+      filePath = relative(loadPath.parent_path(), basePathView.path()) / loadPath.stem() / filePath;
+    }
     else if (!filePath.has_parent_path())
       filePath = L"Streams" / filePath;
 
     archivePaths.emplace(std::move(filePath));
   }
 
-  path = loadPath;
+  path = loadPathView;
 
   return true;
 }
 
-bool Hitman23WHDFile::Load(const std::filesystem::path &basePath, PathSetCI& archivePaths, UTFViewToTypeMapCI<wchar_t, HitmanFile>& fileMap, UTFViewToTypeMapCI<wchar_t, std::vector<Hitman23WHDRecord *>>& whdRecordsMap)
+bool Hitman23WHDFile::Load(const StringView8CI basePath, std::set<String8CI>& archivePaths, std::map<StringView8CI, HitmanFile>& fileMap, std::map<StringView8CI, std::vector<Hitman23WHDRecord *>>& whdRecordsMap)
 {
   if (data.empty())
     return Clear(false);
@@ -233,15 +237,18 @@ bool Hitman23WHDFile::Load(const std::filesystem::path &basePath, PathSetCI& arc
       whdRecord = reinterpret_cast<Hitman23WHDRecord *>(whdPtr);
     }
     whdPtr += sizeof Hitman23WHDRecord;
-    
+
     assert(whdRecord->type == 0x06);
-    
-    std::filesystem::path filePath = ToUTF<wchar_t>(std::string_view(data.data() + whdRecord->filePathOffset));
-    if (UTFCaseInsensitiveCompare(filePath.extension().native(), L".wav") != 0)
+
+    auto filePath = StringW(data.data() + whdRecord->filePathOffset).path();
+    if (filePath.extension() != StringView8CI(".wav"))
       return Clear(false);
 
     if (whdRecord->dataInStreams == 0)
-      filePath = relative(path.parent_path(), basePath) / path.stem() / filePath;
+    {
+      auto pathFS = path.path();
+      filePath = relative(pathFS.parent_path(), basePath.path()) / pathFS.stem() / filePath;
+    }
     else if (!filePath.has_parent_path())
       filePath = L"Streams" / filePath;
 
@@ -251,7 +258,7 @@ bool Hitman23WHDFile::Load(const std::filesystem::path &basePath, PathSetCI& arc
 
     if (!recordMap.try_emplace(filePathIt->native(), whdRecord).second)
       return Clear(false);
-    
+
     auto whdRecordIt = whdRecordsMap.find(filePathIt->native());
     if (whdRecordIt == whdRecordsMap.cend())
       return Clear(false);
@@ -259,7 +266,7 @@ bool Hitman23WHDFile::Load(const std::filesystem::path &basePath, PathSetCI& arc
     auto fileIt = fileMap.find(filePathIt->native());
     if (fileIt == fileMap.cend())
       return Clear(false);
-    
+
     whdRecordIt->second.emplace_back(whdRecord);
     fileIt->second.archiveRecord = whdRecord->ToHitmanSoundRecord();
   }
@@ -267,7 +274,7 @@ bool Hitman23WHDFile::Load(const std::filesystem::path &basePath, PathSetCI& arc
   return true;
 }
 
-bool Hitman23WHDFile::Save(const Hitman23WAVFile &streamsWAV, const Hitman23WAVFile &missionWAV, const std::filesystem::path &savePath)
+bool Hitman23WHDFile::Save(const Hitman23WAVFile &streamsWAV, const Hitman23WAVFile &missionWAV, const StringView8CI savePath)
 {
   for (auto *whdRecord : recordMap | std::views::values)
   {
@@ -280,7 +287,7 @@ bool Hitman23WHDFile::Save(const Hitman23WAVFile &streamsWAV, const Hitman23WAVF
 
   const auto oldSync = std::ios_base::sync_with_stdio(false);
 
-  std::ofstream whdData(savePath, std::ios::binary | std::ios::trunc);
+  std::ofstream whdData(savePath.path(), std::ios::binary | std::ios::trunc);
   whdData.write(data.data(), data.size());
   whdData.close();
 
@@ -291,7 +298,7 @@ bool Hitman23WHDFile::Save(const Hitman23WAVFile &streamsWAV, const Hitman23WAVF
   return true;
 }
 
-bool Hitman23Dialog::Clear(bool retVal)
+bool Hitman23Dialog::Clear(const bool retVal)
 {
   whdFiles.clear();
   wavFiles.clear();
@@ -303,26 +310,25 @@ bool Hitman23Dialog::Clear(bool retVal)
   return HitmanDialog::Clear(retVal);
 }
 
-bool Hitman23Dialog::ImportSingle(const std::filesystem::path &importFolderPath,
-    const std::filesystem::path &importFilePath)
+bool Hitman23Dialog::ImportSingle(const StringView8CI importFolderPathView, StringView8CI importFilePathView)
 {
-  auto filePath = relative(importFilePath, importFolderPath);
-  auto fileIt = fileMap.find(filePath.native());
-  auto whdRecordsIt = whdRecordsMap.find(filePath.native());
+  auto filePath = String8CI(relative(importFolderPathView.path(), importFilePathView.path()));
+  auto fileIt = fileMap.find(filePath);
+  auto whdRecordsIt = whdRecordsMap.find(filePath);
   if (fileIt == fileMap.end() || whdRecordsIt == whdRecordsMap.end())
   {
-    const auto nextExtension = filePath.extension().native() == L".wav" ? L".ogg" : L".wav";
+    const StringView8CI nextExtension = filePath.path().extension() == StringView8CI(".wav") ? ".ogg" : ".wav";
     filePath = ChangeExtension(filePath, nextExtension);
-    fileIt = fileMap.find(filePath.native());
-    whdRecordsIt = whdRecordsMap.find(filePath.native());
+    fileIt = fileMap.find(filePath);
+    whdRecordsIt = whdRecordsMap.find(filePath);
     if (fileIt == fileMap.end() || whdRecordsIt == whdRecordsMap.end())
     {
-      DisplayWarning(LocalizationManager::Get().LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", ToUTF<char>(importFilePath.native())));
+      DisplayWarning(LocalizationManager::Get().LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", importFilePathView));
       return false;
     }
   }
 
-  if (!ImportSingleHitmanFile(fileIt->second, filePath, importFilePath))
+  if (!ImportSingleHitmanFile(fileIt->second, filePath, importFilePathView))
     return false;
 
   for (auto* whdRecord : whdRecordsIt->second)
@@ -331,23 +337,24 @@ bool Hitman23Dialog::ImportSingle(const std::filesystem::path &importFolderPath,
   return true;
 }
 
-bool Hitman23Dialog::LoadImpl(const std::filesystem::path &loadPath)
+bool Hitman23Dialog::LoadImpl(const StringView8CI loadPathView)
 {
   Clear();
 
-  const auto scenesPath = loadPath.parent_path() / L"Scenes";
+  const auto rootPath = loadPathView.path().parent_path();
+  const auto scenesPath = rootPath / L"Scenes";
   if (!exists(scenesPath))
   {
     DisplayError(LocalizationManager::Get().Localize("HITMAN_23_DIALOG_ERROR_MISSING_SCENES"));
     return false;
   }
 
-  const auto allWHDFiles = GetAllFilesInDirectory(scenesPath, L".whd", true);
+  const auto allWHDFiles = GetAllFilesInDirectory(String8CI(scenesPath), ".whd", true);
 
   whdFiles.reserve(allWHDFiles.size());
   wavFiles.reserve(allWHDFiles.size());
 
-  basePath = loadPath.parent_path();
+  basePath = rootPath;
 
   for (const auto &whdPath : allWHDFiles)
   {
@@ -358,11 +365,11 @@ bool Hitman23Dialog::LoadImpl(const std::filesystem::path &loadPath)
 
   for (const auto& archivePath : archivePaths)
   {
-    fileMap[archivePath.native()];
-    whdRecordsMap[archivePath.native()];
+    fileMap[archivePath];
+    whdRecordsMap[archivePath];
   }
 
-  UTFViewToTypeMapCI<wchar_t, Hitman23WHDRecord *> allWHDRecords;
+  std::map<StringView8CI, Hitman23WHDRecord *> allWHDRecords;
   for (auto &whdFile : whdFiles)
   {
     if (!whdFile.Load(basePath, archivePaths, fileMap, whdRecordsMap))
@@ -370,12 +377,12 @@ bool Hitman23Dialog::LoadImpl(const std::filesystem::path &loadPath)
 
     for (const auto& whdRecordMapKV : whdFile.recordMap)
       allWHDRecords.insert(whdRecordMapKV);
-    
-    if (!wavFiles.emplace_back().Load(ChangeExtension(whdFile.path, L".wav"), whdFile.recordMap, fileMap, true))
+
+    if (!wavFiles.emplace_back().Load(ChangeExtension(whdFile.path, ".wav"), whdFile.recordMap, fileMap, true))
       return Clear(false);
   }
-  
-  if (!streamsWAV.Load(loadPath, allWHDRecords, fileMap, false))
+
+  if (!streamsWAV.Load(loadPathView, allWHDRecords, fileMap, false))
     return Clear(false);
 
   for (const auto& archivePath : archivePaths)
@@ -384,13 +391,15 @@ bool Hitman23Dialog::LoadImpl(const std::filesystem::path &loadPath)
   if (!options.common.checkOriginality)
     return true;
 
-  originalDataPath = GetProgramPath();
-  if (originalDataPath.empty())
+  auto dataPath = GetProgramPath().path();
+  if (dataPath.empty())
     return Clear(false);
 
-  originalDataPath /= L"data";
-  originalDataPath /= L"records";
-  originalDataPath /= streamsWAV.recordMap[0].data.get().data()[0] == 0x6F ? L"h2" : L"h3";
+  dataPath /= L"data";
+  dataPath /= L"records";
+  dataPath /= streamsWAV.recordMap[0].data.get().data()[0] == 0x6F ? L"h2" : L"h3";
+
+  originalDataPath = dataPath;
 
   if (!LoadOriginalData())
     return Clear(false);
@@ -398,16 +407,17 @@ bool Hitman23Dialog::LoadImpl(const std::filesystem::path &loadPath)
   return true;
 }
 
-bool Hitman23Dialog::SaveImpl(const std::filesystem::path &savePath)
+bool Hitman23Dialog::SaveImpl(const StringView8CI savePathView)
 {
-  const auto newBasePath = savePath.parent_path();
+  const auto newBasePath = savePathView.path().parent_path();
 
-  streamsWAV.Save(savePath);
+  streamsWAV.Save(savePathView);
 
   for (size_t i = 0; i < whdFiles.size(); ++i)
   {
-    wavFiles[i].Save(newBasePath / relative(wavFiles[i].path, basePath));
-    whdFiles[i].Save(streamsWAV, wavFiles[i], newBasePath / relative(whdFiles[i].path, basePath));
+    String8CI savePath(newBasePath / relative(wavFiles[i].path.path(), basePath.path()));
+    wavFiles[i].Save(savePath);
+    whdFiles[i].Save(streamsWAV, wavFiles[i], savePath);
   }
 
   basePath = newBasePath;
@@ -419,5 +429,5 @@ bool Hitman23Dialog::SaveImpl(const std::filesystem::path &savePath)
 
 void Hitman23Dialog::DrawDialog()
 {
-  DrawHitmanDialog(L"Silent Assassin / Contracts", L"Hitman 2/3 Streams (streams.wav)\0streams.wav\0", L"streams.wav");
+  DrawHitmanDialog("Silent Assassin / Contracts", "Hitman 2/3 Streams (streams.wav)\0streams.wav\0", "streams.wav");
 }

@@ -26,7 +26,7 @@ inline SF_VIRTUAL_IO g_VirtSndFileIOFixed {
     const auto* virtData = static_cast<SF_VIRTUAL_DATA_FIXED *>(user_data);
     return virtData->dataSize;
   },
-  .seek = [](sf_count_t offset, int whence, void *user_data) -> sf_count_t {
+  .seek = [](const sf_count_t offset, const int whence, void *user_data) -> sf_count_t {
     auto* virtData = static_cast<SF_VIRTUAL_DATA_FIXED *>(user_data);
 
     switch (whence)
@@ -50,7 +50,7 @@ inline SF_VIRTUAL_IO g_VirtSndFileIOFixed {
     assert(virtData->offset <= virtData->dataSize);
     return virtData->offset;
   },
-  .read = [](void *ptr, sf_count_t count, void *user_data) -> sf_count_t {
+  .read = [](void *ptr, const sf_count_t count, void *user_data) -> sf_count_t {
     auto* virtData = static_cast<SF_VIRTUAL_DATA_FIXED *>(user_data);
 
     const auto bytesToRead = std::min(virtData->dataSize - virtData->offset, count);
@@ -60,7 +60,7 @@ inline SF_VIRTUAL_IO g_VirtSndFileIOFixed {
 
     return bytesToRead;
   },
-  .write = [](const void *ptr, sf_count_t count, void *user_data) -> sf_count_t {
+  .write = [](const void *ptr, const sf_count_t count, void *user_data) -> sf_count_t {
     auto* virtData = static_cast<SF_VIRTUAL_DATA_FIXED *>(user_data);
 
     const auto bytesToWrite = std::min(virtData->dataSize - virtData->offset, count);
@@ -81,7 +81,7 @@ inline SF_VIRTUAL_IO g_VirtSndFileIO {
     const auto* virtData = static_cast<SF_VIRTUAL_DATA *>(user_data);
     return static_cast<sf_count_t>(virtData->data.size());
   },
-  .seek = [](sf_count_t offset, int whence, void *user_data) -> sf_count_t {
+  .seek = [](const sf_count_t offset, const int whence, void *user_data) -> sf_count_t {
     auto* virtData = static_cast<SF_VIRTUAL_DATA *>(user_data);
 
     switch (whence)
@@ -105,7 +105,7 @@ inline SF_VIRTUAL_IO g_VirtSndFileIO {
     assert(static_cast<size_t>(virtData->offset) <= virtData->data.size());
     return virtData->offset;
   },
-  .read = [](void *ptr, sf_count_t count, void *user_data) -> sf_count_t {
+  .read = [](void *ptr, const sf_count_t count, void *user_data) -> sf_count_t {
     auto* virtData = static_cast<SF_VIRTUAL_DATA *>(user_data);
 
     const auto bytesToRead = std::min(static_cast<sf_count_t>(virtData->data.size()) - virtData->offset, count);
@@ -115,7 +115,7 @@ inline SF_VIRTUAL_IO g_VirtSndFileIO {
 
     return bytesToRead;
   },
-  .write = [](const void *ptr, sf_count_t count, void *user_data) -> sf_count_t {
+  .write = [](const void *ptr, const sf_count_t count, void *user_data) -> sf_count_t {
     auto* virtData = static_cast<SF_VIRTUAL_DATA *>(user_data);
 
     if (static_cast<sf_count_t>(virtData->data.size()) - virtData->offset < count)
@@ -151,14 +151,14 @@ struct HitmanFile
 {
   bool Import(char inputBytes[], size_t inputBytesCount, const Options& options);
   bool Import(std::vector<char> &inputBytes, const Options& options);
-  bool Import(const std::filesystem::path& importPath, const Options& options);
+  bool Import(StringView8CI importPath, const Options& options);
 
   bool ImportNative(char inputBytes[], size_t inputBytesCount, const Options& options, bool doHashing);
   bool ImportNative(std::vector<char> &inputBytes, const Options& options, bool doHashing);
-  bool ImportNative(const std::filesystem::path& importPath, const Options& options, bool doHashing);
+  bool ImportNative(StringView8CI importPath, const Options& options, bool doHashing);
 
   bool Export(std::vector<char> &outputBytes) const;
-  bool Export(std::filesystem::path exportPath, bool fixExtension) const;
+  bool Export(StringView8CI exportPath, bool fixExtension) const;
 
   HitmanSoundRecord originalRecord;
   HitmanSoundRecord archiveRecord;
@@ -174,18 +174,18 @@ public:
 
   bool LoadOriginalData();
 
-  bool ImportSingleHitmanFile(HitmanFile &hitmanFile, const std::filesystem::path &hitmanFilePath, std::vector<char> &data, bool doConversion);
+  bool ImportSingleHitmanFile(HitmanFile &hitmanFile, StringView8CI hitmanFilePath, std::vector<char> &data, bool doConversion);
 
-  bool ImportSingleHitmanFile(HitmanFile &hitmanFile, const std::filesystem::path &hitmanFilePath, const std::filesystem::path &importFilePath);
+  bool ImportSingleHitmanFile(HitmanFile &hitmanFile, StringView8CI hitmanFilePath, StringView8CI importFilePath);
 
-  bool ExportSingle(const std::filesystem::path &exportFolderPath, const std::filesystem::path &exportFilePath) const override;
+  bool ExportSingle(StringView8CI exportFolderPath, StringView8CI exportFilePath) const override;
 
   void ReloadOriginalData();
 
-  void DrawHitmanDialog(std::wstring_view dialogName, std::wstring_view filters, std::wstring_view defaultFilename);
+  void DrawHitmanDialog(StringView8CI dialogName, StringView8CI filters, StringView8CI defaultFilename);
 
-  UTFViewToTypeMapCI<wchar_t, HitmanFile> fileMap;
+  std::map<StringView8CI, HitmanFile> fileMap;
   Options options = Options::Get();
-  std::filesystem::path originalDataPath;
+  String8CI originalDataPath;
   bool needsOriginalDataReload = false;
 };

@@ -21,7 +21,7 @@ bool HitmanSoundRecord::operator==(const HitmanSoundRecord &other) const
    && fmtExtra == other.fmtExtra;
 }
 
-bool HitmanFile::Import(char inputBytes[], size_t inputBytesCount, const Options& options)
+bool HitmanFile::Import(char inputBytes[], const size_t inputBytesCount, const Options& options)
 {
   SF_VIRTUAL_DATA_FIXED virtSndData{inputBytes, static_cast<sf_count_t>(inputBytesCount)};
   SndfileHandle sndFile(g_VirtSndFileIOFixed, &virtSndData);
@@ -205,7 +205,7 @@ bool HitmanFile::Import(std::vector<char> &inputBytes, const Options& options)
   return Import(inputBytes.data(), inputBytes.size(), options);
 }
 
-bool HitmanFile::Import(const std::filesystem::path& importPath, const Options& options)
+bool HitmanFile::Import(const StringView8CI importPath, const Options& options)
 {
   auto importData = ReadWholeBinaryFile(importPath);
   if (importData.empty())
@@ -214,7 +214,7 @@ bool HitmanFile::Import(const std::filesystem::path& importPath, const Options& 
   return Import(importData, options);
 }
 
-bool HitmanFile::ImportNative(char inputBytes[], size_t inputBytesCount, const Options& options, bool doHashing)
+bool HitmanFile::ImportNative(char inputBytes[], const size_t inputBytesCount, const Options& options, const bool doHashing)
 {
   SF_VIRTUAL_DATA_FIXED virtSndData{inputBytes, static_cast<sf_count_t>(inputBytesCount)};
   SndfileHandle sndFile(g_VirtSndFileIOFixed, &virtSndData);
@@ -322,12 +322,12 @@ bool HitmanFile::ImportNative(char inputBytes[], size_t inputBytesCount, const O
   return true;
 }
 
-bool HitmanFile::ImportNative(std::vector<char> &inputBytes, const Options& options, bool doHashing)
+bool HitmanFile::ImportNative(std::vector<char> &inputBytes, const Options& options, const bool doHashing)
 {
   return ImportNative(inputBytes.data(), inputBytes.size(), options, doHashing);
 }
 
-bool HitmanFile::ImportNative(const std::filesystem::path& importPath, const Options& options, bool doHashing)
+bool HitmanFile::ImportNative(const StringView8CI importPath, const Options& options, const bool doHashing)
 {
   auto importData = ReadWholeBinaryFile(importPath);
   if (importData.empty())
@@ -390,31 +390,35 @@ bool HitmanFile::Export(std::vector<char> &outputBytes) const
   return true;
 }
 
-bool HitmanFile::Export(std::filesystem::path exportPath, bool fixExtension) const
+bool HitmanFile::Export(const StringView8CI export_path_view, const bool fixExtension) const
 {
   thread_local static std::vector<char> exportData;
   if (!Export(exportData))
     return false;
 
+  String8CI exportPath;
   if (fixExtension)
   {
     if (archiveRecord.formatTag == 1 || archiveRecord.formatTag == 17)
     {
-      if (_wcsicmp(exportPath.extension().c_str(), L".wav") != 0)
-        exportPath = ChangeExtension(exportPath, L".wav");
+      if (export_path_view.path().extension() != StringView8CI(".wav"))
+        exportPath = ChangeExtension(export_path_view, ".wav");
     }
     else if (archiveRecord.formatTag == 4096)
     {
-      if (_wcsicmp(exportPath.extension().c_str(), L".ogg") != 0)
-        exportPath = ChangeExtension(exportPath, L".ogg");
+      if (export_path_view.path().extension() != StringView8CI(".ogg"))
+        exportPath = ChangeExtension(export_path_view, ".ogg");
     }
   }
+  if (exportPath.empty())
+    exportPath = export_path_view;
 
-  create_directories(exportPath.parent_path());
+  auto exportPathFS = exportPath.path();
+  create_directories(exportPathFS.parent_path());
 
   const auto oldSync = std::ios_base::sync_with_stdio(false);
 
-  std::ofstream exportBin(exportPath, std::ios::binary | std::ios::trunc);
+  std::ofstream exportBin(exportPathFS, std::ios::binary | std::ios::trunc);
   exportBin.write(exportData.data(), static_cast<int64_t>(exportData.size()));
 
   std::ios_base::sync_with_stdio(oldSync);
@@ -422,7 +426,7 @@ bool HitmanFile::Export(std::filesystem::path exportPath, bool fixExtension) con
   return true;
 }
 
-bool HitmanDialog::Clear(bool retVal)
+bool HitmanDialog::Clear(const bool retVal)
 {
   fileMap.clear();
 
@@ -431,11 +435,12 @@ bool HitmanDialog::Clear(bool retVal)
 
 bool HitmanDialog::GenerateOriginalData()
 {
-  create_directories(originalDataPath.parent_path());
+  const auto dataPath = originalDataPath.path();
+  create_directories(dataPath.parent_path());
 
   const auto oldSync = std::ios_base::sync_with_stdio(false);
 
-  std::ofstream genFile(originalDataPath, std::ios::binary | std::ios::trunc);
+  std::ofstream genFile(dataPath, std::ios::binary | std::ios::trunc);
   uint64_t entriesCount = fileMap.size();
   genFile.write(reinterpret_cast<char *>(&entriesCount), sizeof entriesCount);
 
@@ -483,12 +488,13 @@ bool HitmanDialog::GenerateOriginalData()
 
 bool HitmanDialog::LoadOriginalData()
 {
-  if (!exists(originalDataPath))
+  const auto dataPath = originalDataPath.path();
+  if (!exists(dataPath))
     return GenerateOriginalData();
 
   const auto oldSync = std::ios_base::sync_with_stdio(false);
 
-  std::ifstream genFile(originalDataPath, std::ios::binary);
+  std::ifstream genFile(dataPath, std::ios::binary);
   uint64_t entriesCount = 0;
   genFile.read(reinterpret_cast<char *>(&entriesCount), sizeof entriesCount);
 
@@ -538,7 +544,7 @@ bool HitmanDialog::LoadOriginalData()
   return true;
 }
 
-bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const std::filesystem::path &hitmanFilePath, std::vector<char> &data, bool doConversion)
+bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringView8CI hitmanFilePath, std::vector<char> &data, const bool doConversion)
 {
   if (doConversion)
     hitmanFile.Import(data, options);
@@ -555,20 +561,20 @@ bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const std::fil
   return true;
 }
 
-bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const std::filesystem::path &hitmanFilePath, const std::filesystem::path &importFilePath)
+bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringView8CI hitmanFilePath, const StringView8CI importFilePath)
 {
   auto inputData = ReadWholeBinaryFile(importFilePath);
   return ImportSingleHitmanFile(hitmanFile, hitmanFilePath, inputData, !Options::Get().common.directImport);
 }
 
-bool HitmanDialog::ExportSingle(const std::filesystem::path &exportFolderPath,
-    const std::filesystem::path &exportFilePath) const
+bool HitmanDialog::ExportSingle(StringView8CI exportFolderPath, StringView8CI exportFilePath) const
 {
-  const auto fileMapIt = fileMap.find(exportFilePath.native());
+  const auto fileMapIt = fileMap.find(exportFilePath);
   if (fileMapIt == fileMap.cend())
     return false;
 
-  return fileMapIt->second.Export(exportFolderPath / exportFilePath, true);
+  const String8CI exportPath = exportFolderPath.path() / exportFilePath.path();
+  return fileMapIt->second.Export(exportPath, true);
 }
 
 void HitmanDialog::ReloadOriginalData()
@@ -587,19 +593,19 @@ void HitmanDialog::ReloadOriginalData()
     progressNextActive = true;
 
     std::thread([this] {
-    LoadOriginalData();
+      LoadOriginalData();
 
-    std::unique_lock progressMessageLock(progressMessageMutex);
-    progressMessage.clear();
-    progressNext = 1;
-    progressNextActive = false;
+      std::unique_lock progressMessageLock(progressMessageMutex);
+      progressMessage.clear();
+      progressNext = 1;
+      progressNextActive = false;
     }).detach();
   }
 
   needsOriginalDataReload = false;
 }
 
-void HitmanDialog::DrawHitmanDialog(std::wstring_view dialogName, std::wstring_view filters, std::wstring_view defaultFilename)
+void HitmanDialog::DrawHitmanDialog(const StringView8CI dialogName, const StringView8CI filters, const StringView8CI defaultFilename)
 {
   if (needsOriginalDataReload)
     ReloadOriginalData();
