@@ -101,7 +101,7 @@ target("HitmanAudioTool")
 
   set_kind("binary")
   
-  add_files("embed/*")
+  add_files("manifests/*")
 
   add_headerfiles("src/**.h")
   
