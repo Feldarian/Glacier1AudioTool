@@ -60,14 +60,14 @@ bool Hitman1Dialog::LoadImpl(StringView8CI loadPathView)
     if (archivePathIt == archivePaths.end())
       return Clear(false);
 
-    auto [fileMapIt, inserted] = fileMap.try_emplace(archivePathIt->native(), HitmanFile{});
+    auto [fileMapIt, inserted] = fileMap.try_emplace(*archivePathIt, HitmanFile{});
     if (!inserted)
       return Clear(false);
 
-    if (!lastModifiedDatesMap.try_emplace(archivePathIt->native(), std::format("{} {} {}", month, day, time)).second)
+    if (!lastModifiedDatesMap.try_emplace(*archivePathIt, std::format("{} {} {}", month, day, time)).second)
       return Clear(false);
 
-    indexToKey.emplace_back(archivePathIt->native());
+    indexToKey.emplace_back(*archivePathIt);
 
     std::vector<char> fileData(dataSize, 0);
     std::memcpy(fileData.data(), archiveBin.data() + archiveBinOffset, dataSize);
@@ -103,10 +103,7 @@ bool Hitman1Dialog::LoadImpl(StringView8CI loadPathView)
 
 bool Hitman1Dialog::ImportSingle(const StringView8CI importFolderPathView, StringView8CI importFilePathView)
 {
-  const auto importFolderPath = importFolderPathView.path();
-  const auto importFilePath = importFilePathView.path();
-
-  auto filePath = String8CI(relative(importFilePath, importFolderPath));
+  auto filePath = String8CI(relative(importFilePathView.path(), importFolderPathView.path()));
   auto fileIt = fileMap.find(filePath);
   if (fileIt == fileMap.end())
   {
@@ -128,13 +125,12 @@ bool Hitman1Dialog::ImportSingle(const StringView8CI importFolderPathView, Strin
 
 bool Hitman1Dialog::SaveImpl(StringView8CI savePathView)
 {
-  auto savePath = savePathView.path();
-  const auto archiveBinFilePath = savePath.parent_path() / (savePath.stem().native() + L".bin");
+  const auto archiveBinFilePath = ChangeExtension(savePathView, ".bin");
 
   const auto oldSync = std::ios_base::sync_with_stdio(false);
 
-  std::ofstream archiveIdx(savePath, std::ios::trunc);
-  std::ofstream archiveBin(archiveBinFilePath, std::ios::binary | std::ios::trunc);
+  std::ofstream archiveIdx(savePathView.path(), std::ios::trunc);
+  std::ofstream archiveBin(archiveBinFilePath.path(), std::ios::binary | std::ios::trunc);
 
   thread_local static std::vector<char> exportBytes;
   for (const auto filePath : indexToKey)

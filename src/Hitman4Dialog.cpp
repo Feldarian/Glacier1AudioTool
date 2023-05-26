@@ -431,14 +431,14 @@ bool Hitman4WHDFile::Load(const StringView8CI basePathView, std::set<String8CI>&
       if (filePathIt == archivePaths.end())
         continue;
 
-      if (!recordMap.try_emplace(filePathIt->native(), whdRecord).second)
+      if (!recordMap.try_emplace(*filePathIt, whdRecord).second)
         return Clear(false);
 
-      auto whdRecordIt = whdRecordsMap.find(filePathIt->native());
+      auto whdRecordIt = whdRecordsMap.find(*filePathIt);
       if (whdRecordIt == whdRecordsMap.cend())
         return Clear(false);
 
-      auto fileIt = fileMap.find(filePathIt->native());
+      auto fileIt = fileMap.find(*filePathIt);
       if (fileIt == fileMap.cend())
         return Clear(false);
 

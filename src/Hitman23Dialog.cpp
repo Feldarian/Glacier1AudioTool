@@ -256,14 +256,14 @@ bool Hitman23WHDFile::Load(const StringView8CI basePath, std::set<String8CI>& ar
     if (filePathIt == archivePaths.end())
       continue;
 
-    if (!recordMap.try_emplace(filePathIt->native(), whdRecord).second)
+    if (!recordMap.try_emplace(*filePathIt, whdRecord).second)
       return Clear(false);
 
-    auto whdRecordIt = whdRecordsMap.find(filePathIt->native());
+    auto whdRecordIt = whdRecordsMap.find(*filePathIt);
     if (whdRecordIt == whdRecordsMap.cend())
       return Clear(false);
 
-    auto fileIt = fileMap.find(filePathIt->native());
+    auto fileIt = fileMap.find(*filePathIt);
     if (fileIt == fileMap.cend())
       return Clear(false);
 
@@ -312,7 +312,7 @@ bool Hitman23Dialog::Clear(const bool retVal)
 
 bool Hitman23Dialog::ImportSingle(const StringView8CI importFolderPathView, StringView8CI importFilePathView)
 {
-  auto filePath = String8CI(relative(importFolderPathView.path(), importFilePathView.path()));
+  auto filePath = String8CI(relative(importFilePathView.path(), importFolderPathView.path()));
   auto fileIt = fileMap.find(filePath);
   auto whdRecordsIt = whdRecordsMap.find(filePath);
   if (fileIt == fileMap.end() || whdRecordsIt == whdRecordsMap.end())

@@ -107,11 +107,11 @@ String8CI OpenFileDialog(StringView8CI filters, StringView8CI defaultFileName)
 
   if (defaultExt && defaultExt[0] && defaultExt[1] != '*')
   {
-    std::filesystem::path fullPath = StringWCI(fileName.native() + defaultExt).native();
-    if (!exists(fullPath))
-      fullPath.clear();
+    fileName += defaultExt;
+    if (!exists(fileName.path()))
+      fileName.clear();
 
-    return fullPath;
+    return fileName;
   }
 
   const auto filePath = fileName.path();
@@ -159,7 +159,7 @@ String8CI SaveFileDialog(const StringView8CI filters, const StringView8CI defaul
     defaultExt = strchr(defaultExt, '.');
 
   if (defaultExt && defaultExt[0] && defaultExt[1] != '*')
-    return fileName.native() + defaultExt;
+    return fileName += defaultExt;
 
   return fileName;
 }
@@ -257,12 +257,11 @@ std::vector<StringView8CI> GetPathStems(StringView8CI pathView)
 
 String8CI ChangeExtension(StringView8CI path, const StringView8CI newExtension)
 {
-  const auto& pathNative = path.native();
-  const auto pathNativeExtPos = pathNative.rfind('.');
-  if (pathNativeExtPos == StringView8CI::npos)
-    return String8CI(pathNative).native() + newExtension.c_str();
+  const auto pathExtPos = path.native().rfind('.');
+  if (pathExtPos == StringView8CI::npos)
+    return path + newExtension;
 
-  String8CI newPath = pathNative.substr(0, pathNativeExtPos);
-  newPath.native() += newExtension.c_str();
+  String8CI newPath = path.native().substr(0, pathExtPos);
+  newPath += newExtension;
   return newPath;
 }

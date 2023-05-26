@@ -140,7 +140,7 @@ public:
 
   void AddText(const std::filesystem::path& path)
   {
-    AddText(path.native());
+    AddText(std::basic_string_view<wchar_t>(path.native()));
   }
 
   template <typename UTFStorageType, typename UTFCharType, bool CaseSensitive>

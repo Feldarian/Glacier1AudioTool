@@ -199,7 +199,7 @@ bool ArchiveDialog::Load(StringView8CI loadPath)
       for (const auto& archivePath : archivePaths)
         GlyphRangesBuilder::Get().AddText(archivePath);
 
-      path = loadPath;
+      path = std::move(loadPath);
     }
     else
       Clear();

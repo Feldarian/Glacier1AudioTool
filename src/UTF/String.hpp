@@ -28,9 +28,8 @@ public:
   template <typename UTFCharTypeInput>
   requires IsUTFCharType<UTFCharTypeInput> && (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, UTFCharTypeInput>)
   StringWrapper(const std::basic_string<UTFCharTypeInput> &other)
-  {
-    *this = other;
-  }
+    : StringWrapper{ std::basic_string_view<UTFCharTypeInput>(other) }
+  {}
 
   template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>>>>
   requires std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
@@ -52,7 +51,7 @@ public:
 
   template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, wchar_t>>>
   StringWrapper(const std::filesystem::path &other)
-    : StringWrapper{ other.native() }
+    : StringWrapper{ std::basic_string_view<wchar_t>(other.native()) }
   {}
 
   template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<wchar_t>>>>
@@ -975,6 +974,99 @@ public:
     return (*this <=> other.utfData) == std::weak_ordering::greater;
   }
 
+  template <typename UTFCharTypeInput>
+  requires IsUTFCharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
+  StringWrapper& operator+=(const std::basic_string_view<UTFCharTypeInput> other)
+  {
+    return *this += StringWrapper<std::basic_string_view<UTFCharTypeInput>, UTFCharTypeInput, CaseSensitive>{other};
+  }
+
+  template <typename UTFCharTypeInput>
+  requires IsUTFCharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
+  StringWrapper& operator+=(const std::basic_string<UTFCharTypeInput>& other)
+  {
+    return *this += StringWrapper<std::basic_string_view<UTFCharTypeInput>, UTFCharTypeInput, CaseSensitive>{other};
+  }
+
+  template <typename UTFCharTypeInput, size_t UTFInputSize>
+  requires IsUTFCharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
+  StringWrapper& operator+=(const UTFCharTypeInput (&other)[UTFInputSize])
+  {
+    return *this += StringWrapper<std::basic_string_view<UTFCharTypeInput>, UTFCharTypeInput, CaseSensitive>{other};
+  }
+
+  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>>>>
+  StringWrapper& operator+=(const std::filesystem::path& other)
+  {
+    return *this += StringWrapper<std::basic_string_view<wchar_t>, wchar_t, CaseSensitive>{other};
+  }
+
+  template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
+  requires ((IsUTF8CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput>) || (IsUTF16CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput>) || (IsUTF32CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput>)) && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
+  StringWrapper& operator+=(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, CaseSensitiveInput>& other)
+  {
+    if (!other.empty())
+      utfData.append(reinterpret_cast<const UTFCharType *>(&other.front()), reinterpret_cast<const UTFCharType *>(&other.back()) + 1);
+
+    return *this;
+  }
+
+  template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
+  requires ((!IsUTF8CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput>) || (!IsUTF16CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput>) || (!IsUTF32CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput>)) && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
+  StringWrapper& operator+=(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, CaseSensitiveInput>& other)
+  {
+    return *this += StringWrapper{other};
+  }
+
+  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>>>>
+  StringWrapper& operator+=(const StringWrapper& other)
+  {
+    if (!other.empty())
+      utfData.append(other.cbegin(), other.cend());
+
+    return *this;
+  }
+
+  template <typename UTFCharTypeInput>
+  requires IsUTFCharType<UTFCharTypeInput>
+  [[nodiscard]] StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> operator+(const std::basic_string_view<UTFCharTypeInput> other)
+  {
+    return *this + StringWrapper<std::basic_string_view<UTFCharTypeInput>, UTFCharTypeInput, CaseSensitive>{other};
+  }
+
+  template <typename UTFCharTypeInput>
+  requires IsUTFCharType<UTFCharTypeInput>
+  [[nodiscard]] StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> operator+(const std::basic_string<UTFCharTypeInput>& other)
+  {
+    return *this + StringWrapper<std::basic_string_view<UTFCharTypeInput>, UTFCharTypeInput, CaseSensitive>{other};
+  }
+
+  template <typename UTFCharTypeInput, size_t UTFInputSize>
+  requires IsUTFCharType<UTFCharTypeInput>
+  [[nodiscard]] StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> operator+(const UTFCharTypeInput (&other)[UTFInputSize])
+  {
+    return *this + StringWrapper<std::basic_string_view<UTFCharTypeInput>, UTFCharTypeInput, CaseSensitive>{other};
+  }
+
+  [[nodiscard]] StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> operator+(const std::filesystem::path& other)
+  {
+    return *this + StringWrapper<std::basic_string_view<wchar_t>, wchar_t, CaseSensitive>{other};
+  }
+
+  template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
+  requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>>
+  [[nodiscard]] StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> operator+(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, CaseSensitiveInput>& other)
+  {
+    StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> result{*this};
+    return result += other;
+  }
+
+  [[nodiscard]] StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> operator+(const StringWrapper& other)
+  {
+    StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> result{*this};
+    return result += other;
+  }
+
   template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>>>>
   [[nodiscard]] auto begin()
   {
@@ -1024,9 +1116,14 @@ public:
       return utfData.c_str();
     else
     {
-      thread_local static StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> utfDataNullTerminated;
-      utfDataNullTerminated = utfData;
-      return utfDataNullTerminated.c_str();
+      // TODO - think of a better way to make sure view is null-terminated, as this could crash on char[1] = {'a'} for example
+      if (*(&back() + 1) == UTFCharType(0))
+        return utfData.data();
+
+      // TODO - dont throw but handle the case
+      //        if we had string cache and all string were just referencing it,
+      //        we could create new string in cache here and return it
+      throw std::exception("Encounter not null-terminated string view!");
     }
   }
 
