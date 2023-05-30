@@ -8,6 +8,8 @@
 
 #include "HitmanDialog.hpp"
 
+class Hitman23Dialog;
+
 struct Hitman23WHDHeader
 {
   uint32_t fileSizeWithoutHeader;
@@ -69,9 +71,7 @@ struct Hitman23WHDFile
 {
   bool Clear(bool retVal = false);
 
-  bool BuildArchivePaths(StringView8CI basePath, StringView8CI loadPath, std::set<String8CI>& archivePaths);
-
-  bool Load(StringView8CI basePath, std::set<String8CI>& archivePaths, std::map<StringView8CI, HitmanFile>& fileMap, std::map<StringView8CI, std::vector<Hitman23WHDRecord *>>& whdRecordsMap);
+  bool Load(Hitman23Dialog& archiveDialog, StringView8CI loadPathView);
 
   bool Save(const Hitman23WAVFile &streamsWAV, const Hitman23WAVFile &missionWAV, StringView8CI savePath);
 

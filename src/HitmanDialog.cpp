@@ -447,7 +447,7 @@ bool HitmanDialog::GenerateOriginalData()
   thread_local static std::vector<char> exportBytes;
   for (auto &[filePath, file] : fileMap)
   {
-    auto &archiveFile = archiveRoot.GetFile(filePath);
+    auto &archiveFile = GetFile(filePath);
     ZeroMemory(&file.originalRecord, sizeof file.originalRecord);
 
     file.Export(exportBytes);
@@ -501,7 +501,7 @@ bool HitmanDialog::LoadOriginalData()
   thread_local static std::vector<char> exportBytes;
   for (auto &[filePath, file] : fileMap)
   {
-    auto &archiveFile = archiveRoot.GetFile(filePath);
+    auto &archiveFile = GetFile(filePath);
     auto &originalRecord = file.originalRecord;
     genFile.read(reinterpret_cast<char *>(&originalRecord), sizeof originalRecord);
 
@@ -551,7 +551,7 @@ bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringVi
   else
     hitmanFile.ImportNative(data, options, true);
 
-  auto &archiveFile = archiveRoot.GetFile(hitmanFilePath);
+  auto &archiveFile = GetFile(hitmanFilePath);
 
   if (options.common.checkOriginality && hitmanFile.originalRecord.dataXXH3 != 0)
     archiveFile.original = hitmanFile.originalRecord == hitmanFile.archiveRecord;

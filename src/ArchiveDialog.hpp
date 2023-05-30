@@ -10,17 +10,18 @@ struct ArchiveFile
 {
   bool dirty = false;
   bool original = true;
+  StringView8CI path;
 };
 
-struct ArchiveDirectory
+class ArchiveDirectory
 {
-  bool Clear(bool retVal = false);
+public:
+  virtual ~ArchiveDirectory() = default;
 
-  ArchiveDirectory& GetDirectory(std::vector<StringView8CI>& pathStems);
-  ArchiveDirectory& GetDirectory(StringView8CI path);
+  virtual bool Clear(bool retVal = false);
 
-  ArchiveFile& GetFile(std::vector<StringView8CI>& pathStems);
-  ArchiveFile& GetFile(StringView8CI path);
+  ArchiveDirectory& GetDirectory(StringView8CI path, std::set<String8CI>& archivePaths);
+  ArchiveFile& GetFile(StringView8CI path, std::set<String8CI>& archivePaths);
 
   bool IsDirty() const;
   bool IsOriginal() const;
@@ -30,8 +31,13 @@ struct ArchiveDirectory
 
   void DrawTree(StringView8CI thisPath = "") const;
 
+private:
+  ArchiveDirectory& GetDirectory(std::vector<StringView8CI>& pathStems, StringView8CI path, std::set<String8CI>& archivePaths);
+  ArchiveFile& GetFile(std::vector<StringView8CI>& pathStems, StringView8CI path, std::set<String8CI>& archivePaths);
+
   std::map<StringView8CI, ArchiveDirectory> directories;
   std::map<StringView8CI, ArchiveFile> files;
+  StringView8CI path;
 };
 
 class ArchiveDialog
@@ -65,16 +71,28 @@ public:
 
   bool IsInProgress() const;
 
+  ArchiveDirectory& GetDirectory(StringView8CI path);
+  ArchiveFile& GetFile(StringView8CI path);
+  const std::set<String8CI>& GetPaths() const;
+
+  bool IsDirty() const;
+  bool IsOriginal() const;
+
+  void CleanDirty();
+  void CleanOriginal();
+
 protected:
   void DrawBaseDialog(StringView8CI dialogName, StringView8CI filters, StringView8CI defaultFilename);
 
   String8CI path;
-  std::set<String8CI> archivePaths;
-  ArchiveDirectory archiveRoot;
 
   std::recursive_mutex progressMessageMutex;
   String8 progressMessage;
   std::atomic_uint64_t progressNext = 0;
   std::atomic_uint64_t progressNextTotal = 0;
   std::atomic_bool progressNextActive = false;
+
+private:
+  ArchiveDirectory archiveRoot;
+  std::set<String8CI> archivePaths;
 };

@@ -207,7 +207,7 @@ public:
   requires IsUTFCharType<UTFCharTypeInput>
   const String8 &Localize(const UTFCharTypeInput (&key)[UTFInputSize]) const
   {
-    return Localize(String8CI{ key, UTFInputSize - 1 });
+    return Localize(String8CI{ key });
   }
 
   template <typename UTFCharTypeInput>
@@ -275,7 +275,7 @@ public:
   requires IsUTFCharType<UTFCharTypeInput>
   String8 &LocalizeFormatTo(String8& buffer, const UTFCharTypeInput (&key)[UTFInputSize], FormatArgs &&...args) const
   {
-    return LocalizeFormatTo(buffer, String8CI{ key, UTFInputSize - 1 }, std::forward<FormatArgs>(args)...);
+    return LocalizeFormatTo(buffer, String8CI{ key }, std::forward<FormatArgs>(args)...);
   }
 
   template <typename... FormatArgs>
@@ -316,7 +316,7 @@ public:
   requires IsUTFCharType<UTFCharTypeInput>
   const String8 &LocalizeFormat(const UTFCharTypeInput (&key)[UTFInputSize], FormatArgs &&...args) const
   {
-    return LocalizeFormat(String8CI{ key, UTFInputSize - 1 }, std::forward<FormatArgs>(args)...);
+    return LocalizeFormat(String8CI{ key }, std::forward<FormatArgs>(args)...);
   }
 
   template <typename... FormatArgs>

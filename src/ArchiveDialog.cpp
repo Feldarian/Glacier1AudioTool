@@ -16,42 +16,86 @@ bool ArchiveDirectory::Clear(const bool retVal)
   return retVal;
 }
 
-ArchiveDirectory& ArchiveDirectory::GetDirectory(std::vector<StringView8CI>& pathStems)
-{
-  if (pathStems.size() > 1)
-  {
-    auto& importDirectory = directories[pathStems.back()];
-    pathStems.pop_back();
-
-    return importDirectory.GetDirectory(pathStems);
-  }
-
-  return directories[pathStems.front()];
-}
-
-ArchiveDirectory& ArchiveDirectory::GetDirectory(const StringView8CI path)
+ArchiveDirectory& ArchiveDirectory::GetDirectory(const StringView8CI path, std::set<String8CI>& archivePaths)
 {
   auto pathStems = GetPathStems(path);
-  return GetDirectory(pathStems);
+  return GetDirectory(pathStems, path, archivePaths);
 }
 
-ArchiveFile& ArchiveDirectory::GetFile(std::vector<StringView8CI>& pathStems)
+ArchiveDirectory& ArchiveDirectory::GetDirectory(std::vector<StringView8CI> &pathStems, StringView8CI path, std::set<String8CI>& archivePaths)
 {
+  assert(!pathStems.empty());
+
   if (pathStems.size() > 1)
   {
-    auto& importDirectory = directories[pathStems.back()];
-    pathStems.pop_back();
+    const auto directoryIt = directories.find(pathStems.back());
+    if (directoryIt != directories.cend())
+    {
+      pathStems.pop_back();
+      return directoryIt->second.GetDirectory(pathStems, path, archivePaths);
+    }
 
-    return importDirectory.GetFile(pathStems);
+    auto newPathStems = GetPathStems(*archivePaths.emplace(path).first);
+    while (newPathStems.size() > pathStems.size())
+      newPathStems.pop_back();
+
+    std::swap(pathStems, newPathStems);
+
+    auto& directory = directories[pathStems.back()];
+    pathStems.pop_back();
+    return directory.GetDirectory(pathStems, path, archivePaths);
   }
 
-  return files[pathStems.front()];
+  const auto directoryIt = directories.find(pathStems.front());
+  if (directoryIt != directories.cend())
+    return directoryIt->second;
+
+  path = *archivePaths.emplace(path).first;
+  const auto newPathStems = GetPathStems(path);
+  auto& directory = directories[newPathStems.front()];
+  directory.path = path;
+  return directory;
 }
 
-ArchiveFile& ArchiveDirectory::GetFile(const StringView8CI path)
+ArchiveFile& ArchiveDirectory::GetFile(const StringView8CI path, std::set<String8CI>& archivePaths)
 {
   auto pathStems = GetPathStems(path);
-  return GetFile(pathStems);
+  return GetFile(pathStems, path, archivePaths);
+}
+
+ArchiveFile& ArchiveDirectory::GetFile(std::vector<StringView8CI>& pathStems, StringView8CI path, std::set<String8CI>& archivePaths)
+{
+  assert(!pathStems.empty());
+
+  if (pathStems.size() > 1)
+  {
+    const auto directoryIt = directories.find(pathStems.back());
+    if (directoryIt != directories.cend())
+    {
+      pathStems.pop_back();
+      return directoryIt->second.GetFile(pathStems, path, archivePaths);
+    }
+
+    auto newPathStems = GetPathStems(*archivePaths.emplace(path).first);
+    while (newPathStems.size() > pathStems.size())
+      newPathStems.pop_back();
+
+    std::swap(pathStems, newPathStems);
+
+    auto& directory = directories[pathStems.back()];
+    pathStems.pop_back();
+    return directory.GetFile(pathStems, path, archivePaths);
+  }
+
+  const auto fileIt = files.find(pathStems.front());
+  if (fileIt != files.cend())
+    return fileIt->second;
+
+  path = *archivePaths.emplace(path).first;
+  const auto newPathStems = GetPathStems(path);
+  auto& file = files[newPathStems.front()];
+  file.path = path;
+  return file;
 }
 
 bool ArchiveDirectory::IsDirty() const
@@ -155,7 +199,6 @@ void ArchiveDirectory::DrawTree(const StringView8CI thisPath) const
 bool ArchiveDialog::Clear(const bool retVal)
 {
   path.clear();
-  archivePaths.clear();
   archiveRoot.Clear();
 
   return retVal;
@@ -199,7 +242,7 @@ bool ArchiveDialog::Load(StringView8CI loadPath)
       for (const auto& archivePath : archivePaths)
         GlyphRangesBuilder::Get().AddText(archivePath);
 
-      path = std::move(loadPath);
+      path = loadPath;
     }
     else
       Clear();
@@ -334,7 +377,7 @@ bool ArchiveDialog::Save(const StringView8CI savePath, bool async)
     }
 
     if (SaveImpl(savePath))
-      path = std::move(savePath);
+      path = savePath;
 
     std::unique_lock progressMessageLock(progressMessageMutex);
     progressMessage.clear();
@@ -386,6 +429,41 @@ StringView8CI ArchiveDialog::GetPath() const
 bool ArchiveDialog::IsInProgress() const
 {
   return progressNextActive.load();
+}
+
+ArchiveDirectory& ArchiveDialog::GetDirectory(StringView8CI path)
+{
+  return archiveRoot.GetDirectory(path, archivePaths);
+}
+
+ArchiveFile& ArchiveDialog::GetFile(StringView8CI path)
+{
+  return archiveRoot.GetFile(path, archivePaths);
+}
+
+const std::set<String8CI> & ArchiveDialog::GetPaths() const
+{
+  return archivePaths;
+}
+
+bool ArchiveDialog::IsDirty() const
+{
+  return archiveRoot.IsDirty();
+}
+
+bool ArchiveDialog::IsOriginal() const
+{
+  return archiveRoot.IsOriginal();
+}
+
+void ArchiveDialog::CleanDirty()
+{
+  archiveRoot.CleanDirty();
+}
+
+void ArchiveDialog::CleanOriginal()
+{
+  archiveRoot.CleanOriginal();
 }
 
 void ArchiveDialog::DrawBaseDialog(const StringView8CI dialogName, const StringView8CI filters, const StringView8CI defaultFilename)

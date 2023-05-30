@@ -315,71 +315,11 @@ bool Hitman4WHDFile::Clear(const bool retVal)
   return retVal;
 }
 
-bool Hitman4WHDFile::BuildArchivePaths(const StringView8CI basePathView, const StringView8CI loadPathView, std::set<String8CI>& archivePaths)
+bool Hitman4WHDFile::Load(Hitman4Dialog& archiveDialog, StringView8CI loadPathView)
 {
   if (data.empty())
     data = ReadWholeBinaryFile(loadPathView);
 
-  if (data.empty())
-    return Clear(false);
-
-  auto *whdPtr = data.data();
-  whdPtr += sizeof Hitman4WHDHeader;
-
-  while (*whdPtr)
-  {
-    whdPtr += std::strlen(whdPtr) + 1; // + 0-15 bytes, so it is aligned on 16 bytes...
-    if (reinterpret_cast<uintptr_t>(whdPtr) % 16 != 0)
-      whdPtr += 16 - (reinterpret_cast<uintptr_t>(whdPtr) % 16);
-    while (memcmp(whdPtr, terminateBytes.data(), terminateBytes.size()) == 0)
-      whdPtr += 16;
-
-    uint32_t iterCount = 0;
-    do {
-      auto *whdRecord = reinterpret_cast<Hitman4WHDRecord *>(whdPtr);
-      whdPtr += sizeof Hitman4WHDRecord;
-
-      bool nullBytesCheckPassed = true;
-      for (const auto nullByte : whdRecord->mission.nullBytes)
-        nullBytesCheckPassed &= nullByte == 0;
-      if (!nullBytesCheckPassed && whdRecord->streams.id != 0x004F4850)
-      {
-        if (whdRecord->concatenated.nullByte != 0)
-        {
-          whdPtr = reinterpret_cast<char *>(whdRecord);
-          break;
-        }
-        whdPtr -= 3 * sizeof uint32_t;
-      }
-
-      auto filePath = StringW(data.data() + whdRecord->mission.filePathOffset).path();
-      if (filePath.extension() != StringView8CI(".wav"))
-        return Clear(false);
-
-      if (whdRecord->streams.dataInStreams == 0)
-      {
-        auto loadPath = loadPathView.path();
-        filePath = relative(loadPath.parent_path(), basePathView.path()) / loadPath.stem() / filePath;
-      }
-      else if (!filePath.has_parent_path())
-        filePath = L"Streams" / filePath;
-
-      archivePaths.emplace(filePath);
-
-      ++iterCount;
-    } while (!reinterpret_cast<uint32_t *>(whdPtr)[0] && reinterpret_cast<uint32_t *>(whdPtr)[1] && std::distance(whdPtr, &data.back() + 1) != 16);
-
-    if (iterCount > 1)
-      whdPtr += 2 * sizeof uint32_t;
-  }
-
-  path = loadPathView;
-
-  return true;
-}
-
-bool Hitman4WHDFile::Load(const StringView8CI basePathView, std::set<String8CI>& archivePaths, std::map<StringView8CI, HitmanFile>& fileMap, std::map<StringView8CI, std::vector<Hitman4WHDRecord *>>& whdRecordsMap)
-{
   if (data.empty())
     return Clear(false);
 
@@ -415,35 +355,24 @@ bool Hitman4WHDFile::Load(const StringView8CI basePathView, std::set<String8CI>&
         whdPtr -= 3 * sizeof uint32_t;
       }
 
-      auto filePath = StringW(data.data() + whdRecord->mission.filePathOffset).path();
-      if (filePath.extension() != StringView8CI(".wav"))
+      String8CI filePath(std::string_view(data.data() + whdRecord->mission.filePathOffset));
+      auto filePathNative = filePath.path();
+
+      if (filePathNative.extension() != StringViewWCI(L".wav"))
         return Clear(false);
 
       if (whdRecord->streams.dataInStreams == 0)
-      {
-        const auto pathFS = path.path();
-        filePath = relative(pathFS.parent_path(), basePathView.path()) / pathFS.stem() / filePath;
-      }
-      else if (!filePath.has_parent_path())
-        filePath = L"Streams" / filePath;
+        filePath = ChangeExtension(String8CI(relative(loadPathView.path(), archiveDialog.basePath.path())), filePath);
+      else if (!filePathNative.has_parent_path())
+        filePath = L"Streams" / filePathNative;
 
-      auto filePathIt = archivePaths.find(filePath);
-      if (filePathIt == archivePaths.end())
-        continue;
+      auto& file = archiveDialog.GetFile(filePath);
 
-      if (!recordMap.try_emplace(*filePathIt, whdRecord).second)
+      if (!recordMap.try_emplace(file.path, whdRecord).second)
         return Clear(false);
 
-      auto whdRecordIt = whdRecordsMap.find(*filePathIt);
-      if (whdRecordIt == whdRecordsMap.cend())
-        return Clear(false);
-
-      auto fileIt = fileMap.find(*filePathIt);
-      if (fileIt == fileMap.cend())
-        return Clear(false);
-
-      whdRecordIt->second.emplace_back(whdRecord);
-      fileIt->second.archiveRecord = whdRecord->ToHitmanSoundRecord();
+      archiveDialog.whdRecordsMap[file.path].emplace_back(whdRecord);
+      archiveDialog.fileMap[file.path].archiveRecord = whdRecord->ToHitmanSoundRecord();
 
       ++iterCount;
     } while (!reinterpret_cast<uint32_t *>(whdPtr)[0] && reinterpret_cast<uint32_t *>(whdPtr)[1] && std::distance(whdPtr, &data.back() + 1) != 16);
@@ -451,6 +380,8 @@ bool Hitman4WHDFile::Load(const StringView8CI basePathView, std::set<String8CI>&
     if (iterCount > 1)
       whdPtr += 2 * sizeof uint32_t;
   }
+
+  path = loadPathView;
 
   return true;
 }
@@ -537,23 +468,11 @@ bool Hitman4Dialog::LoadImpl(const StringView8CI loadPath)
 
   basePath = rootPath;
 
+  std::map<StringView8CI, Hitman4WHDRecord *> allWHDRecords;
   for (const auto &whdPath : allWHDFiles)
   {
     auto &whdFile = whdFiles.emplace_back();
-    if (!whdFile.BuildArchivePaths(basePath, whdPath, archivePaths))
-      return Clear(false);
-  }
-
-  for (const auto& archivePath : archivePaths)
-  {
-    fileMap[archivePath];
-    whdRecordsMap[archivePath];
-  }
-
-  std::map<StringView8CI, Hitman4WHDRecord *> allWHDRecords;
-  for (auto &whdFile : whdFiles)
-  {
-    if (!whdFile.Load(basePath, archivePaths, fileMap, whdRecordsMap))
+    if (!whdFile.Load(*this, whdPath))
       return Clear(false);
 
     for (const auto& whdRecordMapKV : whdFile.recordMap)
@@ -565,9 +484,6 @@ bool Hitman4Dialog::LoadImpl(const StringView8CI loadPath)
 
   if (!streamsWAV.Load(loadPath, allWHDRecords, fileMap, false))
     return Clear(false);
-
-  for (const auto& archivePath : archivePaths)
-    archiveRoot.GetFile(archivePath);
 
   if (!options.common.checkOriginality)
     return true;
@@ -603,7 +519,7 @@ bool Hitman4Dialog::SaveImpl(const StringView8CI savePathView)
 
   basePath = newBasePath;
 
-  archiveRoot.CleanDirty();
+  CleanDirty();
 
   return true;
 }

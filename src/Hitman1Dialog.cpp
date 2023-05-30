@@ -31,7 +31,8 @@ bool Hitman1Dialog::LoadImpl(StringView8CI loadPathView)
   const auto oldSync = std::ios_base::sync_with_stdio(false);
 
   std::ifstream archiveIdx(loadPath);
-
+  auto archiveBin = ReadWholeBinaryFile(archiveBinFilePath);
+  size_t archiveBinOffset = 0;
   std::string archiveIdxLine;
   while (std::getline(archiveIdx, archiveIdxLine))
   {
@@ -40,47 +41,26 @@ bool Hitman1Dialog::LoadImpl(StringView8CI loadPathView)
     std::string entryPath;
     scn::scan(archiveIdxLine, "-rw-rw-r--   1 zope {} {} {} {} {}", dataSize, month, day, time, entryPath);
 
-    if (!archivePaths.emplace(entryPath).second)
-      return Clear(false);
-  }
+    auto& file = GetFile(entryPath);
 
-  auto archiveBin = ReadWholeBinaryFile(archiveBinFilePath);
-  size_t archiveBinOffset = 0;
-
-  archiveIdx.clear();
-  archiveIdx.seekg(0);
-  while (std::getline(archiveIdx, archiveIdxLine))
-  {
-    std::string month, day, time;
-    int64_t dataSize = 0;
-    std::string entryPath;
-    scn::scan(archiveIdxLine, "-rw-rw-r--   1 zope {} {} {} {} {}", dataSize, month, day, time, entryPath);
-
-    auto archivePathIt = archivePaths.find(entryPath);
-    if (archivePathIt == archivePaths.end())
-      return Clear(false);
-
-    auto [fileMapIt, inserted] = fileMap.try_emplace(*archivePathIt, HitmanFile{});
+    auto [fileMapIt, inserted] = fileMap.try_emplace(file.path, HitmanFile{});
     if (!inserted)
       return Clear(false);
 
-    if (!lastModifiedDatesMap.try_emplace(*archivePathIt, std::format("{} {} {}", month, day, time)).second)
+    if (!lastModifiedDatesMap.try_emplace(file.path, std::format("{} {} {}", month, day, time)).second)
       return Clear(false);
 
-    indexToKey.emplace_back(*archivePathIt);
+    indexToKey.emplace_back(file.path);
 
     std::vector<char> fileData(dataSize, 0);
     std::memcpy(fileData.data(), archiveBin.data() + archiveBinOffset, dataSize);
-    if (!ImportSingleHitmanFile(fileMapIt->second, *archivePathIt, fileData, false))
+    if (!ImportSingleHitmanFile(fileMapIt->second, file.path, fileData, false))
       return Clear(false);
 
     archiveBinOffset += dataSize;
   }
 
   std::ios_base::sync_with_stdio(oldSync);
-
-  for (const auto& archivePath : archivePaths)
-    archiveRoot.GetFile(archivePath);
 
   if (!options.common.checkOriginality)
     return true;
@@ -107,7 +87,7 @@ bool Hitman1Dialog::ImportSingle(const StringView8CI importFolderPathView, Strin
   auto fileIt = fileMap.find(filePath);
   if (fileIt == fileMap.end())
   {
-    const StringView8CI nextExtension(filePath.path().extension() == StringView8CI(".wav") ? ".ogg" : ".wav");
+    const StringView8CI nextExtension(filePath.path().extension() == StringViewWCI(L".wav") ? ".ogg" : ".wav");
     filePath = ChangeExtension(filePath, nextExtension);
     fileIt = fileMap.find(filePath);
     if (fileIt == fileMap.end())
@@ -135,10 +115,6 @@ bool Hitman1Dialog::SaveImpl(StringView8CI savePathView)
   thread_local static std::vector<char> exportBytes;
   for (const auto filePath : indexToKey)
   {
-    auto archivePathIt = archivePaths.find(filePath);
-    if (archivePathIt == archivePaths.end())
-      return Clear(false);
-
     auto fileIt = fileMap.find(filePath);
     if (fileIt == fileMap.end())
       return false;
@@ -150,10 +126,10 @@ bool Hitman1Dialog::SaveImpl(StringView8CI savePathView)
     fileIt->second.Export(exportBytes);
 
     archiveIdx << std::format("-rw-rw-r--   1 zope {:12d} {} {}\n", exportBytes.size(),
-                                          lastModifiedDateIt->second, *archivePathIt);
+                                          lastModifiedDateIt->second, filePath);
     archiveBin.write(exportBytes.data(), static_cast<int64_t>(exportBytes.size()));
 
-    archiveRoot.GetFile(*archivePathIt).dirty = false;
+    GetFile(filePath).dirty = false;
   }
 
   std::ios_base::sync_with_stdio(oldSync);
