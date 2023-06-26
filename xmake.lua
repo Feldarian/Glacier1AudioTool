@@ -44,22 +44,24 @@ elseif is_mode("release") then
   set_policy("build.optimization.lto", true)
 end
 
+--set_toolchains("clang-cl")
+--add_cxflags("-Wno-pragma-system-header-outside-header", "-Wno-microsoft-include")
+
 set_runtimes(vsRuntime);
 
 add_defines("IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1", "GL_GLEXT_PROTOTYPES=1", "TOML_EXCEPTIONS=0")
 
-add_vectorexts("mmx", "sse", "sse2")
-
 add_requireconfs("*", { configs = { debug = is_mode("debug"), lto = not is_mode("debug"), shared = false, vs_runtime = vsRuntime } })
 
 add_requires("scnlib 1.1.2", { configs = { header_only = false } })
-add_requires("libsdl 2.26.3", { configs = { shared = true, use_sdlmain = true } })
+add_requires("libsdl 2.28.0", { configs = { shared = true, use_sdlmain = true } })
 add_requires("libsndfile 1.2.0", { configs = { shared = true } })
 add_requires("xxhash v0.8.1")
-add_requires("toml++ 3.3.0", { configs = { header_only = true } })
+--add_requires("toml++ 3.3.0", { configs = { header_only = true } })
+add_requires("toml++ master", { configs = { header_only = true } })
 
 local imguiUserConfig = path.absolute("src/ImGuiConfig.hpp");
-add_requires("imgui v1.89.3-docking", { configs = { wchar32 = true, freetype = true, user_config = imguiUserConfig } })
+add_requires("imgui v1.89.6-docking", { configs = { wchar32 = true, freetype = true, user_config = imguiUserConfig } })
 
 function CopyDataToDirecotry(targetDir)
   os.rm(targetDir .. "/data")
