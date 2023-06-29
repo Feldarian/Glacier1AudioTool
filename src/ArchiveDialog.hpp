@@ -20,8 +20,8 @@ public:
 
   virtual bool Clear(bool retVal = false);
 
-  ArchiveDirectory& GetDirectory(StringView8CI path, std::set<String8CI>& archivePaths);
-  ArchiveFile& GetFile(StringView8CI path, std::set<String8CI>& archivePaths);
+  ArchiveDirectory& GetDirectory(StringView8CI path, OrderedSet<String8CI>& archivePaths);
+  ArchiveFile& GetFile(StringView8CI path, OrderedSet<String8CI>& archivePaths);
 
   bool IsDirty() const;
   bool IsOriginal() const;
@@ -32,11 +32,11 @@ public:
   void DrawTree(StringView8CI thisPath = "") const;
 
 private:
-  ArchiveDirectory& GetDirectory(std::vector<StringView8CI>& pathStems, StringView8CI path, std::set<String8CI>& archivePaths);
-  ArchiveFile& GetFile(std::vector<StringView8CI>& pathStems, StringView8CI path, std::set<String8CI>& archivePaths);
+  ArchiveDirectory& GetDirectory(std::vector<StringView8CI>& pathStems, StringView8CI path, OrderedSet<String8CI>& archivePaths);
+  ArchiveFile& GetFile(std::vector<StringView8CI>& pathStems, StringView8CI path, OrderedSet<String8CI>& archivePaths);
 
-  std::map<StringView8CI, ArchiveDirectory> directories;
-  std::map<StringView8CI, ArchiveFile> files;
+  OrderedMap<StringView8CI, ArchiveDirectory> directories;
+  OrderedMap<StringView8CI, ArchiveFile> files;
   StringView8CI path;
 };
 
@@ -73,7 +73,7 @@ public:
 
   ArchiveDirectory& GetDirectory(StringView8CI path);
   ArchiveFile& GetFile(StringView8CI path);
-  const std::set<String8CI>& GetPaths() const;
+  const OrderedSet<String8CI>& GetPaths() const;
 
   bool IsDirty() const;
   bool IsOriginal() const;
@@ -94,5 +94,5 @@ protected:
 
 private:
   ArchiveDirectory archiveRoot;
-  std::set<String8CI> archivePaths;
+  OrderedSet<String8CI> archivePaths;
 };

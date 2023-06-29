@@ -56,13 +56,13 @@ struct Hitman23WAVFile
 {
   bool Clear(bool retVal = false);
 
-  bool Load(StringView8CI loadPath, const std::map<StringView8CI, Hitman23WHDRecord *> &whdRecordsMap,
-            std::map<StringView8CI, HitmanFile>& fileMap, bool isMissionWAV);
+  bool Load(StringView8CI loadPath, const OrderedMap<StringView8CI, Hitman23WHDRecord *> &whdRecordsMap,
+            OrderedMap<StringView8CI, HitmanFile>& fileMap, bool isMissionWAV);
 
   bool Save(StringView8CI savePath);
 
   Hitman23WAVHeader *header = nullptr;
-  std::map<uint32_t, Hitman23WAVRecord> recordMap;
+  OrderedMap<uint32_t, Hitman23WAVRecord> recordMap;
   std::vector<std::vector<char>> extraData;
   String8CI path;
 };
@@ -76,7 +76,7 @@ struct Hitman23WHDFile
   bool Save(const Hitman23WAVFile &streamsWAV, const Hitman23WAVFile &missionWAV, StringView8CI savePath);
 
   Hitman23WHDHeader *header = nullptr;
-  std::map<StringView8CI, Hitman23WHDRecord *> recordMap;
+  OrderedMap<StringView8CI, Hitman23WHDRecord *> recordMap;
   std::vector<char> data;
   String8CI path;
 };
@@ -98,7 +98,7 @@ public:
   std::vector<Hitman23WAVFile> wavFiles;
   Hitman23WAVFile streamsWAV;
 
-  std::map<StringView8CI, std::vector<Hitman23WHDRecord *>> whdRecordsMap;
+  OrderedMap<StringView8CI, std::vector<Hitman23WHDRecord *>> whdRecordsMap;
 
   String8CI basePath;
 };

@@ -184,7 +184,7 @@ public:
 
   void DrawHitmanDialog(StringView8CI dialogName, StringView8CI filters, StringView8CI defaultFilename);
 
-  std::map<StringView8CI, HitmanFile> fileMap;
+  OrderedMap<StringView8CI, HitmanFile> fileMap;
   Options options = Options::Get();
   String8CI originalDataPath;
   bool needsOriginalDataReload = false;

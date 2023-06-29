@@ -194,11 +194,11 @@ StringView8CI GetProgramPath()
 
   programPath.resize(UINT16_MAX, L'\0');
 
-  const auto dwRetVal = GetModuleFileNameA(nullptr, programPath.data(), static_cast<uint32_t>(programPath.size()));
-  if (dwRetVal >= programPath.size() || dwRetVal == 0)
+  const auto requiredLength = GetModuleFileNameA(nullptr, programPath.data(), static_cast<uint32_t>(programPath.size()));
+  if (requiredLength >= programPath.size() || requiredLength == 0)
     return "";
 
-  programPath.resize(strlen(programPath.c_str()));
+  programPath.resize(requiredLength);
 
   const auto lastSeparatorPosition = programPath.native().find_last_of("\\/");
   if (lastSeparatorPosition == String8CI::npos || lastSeparatorPosition == 0)
@@ -259,7 +259,7 @@ String8CI ChangeExtension(StringView8CI path, const StringView8CI newExtension)
 {
   const auto pathExtPos = path.native().rfind('.');
   if (pathExtPos == StringView8CI::npos)
-    return path + newExtension;
+    return String8CI(path) += newExtension;
 
   String8CI newPath = path.native().substr(0, pathExtPos);
   newPath += newExtension;

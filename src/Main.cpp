@@ -51,7 +51,7 @@ bool BuildFontAtlas()
   for (const auto& font : fonts)
   {
     const auto fontExtension = font.path().extension();
-    if (fontExtension != StringView8CI(".ttf") && fontExtension != StringView8CI(".otf"))
+    if (fontExtension != StringViewWCI(L".ttf") && fontExtension != StringViewWCI(L".otf"))
       continue;
 
     io.Fonts->AddFontFromFileTTF(font.c_str(), config.SizePixels, &config, imguiRanges.Data);
@@ -99,7 +99,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
     if (!LocalizationManager::Get().LoadLocalization(localizationFilePath))
       return -7;
 
-    if (localizationFilePath.path().stem() == StringView8CI("English"))
+    if (localizationFilePath.path().stem() == StringViewWCI(L"English"))
       foundEnglish = true;
   }
   if (!foundEnglish)

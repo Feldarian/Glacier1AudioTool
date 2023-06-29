@@ -43,7 +43,13 @@ concept IsUTFNativeCharType = IsAnyOfTypes<UTFCharType, char, wchar_t>;
 template <typename UTFCharType>
 concept IsUTFCharType = IsUTF8CharType<UTFCharType> || IsUTF16CharType<UTFCharType> || IsUTF32CharType<UTFCharType> || IsUTFNativeCharType<UTFCharType>;
 
+template <typename UTFCharTypeLeft, typename UTFCharTypeRight>
+concept IsSameUTFCharType = IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
+	&& IsUTF8CharType<UTFCharTypeLeft> == IsUTF8CharType<UTFCharTypeRight>
+	&& IsUTF16CharType<UTFCharTypeLeft> == IsUTF16CharType<UTFCharTypeRight>
+	&& IsUTF32CharType<UTFCharTypeLeft> == IsUTF32CharType<UTFCharTypeRight>;
+
 static constexpr auto CodepointInvalid{ 0u };
 static constexpr auto CodepointMax{ 0x10FFFFu };
-  
+
 }

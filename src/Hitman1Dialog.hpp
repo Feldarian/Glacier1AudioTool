@@ -23,5 +23,5 @@ public:
 
   std::vector<StringView8CI> indexToKey;
 
-  std::map<StringView8CI, String8> lastModifiedDatesMap;
+  OrderedMap<StringView8CI, String8> lastModifiedDatesMap;
 };

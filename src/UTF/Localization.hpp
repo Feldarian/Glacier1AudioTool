@@ -31,7 +31,7 @@ public:
     {
       assert(value.is_string());
 
-      String8 keyUTF{ key.str() };
+      String8CI keyUTF{ key.str() };
       String8 valueUTF{ **value.as_string() };
 
       GlyphRangesBuilder::Get().AddText(keyUTF);
@@ -43,7 +43,7 @@ public:
     return true;
   }
 
-  const String8 &Localize(const String8CI &key) const
+  const String8 &Localize(const StringView8CI key) const
   {
     const auto localizationIt = localizationMap.find(key);
     if (localizationIt == localizationMap.end())
@@ -53,13 +53,13 @@ public:
   }
 
 private:
-  std::map<String8CI, String8> localizationMap;
+  OrderedMap<String8CI, String8> localizationMap;
 };
 
 class LocalizationManager : public Singleton<LocalizationManager>
 {
 public:
-  bool LoadLocalization(StringView8CI localizationPathView)
+  bool LoadLocalization(const StringView8CI localizationPathView)
   {
     const auto localizationPath = localizationPathView.path();
     if (!exists(localizationPath))
@@ -118,7 +118,7 @@ public:
     return {languagesRange.begin(), languagesRange.end()};
   }
 
-  bool SetDefaultLanguage(const String8CI &language)
+  bool SetDefaultLanguage(const StringView8CI language)
   {
     if (language.empty())
       return false;
@@ -141,7 +141,7 @@ public:
     return defaultLocalizationLanguage;
   }
 
-  bool SetLanguage(const String8CI &language)
+  bool SetLanguage(const StringView8CI language)
   {
     if (language.empty())
       return false;
@@ -164,9 +164,9 @@ public:
     return localizationLanguage.empty() ? GetDefaultLanguage() : localizationLanguage;
   }
 
-  template <typename UTFStorageType, typename UTFCharType, bool CaseSensitive>
-  requires IsUTF8CharType<UTFCharType> && !CaseSensitive
-  const String8 &Localize(const StringWrapper<UTFStorageType, UTFCharType, CaseSensitive> &key) const
+  template <typename UTFCharType, bool CaseSensitive = false, typename UTFCharTypeTraits = std::char_traits<UTFCharType>>
+  requires IsUTF8CharType<UTFCharType>
+  const String8 &Localize(const StringViewWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits> &key) const
   {
     std::shared_lock lock(dataMutex);
 
@@ -177,156 +177,60 @@ public:
     return defaultLocalizationInstance ? defaultLocalizationInstance->Localize(key) : LocalizationInstance::Empty;
   }
 
-  template <typename UTFStorageType, typename UTFCharType, bool CaseSensitive>
-  requires !IsUTF8CharType<UTFCharType>
-  const String8 &Localize(const StringWrapper<UTFStorageType, UTFCharType, CaseSensitive> &key) const
+  template <typename UTFCharType, bool CaseSensitive = false, typename UTFCharTypeTraits = std::char_traits<UTFCharType>>
+  requires (!IsUTF8CharType<UTFCharType>)
+  const String8 &Localize(const StringViewWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits> &key) const
   {
     return Localize(String8CI{ key });
   }
 
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  const String8 &Localize(const std::basic_string_view<UTFCharTypeInput> key) const
+  template <typename Type>
+  requires StringViewConstructible<Type>
+  const String8 &Localize(const Type &key) const
   {
-    return Localize(String8CI{ key });
+    if constexpr (StringView8Constructible<Type>)
+      return Localize(StringView8CI(key));
+    else if constexpr (StringView16Constructible<Type>)
+      return Localize(StringView16CI(key));
+    else if constexpr (StringView32Constructible<Type>)
+      return Localize(StringView32CI(key));
   }
 
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  const String8 &Localize(const std::basic_string<UTFCharTypeInput> &key) const
+  template <typename Type, typename... FormatArgs>
+  requires StringViewConstructible<Type>
+  String8 &LocalizeFormatTo(String8& buffer, const Type &key, FormatArgs &&...args) const
   {
-    return Localize(String8CI{ key });
-  }
+    std::shared_lock lock(dataMutex);
 
-  const String8 &Localize(std::basic_string<char> &&key) const
-  {
-    return Localize(String8CI{ std::move(key) });
-  }
+    buffer.clear();
 
-  template <typename UTFCharTypeInput, size_t UTFInputSize>
-  requires IsUTFCharType<UTFCharTypeInput>
-  const String8 &Localize(const UTFCharTypeInput (&key)[UTFInputSize]) const
-  {
-    return Localize(String8CI{ key });
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  const String8 &Localize(const UTFCharTypeInput *key, const size_t length) const
-  {
-    return Localize(String8CI{ key, length });
-  }
-
-  const String8 &Localize(String8 &&key) const
-  {
-    return Localize(String8CI(std::move(key)));
-  }
-
-  template <typename UTFStorageType, typename UTFCharType, bool CaseSensitive, typename... FormatArgs>
-  requires IsUTFCharType<UTFCharType> && IsAnyOfTypes<UTFStorageType, std::basic_string<UTFCharType>, std::basic_string_view<UTFCharType>>
-  String8 &LocalizeFormatTo(String8& buffer, const StringWrapper<UTFStorageType, UTFCharType, CaseSensitive> &key, FormatArgs &&...args) const
-  {
-    if constexpr (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> && IsUTF8CharType<UTFCharType> && !CaseSensitive)
-    {
-      std::shared_lock lock(dataMutex);
-
-      buffer.clear();
-
-      const auto &localizedFormat = Localize(key);
-      if (localizedFormat.empty())
-        return buffer;
-
-      try
-      {
-        std::vformat_to(std::back_inserter(buffer.native()), localizedFormat.native(), std::make_format_args(std::forward<FormatArgs>(args)...));
-      }
-      catch ([[maybe_unused]] std::format_error error)
-      {
-        buffer.clear();
-      }
-
+    const auto &localizedFormat = Localize(key);
+    if (localizedFormat.empty())
       return buffer;
+
+    try
+    {
+      std::vformat_to(std::back_inserter(buffer.native()), localizedFormat.native(), std::make_format_args(std::forward<FormatArgs>(args)...));
     }
-    else
-      return LocalizeFormatTo(buffer, String8CI{ key }, std::forward<FormatArgs>(args)...);
+    catch ([[maybe_unused]] std::format_error error)
+    {
+      buffer.clear();
+    }
+
+    return buffer;
   }
 
-  template <typename UTFCharTypeInput, typename... FormatArgs>
-  requires IsUTFCharType<UTFCharTypeInput>
-  String8 &LocalizeFormatTo(String8& buffer, const std::basic_string_view<UTFCharTypeInput> key, FormatArgs &&...args) const
+  template <typename Type, typename... FormatArgs>
+  requires StringViewConstructible<Type>
+  String8 LocalizeFormat(const Type &key, FormatArgs &&...args) const
   {
-    return LocalizeFormatTo(buffer, String8CI{ key }, std::forward<FormatArgs>(args)...);
-  }
-
-  template <typename UTFCharTypeInput, typename... FormatArgs>
-  requires IsUTFCharType<UTFCharTypeInput>
-  String8 &LocalizeFormatTo(String8& buffer, const std::basic_string<UTFCharTypeInput> &key, FormatArgs &&...args) const
-  {
-    return LocalizeFormatTo(buffer, String8CI{ key }, std::forward<FormatArgs>(args)...);
-  }
-
-  template <typename... FormatArgs>
-  String8 &LocalizeFormatTo(String8& buffer, std::basic_string<char> &&key, FormatArgs &&...args) const
-  {
-    return LocalizeFormatTo(buffer, String8CI{ std::move(key) }, std::forward<FormatArgs>(args)...);
-  }
-
-  template <typename UTFCharTypeInput, size_t UTFInputSize, typename... FormatArgs>
-  requires IsUTFCharType<UTFCharTypeInput>
-  String8 &LocalizeFormatTo(String8& buffer, const UTFCharTypeInput (&key)[UTFInputSize], FormatArgs &&...args) const
-  {
-    return LocalizeFormatTo(buffer, String8CI{ key }, std::forward<FormatArgs>(args)...);
-  }
-
-  template <typename... FormatArgs>
-  String8 &LocalizeFormatTo(String8& buffer, String8 &&key, FormatArgs &&...args) const
-  {
-    return LocalizeFormatTo(buffer, String8CI{ std::move(key) }, std::forward<FormatArgs>(args)...);
-  }
-
-  template <typename UTFStorageType, typename UTFCharType, bool CaseSensitive, typename... FormatArgs>
-  requires IsUTFCharType<UTFCharType> && IsAnyOfTypes<UTFStorageType, std::basic_string<UTFCharType>, std::basic_string_view<UTFCharType>>
-  const String8 &LocalizeFormat(const StringWrapper<UTFStorageType, UTFCharType, CaseSensitive> &key, FormatArgs &&...args) const
-  {
-    thread_local static String8 result;
-    return LocalizeFormatTo(result, key, std::forward<FormatArgs>(args)...);
-  }
-
-  template <typename UTFCharTypeInput, typename... FormatArgs>
-  requires IsUTFCharType<UTFCharTypeInput>
-  const String8 &LocalizeFormat(const std::basic_string_view<UTFCharTypeInput> key, FormatArgs &&...args) const
-  {
-    return LocalizeFormat(String8CI{ key }, std::forward<FormatArgs>(args)...);
-  }
-
-  template <typename UTFCharTypeInput, typename... FormatArgs>
-  requires IsUTFCharType<UTFCharTypeInput>
-  const String8 &LocalizeFormat(const std::basic_string<UTFCharTypeInput> &key, FormatArgs &&...args) const
-  {
-    return LocalizeFormat(String8CI{ key }, std::forward<FormatArgs>(args)...);
-  }
-
-  template <typename... FormatArgs>
-  const String8 &LocalizeFormat(std::basic_string<char> &&key, FormatArgs &&...args) const
-  {
-    return LocalizeFormat(String8CI{ std::move(key) }, std::forward<FormatArgs>(args)...);
-  }
-
-  template <typename UTFCharTypeInput, size_t UTFInputSize, typename... FormatArgs>
-  requires IsUTFCharType<UTFCharTypeInput>
-  const String8 &LocalizeFormat(const UTFCharTypeInput (&key)[UTFInputSize], FormatArgs &&...args) const
-  {
-    return LocalizeFormat(String8CI{ key }, std::forward<FormatArgs>(args)...);
-  }
-
-  template <typename... FormatArgs>
-  const String8 &LocalizeFormat(String8 &&key, FormatArgs &&...args) const
-  {
-    return LocalizeFormat(String8CI{ std::move(key) }, std::forward<FormatArgs>(args)...);
+    String8 result;
+    LocalizeFormatTo(result, key, std::forward<FormatArgs>(args)...);
+    return std::move(result);
   }
 
 private:
-  std::map<String8CI, LocalizationInstance> localizationInstancesMap;
+  OrderedMap<String8CI, LocalizationInstance, std::less<>> localizationInstancesMap;
   String8CI defaultLocalizationLanguage;
   LocalizationInstance *defaultLocalizationInstance = nullptr;
   String8CI localizationLanguage;

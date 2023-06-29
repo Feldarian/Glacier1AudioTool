@@ -182,7 +182,7 @@ bool Hitman4WAVFile::Clear(const bool retVal)
   return retVal;
 }
 
-bool Hitman4WAVFile::Load(const StringView8CI loadPath, const std::map<StringView8CI, Hitman4WHDRecord *> &whdRecordsMap, std::map<StringView8CI, HitmanFile>& fileMap, const bool isMissionWAV)
+bool Hitman4WAVFile::Load(const StringView8CI loadPath, const OrderedMap<StringView8CI, Hitman4WHDRecord *> &whdRecordsMap, OrderedMap<StringView8CI, HitmanFile>& fileMap, const bool isMissionWAV)
 {
   Clear();
 
@@ -198,8 +198,8 @@ bool Hitman4WAVFile::Load(const StringView8CI loadPath, const std::map<StringVie
 
   auto resampledOffset = static_cast<uint32_t>(wavData.size());
   size_t foundItems = 0;
-  std::map<uint32_t, uint32_t> resampledMap;
-  std::map<uint32_t, WAVFileData> offsetToWAVFileDataMap;
+  OrderedMap<uint32_t, uint32_t> resampledMap;
+  OrderedMap<uint32_t, WAVFileData> offsetToWAVFileDataMap;
   for (auto& [whdRecordPath, whdRecord] : whdRecordsMap)
   {
     if ((whdRecord->streams.dataInStreams == 0) != isMissionWAV)
@@ -429,7 +429,7 @@ bool Hitman4Dialog::ImportSingle(const StringView8CI importFolderPath, const Str
   auto whdRecordsIt = whdRecordsMap.find(filePath);
   if (fileIt == fileMap.end() || whdRecordsIt == whdRecordsMap.end())
   {
-    const StringView8CI nextExtension = filePath.path().extension() == StringView8CI(".wav") ? ".ogg" : ".wav";
+    const StringView8CI nextExtension = filePath.path().extension() == StringViewWCI(L".wav") ? ".ogg" : ".wav";
     filePath = ChangeExtension(filePath, nextExtension);
     fileIt = fileMap.find(filePath);
     whdRecordsIt = whdRecordsMap.find(filePath);
@@ -468,7 +468,7 @@ bool Hitman4Dialog::LoadImpl(const StringView8CI loadPath)
 
   basePath = rootPath;
 
-  std::map<StringView8CI, Hitman4WHDRecord *> allWHDRecords;
+  OrderedMap<StringView8CI, Hitman4WHDRecord *> allWHDRecords;
   for (const auto &whdPath : allWHDFiles)
   {
     auto &whdFile = whdFiles.emplace_back();

@@ -6,1276 +6,439 @@
 
 #pragma once
 
+#include "Strings-impl/StringViewWrapper-declarations.hpp"
+#include "Strings-impl/StringWrapper-declarations.hpp"
+
+#include "Strings-impl/StringViewWrapper-definitions.hpp"
+#include "Strings-impl/StringWrapper-definitions.hpp"
+
+// TODO:
+//  - operator+
+//  - clean the header even more (split into more files)
+
 namespace UTF
 {
 
-template <typename UTFStorageType, typename UTFCharType, bool CaseSensitive>
-requires IsUTFCharType<UTFCharType> && IsAnyOfTypes<UTFStorageType, std::basic_string<UTFCharType>, std::basic_string_view<UTFCharType>>
-class StringWrapper
+template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
+requires IsUTF8CharType<UTFCharTypeLeft> && IsUTF8CharType<UTFCharTypeRight>
+[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
 {
-public:
-  inline static constexpr auto npos{ UTFStorageType::npos };
-
-  StringWrapper() = default;
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput> && (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, UTFCharTypeInput>)
-  StringWrapper(const std::basic_string_view<UTFCharTypeInput> other, const bool nullTerminated = false)
+  auto *reinterpretedData = reinterpret_cast<const uint8_t *>(left.data());
+  const auto reinterpretedDataSize = left.size();
+  size_t reinterpretedDataOffset = 0;
+  auto *reinterpretedInput = reinterpret_cast<const uint8_t *>(right.data());
+  const auto reinterpretedInputSize = right.size();
+  size_t reinterpretedInputOffset = 0;
+  auto glyph = CodepointInvalid;
+  auto glyphInput = CodepointInvalid;
+  while (reinterpretedDataOffset < reinterpretedDataSize && reinterpretedInputOffset < reinterpretedInputSize)
   {
-    *this = other;
+    U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+    U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
 
-    if constexpr (std::same_as<UTFStorageType, std::basic_string_view<UTFCharType>>)
-      this->nullTerminated = nullTerminated;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput> && (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, UTFCharTypeInput>)
-  StringWrapper(const std::basic_string<UTFCharTypeInput> &other)
-    : StringWrapper{ std::basic_string_view<UTFCharTypeInput>(other), true }
-  {}
-
-  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>>>>
-  requires std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
-  StringWrapper(std::basic_string<UTFCharType> &&other) noexcept
-    : utfData{ std::move(other) }
-    , nullTerminated{ true }
-  {}
-
-  template <typename UTFCharTypeInput, size_t UTFInputSize>
-  requires IsUTFCharType<UTFCharTypeInput> && (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, UTFCharTypeInput>)
-  StringWrapper(const UTFCharTypeInput (&other)[UTFInputSize])
-    : StringWrapper{ std::basic_string_view<UTFCharTypeInput>(other, other[UTFInputSize - 1] ==  UTFCharTypeInput(0) ? UTFInputSize - 1 : UTFInputSize), other[UTFInputSize - 1] ==  UTFCharTypeInput(0) }
-  {}
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput> && (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, UTFCharTypeInput>)
-  StringWrapper(const UTFCharTypeInput *other, const size_t length)
-    : StringWrapper{ std::basic_string_view<UTFCharTypeInput>(other, other[length - 1] ==  UTFCharTypeInput(0) ? length - 1 : length), other[length - 1] ==  UTFCharTypeInput(0) }
-  {}
-
-  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, wchar_t>>>
-  StringWrapper(const std::filesystem::path &other)
-    : StringWrapper{ std::basic_string_view<wchar_t>(other.native()), true }
-  {}
-
-  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<wchar_t>>>>
-  StringWrapper(std::filesystem::path &&other) noexcept
-    : utfData{ std::move(other.native()) }
-    , nullTerminated{ true }
-  {}
-
-  template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
-  requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>> && (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, UTFCharTypeInput>)
-  StringWrapper(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, CaseSensitiveInput>& other)
-    : StringWrapper{ std::basic_string_view<UTFCharTypeInput>(other.native()), other.IsNullTerminated() }
-  {}
-
-  StringWrapper(const StringWrapper& other)
-    : StringWrapper{ std::basic_string_view<UTFCharType>(other.utfData), other.nullTerminated }
-  {}
-
-  StringWrapper(StringWrapper&& other) noexcept
-    : utfData{ std::move(other.utfData) }
-    , nullTerminated{ other.nullTerminated }
-  {}
-
-  template <typename UTFCharTypeInput>
-  requires (IsUTF8CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput>) || (IsUTF16CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput>) || (IsUTF32CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput>)
-  StringWrapper& operator=(const std::basic_string_view<UTFCharTypeInput> other)
-  {
-    if (other.empty())
-      utfData = {};
-    else
-      utfData = {reinterpret_cast<const UTFCharType *>(other.data()), other.size()};
-
-    if constexpr (std::same_as<UTFStorageType, std::basic_string_view<UTFCharType>>)
-      nullTerminated = false;
-
-    return *this;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTF8CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
-  StringWrapper& operator=(const std::basic_string_view<UTFCharTypeInput> other)
-  {
-    UErrorCode errorCode = U_ZERO_ERROR;
-
-    resize(other.size() * std::max(1ull, sizeof(UTFCharTypeInput) / sizeof(UTFCharType)), static_cast<UTFCharType>(0));
-
-    int32_t length = 0;
-
-    u_strToUTF8(reinterpret_cast<char *>(data()), size(), &length, reinterpret_cast<const UChar *>(other.data()), other.size(), &errorCode);
-
-    if (errorCode > U_ZERO_ERROR)
-      length = 0;
-
-    resize(length, static_cast<UTFCharType>(0));
-
-    return *this;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTF8CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
-  StringWrapper& operator=(const std::basic_string_view<UTFCharTypeInput> other)
-  {
-    UErrorCode errorCode = U_ZERO_ERROR;
-
-    resize(other.size() * std::max(1ull, sizeof(UTFCharTypeInput) / sizeof(UTFCharType)), static_cast<UTFCharType>(0));
-
-    size_t offset = 0;
-    int32_t length = 0;
-
-    auto *reinterpretedData = reinterpret_cast<uint8_t *>(data());
-    const auto reinterpretedDataSize = size();
-    for (const auto otherCodePoint : other)
-    {
-      [[maybe_unused]] bool wasError = false;
-      const auto codePoint = static_cast<uint32_t>(otherCodePoint);
-      U8_APPEND(reinterpretedData, offset, reinterpretedDataSize, codePoint, wasError);
-      length = offset;
-    }
-
-    if (errorCode > U_ZERO_ERROR)
-      length = 0;
-
-    resize(length, static_cast<UTFCharType>(0));
-
-    return *this;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTF16CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
-  StringWrapper& operator=(const std::basic_string_view<UTFCharTypeInput> other)
-  {
-    UErrorCode errorCode = U_ZERO_ERROR;
-
-    resize(other.size() * std::max(1ull, sizeof(UTFCharTypeInput) / sizeof(UTFCharType)), static_cast<UTFCharType>(0));
-
-    int32_t length = 0;
-
-    u_strFromUTF8(reinterpret_cast<UChar *>(data()), size(), &length, reinterpret_cast<const char *>(other.data()), other.size(), &errorCode);
-
-    if (errorCode > U_ZERO_ERROR)
-      length = 0;
-
-    resize(length, static_cast<UTFCharType>(0));
-
-    return *this;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTF16CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
-  StringWrapper& operator=(const std::basic_string_view<UTFCharTypeInput> other)
-  {
-    UErrorCode errorCode = U_ZERO_ERROR;
-
-    resize(other.size() * std::max(1ull, sizeof(UTFCharTypeInput) / sizeof(UTFCharType)), static_cast<UTFCharType>(0));
-
-    int32_t length = 0;
-
-    u_strFromUTF32(reinterpret_cast<UChar *>(data()), size(), &length, reinterpret_cast<const UChar32 *>(other.data()), other.size(), &errorCode);
-
-    if (errorCode > U_ZERO_ERROR)
-      length = 0;
-
-    resize(length, static_cast<UTFCharType>(0));
-
-    return *this;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTF32CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
-  StringWrapper& operator=(const std::basic_string_view<UTFCharTypeInput> other)
-  {
-    UErrorCode errorCode = U_ZERO_ERROR;
-
-    resize(other.size() * std::max(1ull, sizeof(UTFCharTypeInput) / sizeof(UTFCharType)), static_cast<UTFCharType>(0));
-
-    size_t offset = 0;
-    int32_t length = 0;
-
-    auto *reinterpretedData = reinterpret_cast<UChar32 *>(data());
-    const auto *inputData = other.data();
-    const auto inputDataSize = other.size();
-    for (size_t inputOffset = 0; inputOffset < inputDataSize;)
-    {
-      auto &outputChar = reinterpretedData[offset++];
-      U8_NEXT(inputData, inputOffset, inputDataSize, outputChar);
-    }
-    length = offset;
-
-    if (errorCode > U_ZERO_ERROR)
-      length = 0;
-
-    resize(length, static_cast<UTFCharType>(0));
-
-    return *this;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTF32CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
-  StringWrapper& operator=(const std::basic_string_view<UTFCharTypeInput> other)
-  {
-    UErrorCode errorCode = U_ZERO_ERROR;
-
-    resize(other.size() * std::max(1ull, sizeof(UTFCharTypeInput) / sizeof(UTFCharType)), static_cast<UTFCharType>(0));
-
-    size_t offset = 0;
-    int32_t length = 0;
-
-    auto *reinterpretedData = reinterpret_cast<UChar32 *>(data());
-    const auto *inputData = other.data();
-    const auto inputDataSize = other.size();
-    for (size_t inputOffset = 0; inputOffset < inputDataSize;)
-    {
-      auto &outputChar = reinterpretedData[offset++];
-      U16_NEXT(inputData, inputOffset, inputDataSize, outputChar);
-    }
-    length = offset;
-
-    if (errorCode > U_ZERO_ERROR)
-      length = 0;
-
-    resize(length, static_cast<UTFCharType>(0));
-
-    return *this;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput> && (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, UTFCharTypeInput>)
-  StringWrapper& operator=(const std::basic_string<UTFCharTypeInput> &other)
-  {
-    *this = std::basic_string_view<UTFCharTypeInput>(other);
-
-    if constexpr (std::same_as<UTFStorageType, std::basic_string_view<UTFCharType>>)
-      nullTerminated = false;
-
-    return *this;
-  }
-
-  template <typename UTFCharTypeInput, size_t UTFInputSize>
-  requires IsUTFCharType<UTFCharTypeInput> && (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, UTFCharTypeInput>)
-  StringWrapper& operator=(const UTFCharTypeInput (&other)[UTFInputSize])
-  {
-    *this = std::basic_string_view<UTFCharTypeInput>(other, other[UTFInputSize - 1] ==  UTFCharTypeInput(0) ? UTFInputSize - 1 : UTFInputSize);
-
-    if constexpr (std::same_as<UTFStorageType, std::basic_string_view<UTFCharType>>)
-      nullTerminated = other[UTFInputSize - 1] ==  UTFCharTypeInput(0);
-
-    return *this;
-  }
-
-  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, wchar_t>>>
-  StringWrapper& operator=(const std::filesystem::path& other)
-  {
-    return *this = other.native();
-  }
-
-  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<wchar_t>>>>
-  StringWrapper& operator=(std::filesystem::path &&other) noexcept
-  {
-    return *this = std::move(other.native());
-  }
-
-  template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
-  requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>> && (std::same_as<UTFStorageType, std::basic_string<UTFCharType>> || std::same_as<UTFCharType, UTFCharTypeInput>)
-  StringWrapper& operator=(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, CaseSensitiveInput>& other)
-  {
-    *this = other.native();
-    nullTerminated = other.IsNullTerminated();
-
-    return *this;
-  }
-
-  StringWrapper& operator=(const StringWrapper& other)
-  {
-    if (this == &other)
-      return *this;
-
-    utfData = other.utfData;
-    nullTerminated = other.nullTerminated;
-
-    return *this;
-  }
-
-  StringWrapper& operator=(StringWrapper&& other) noexcept
-  {
-    if (this == &other)
-      return *this;
-
-    utfData = std::move(other.utfData);
-    nullTerminated = other.nullTerminated;
-
-    return *this;
-  }
-
-  [[nodiscard]] UTFCharType& operator[](const size_t index)
-  {
-    return utfData[index];
-  }
-
-  [[nodiscard]] UTFCharType operator[](const size_t index) const
-  {
-    return utfData[index];
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTF8CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput>
-  [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
-  {
-    auto *reinterpretedData = reinterpret_cast<const uint8_t *>(data());
-    const auto reinterpretedDataSize = size();
-    size_t reinterpretedDataOffset = 0;
-    auto *reinterpretedInput = reinterpret_cast<const uint8_t *>(other.data());
-    const auto reinterpretedInputSize = other.size();
-    size_t reinterpretedInputOffset = 0;
-    auto glyph = CodepointInvalid;
-    auto glyphInput = CodepointInvalid;
-    while (reinterpretedDataOffset < reinterpretedDataSize && reinterpretedInputOffset < reinterpretedInputSize)
-    {
-      U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-      U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-
-      if constexpr (!CaseSensitive)
-      {
-        glyph = u_tolower(glyph);
-        glyphInput = u_tolower(glyphInput);
-      }
-
-      if (glyph != glyphInput)
-        return glyph <=> glyphInput;
-    }
-
-    if (reinterpretedDataOffset != reinterpretedDataSize)
-      U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-    else
-      glyph = CodepointInvalid;
-
-    if (reinterpretedInputOffset != reinterpretedInputSize)
-      U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-    else
-      glyphInput = CodepointInvalid;
-
-    if constexpr (!CaseSensitive)
+    if constexpr (!CaseSensitiveLeft || !CaseSensitiveRight)
     {
       glyph = u_tolower(glyph);
       glyphInput = u_tolower(glyphInput);
     }
 
-    return glyph <=> glyphInput;
+    if (glyph != glyphInput)
+      return glyph <=> glyphInput;
   }
 
-  template <typename UTFCharTypeInput>
-  requires IsUTF8CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput>
-  [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
+  if (reinterpretedDataOffset != reinterpretedDataSize)
+    U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+  else
+    glyph = CodepointInvalid;
+
+  if (reinterpretedInputOffset != reinterpretedInputSize)
+    U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
+  else
+    glyphInput = CodepointInvalid;
+
+  if constexpr (!CaseSensitiveLeft || !CaseSensitiveRight)
   {
-    auto *reinterpretedData = reinterpret_cast<const uint8_t *>(data());
-    const auto reinterpretedDataSize = size();
-    size_t reinterpretedDataOffset = 0;
-    auto *reinterpretedInput = reinterpret_cast<const UChar *>(other.data());
-    const auto reinterpretedInputSize = other.size();
-    size_t reinterpretedInputOffset = 0;
-    auto glyph = CodepointInvalid;
-    auto glyphInput = CodepointInvalid;
-    while (reinterpretedDataOffset < reinterpretedDataSize && reinterpretedInputOffset < reinterpretedInputSize)
-    {
-      U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-      U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-
-      if constexpr (!CaseSensitive)
-      {
-        glyph = u_tolower(glyph);
-        glyphInput = u_tolower(glyphInput);
-      }
-
-      if (glyph != glyphInput)
-        return glyph <=> glyphInput;
-    }
-
-    if (reinterpretedDataOffset != reinterpretedDataSize)
-      U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-    else
-      glyph = CodepointInvalid;
-
-    if (reinterpretedInputOffset != reinterpretedInputSize)
-      U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-    else
-      glyphInput = CodepointInvalid;
-
-    if constexpr (!CaseSensitive)
-    {
-      glyph = u_tolower(glyph);
-      glyphInput = u_tolower(glyphInput);
-    }
-
-    return glyph <=> glyphInput;
+    glyph = u_tolower(glyph);
+    glyphInput = u_tolower(glyphInput);
   }
 
-  template <typename UTFCharTypeInput>
-  requires IsUTF8CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput>
-  [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
+  return glyph <=> glyphInput;
+}
+
+template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
+requires IsUTF8CharType<UTFCharTypeLeft> && IsUTF16CharType<UTFCharTypeRight>
+[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
+{
+  auto *reinterpretedData = reinterpret_cast<const uint8_t *>(left.data());
+  const auto reinterpretedDataSize = left.size();
+  size_t reinterpretedDataOffset = 0;
+  auto *reinterpretedInput = reinterpret_cast<const UChar *>(right.data());
+  const auto reinterpretedInputSize = right.size();
+  size_t reinterpretedInputOffset = 0;
+  auto glyph = CodepointInvalid;
+  auto glyphInput = CodepointInvalid;
+  while (reinterpretedDataOffset < reinterpretedDataSize && reinterpretedInputOffset < reinterpretedInputSize)
   {
-    auto *reinterpretedData = reinterpret_cast<const uint8_t *>(data());
-    const auto reinterpretedDataSize = size();
-    size_t reinterpretedDataOffset = 0;
-    size_t inputOffset = 0;
-    auto glyph = CodepointInvalid;
-    auto glyphInput = CodepointInvalid;
-    while (reinterpretedDataOffset < reinterpretedDataSize && inputOffset < other.size())
-    {
-      U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-      glyphInput = static_cast<uint32_t>(other[inputOffset++]);
+    U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+    U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
 
-      if constexpr (!CaseSensitive)
-      {
-        glyph = u_tolower(glyph);
-        glyphInput = u_tolower(glyphInput);
-      }
-
-      if (glyph != glyphInput)
-        return glyph <=> glyphInput;
-    }
-
-    if (reinterpretedDataOffset != reinterpretedDataSize)
-      U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-    else
-      glyph = CodepointInvalid;
-
-    if (inputOffset != other.size())
-      glyphInput = static_cast<uint32_t>(other[inputOffset]);
-    else
-      glyphInput =  CodepointInvalid;
-
-    if constexpr (!CaseSensitive)
+    if constexpr (!CaseSensitiveLeft || !CaseSensitiveRight)
     {
       glyph = u_tolower(glyph);
       glyphInput = u_tolower(glyphInput);
     }
 
-    return glyph <=> glyphInput;
+    if (glyph != glyphInput)
+      return glyph <=> glyphInput;
   }
 
-  template <typename UTFCharTypeInput>
-  requires IsUTF16CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput>
-  [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
+  if (reinterpretedDataOffset != reinterpretedDataSize)
+    U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+  else
+    glyph = CodepointInvalid;
+
+  if (reinterpretedInputOffset != reinterpretedInputSize)
+    U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
+  else
+    glyphInput = CodepointInvalid;
+
+  if constexpr (!CaseSensitiveLeft || !CaseSensitiveRight)
   {
-    auto *reinterpretedData = reinterpret_cast<const UChar *>(data());
-    const auto reinterpretedDataSize = size();
-    size_t reinterpretedDataOffset = 0;
-    auto *reinterpretedInput = reinterpret_cast<const uint8_t *>(other.data());
-    const auto reinterpretedInputSize = other.size();
-    size_t reinterpretedInputOffset = 0;
-    auto glyph = CodepointInvalid;
-    auto glyphInput = CodepointInvalid;
-    while (reinterpretedDataOffset < reinterpretedDataSize && reinterpretedInputOffset < reinterpretedInputSize)
-    {
-      U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-      U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
+    glyph = u_tolower(glyph);
+    glyphInput = u_tolower(glyphInput);
+  }
 
-      if constexpr (!CaseSensitive)
-      {
-        glyph = u_tolower(glyph);
-        glyphInput = u_tolower(glyphInput);
-      }
+  return glyph <=> glyphInput;
+}
 
-      if (glyph != glyphInput)
-        return glyph <=> glyphInput;
-    }
+template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
+requires IsUTF8CharType<UTFCharTypeLeft> && IsUTF32CharType<UTFCharTypeRight>
+[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
+{
+  auto *reinterpretedData = reinterpret_cast<const uint8_t *>(left.data());
+  const auto reinterpretedDataSize = left.size();
+  size_t reinterpretedDataOffset = 0;
+  size_t inputOffset = 0;
+  auto glyph = CodepointInvalid;
+  auto glyphInput = CodepointInvalid;
+  while (reinterpretedDataOffset < reinterpretedDataSize && inputOffset < right.size())
+  {
+    U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+    glyphInput = static_cast<uint32_t>(right[inputOffset++]);
 
-    if (reinterpretedDataOffset != reinterpretedDataSize)
-      U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-    else
-      glyph = CodepointInvalid;
-
-    if (reinterpretedInputOffset != reinterpretedInputSize)
-      U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-    else
-      glyphInput = CodepointInvalid;
-
-    if constexpr (!CaseSensitive)
+    if constexpr (!CaseSensitiveLeft || !CaseSensitiveRight)
     {
       glyph = u_tolower(glyph);
       glyphInput = u_tolower(glyphInput);
     }
 
-    return glyph <=> glyphInput;
+    if (glyph != glyphInput)
+      return glyph <=> glyphInput;
   }
 
-  template <typename UTFCharTypeInput>
-  requires IsUTF16CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput>
-  [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
+  if (reinterpretedDataOffset != reinterpretedDataSize)
+    U8_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+  else
+    glyph = CodepointInvalid;
+
+  if (inputOffset != right.size())
+    glyphInput = static_cast<uint32_t>(right[inputOffset]);
+  else
+    glyphInput =  CodepointInvalid;
+
+  if constexpr (!CaseSensitiveLeft || !CaseSensitiveRight)
   {
-    auto *reinterpretedData = reinterpret_cast<const UChar *>(data());
-    const auto reinterpretedDataSize = size();
-    size_t reinterpretedDataOffset = 0;
-    auto *reinterpretedInput = reinterpret_cast<const UChar *>(other.data());
-    const auto reinterpretedInputSize = other.size();
-    size_t reinterpretedInputOffset = 0;
-    auto glyph = CodepointInvalid;
-    auto glyphInput = CodepointInvalid;
-    while (reinterpretedDataOffset < reinterpretedDataSize && reinterpretedInputOffset < reinterpretedInputSize)
-    {
-      U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-      U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-
-      if constexpr (!CaseSensitive)
-      {
-        glyph = u_tolower(glyph);
-        glyphInput = u_tolower(glyphInput);
-      }
-
-      if (glyph != glyphInput)
-        return glyph <=> glyphInput;
-    }
-
-    if (reinterpretedDataOffset != reinterpretedDataSize)
-      U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-    else
-      glyph = CodepointInvalid;
-
-    if (reinterpretedInputOffset != reinterpretedInputSize)
-      U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-    else
-      glyphInput = CodepointInvalid;
-
-    if constexpr (!CaseSensitive)
-    {
-      glyph = u_tolower(glyph);
-      glyphInput = u_tolower(glyphInput);
-    }
-
-    return glyph <=> glyphInput;
+    glyph = u_tolower(glyph);
+    glyphInput = u_tolower(glyphInput);
   }
 
-  template <typename UTFCharTypeInput>
-  requires IsUTF16CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput>
-  [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
+  return glyph <=> glyphInput;
+}
+
+template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
+requires IsUTF16CharType<UTFCharTypeLeft> && IsUTF8CharType<UTFCharTypeRight>
+[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
+{
+   const auto result = right <=> left;
+   if (result == std::strong_ordering::equal)
+     return result;
+
+   return result == std::strong_ordering::less ? std::strong_ordering::greater : std::strong_ordering::less;
+}
+
+template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
+requires IsUTF16CharType<UTFCharTypeLeft> && IsUTF16CharType<UTFCharTypeRight>
+[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
+{
+  auto *reinterpretedData = reinterpret_cast<const UChar *>(left.data());
+  const auto reinterpretedDataSize = left.size();
+  size_t reinterpretedDataOffset = 0;
+  auto *reinterpretedInput = reinterpret_cast<const UChar *>(right.data());
+  const auto reinterpretedInputSize = right.size();
+  size_t reinterpretedInputOffset = 0;
+  auto glyph = CodepointInvalid;
+  auto glyphInput = CodepointInvalid;
+  while (reinterpretedDataOffset < reinterpretedDataSize && reinterpretedInputOffset < reinterpretedInputSize)
   {
-    auto *reinterpretedData = reinterpret_cast<const UChar *>(data());
-    const auto reinterpretedDataSize = size();
-    size_t reinterpretedDataOffset = 0;
-    size_t inputOffset = 0;
-    auto glyph = CodepointInvalid;
-    auto glyphInput = CodepointInvalid;
-    while (reinterpretedDataOffset < reinterpretedDataSize && inputOffset < other.size())
-    {
-      U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-      glyphInput = static_cast<uint32_t>(other[inputOffset++]);
+    U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+    U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
 
-      if constexpr (!CaseSensitive)
-      {
-        glyph = u_tolower(glyph);
-        glyphInput = u_tolower(glyphInput);
-      }
-
-      if (glyph != glyphInput)
-        return glyph <=> glyphInput;
-    }
-
-    if (reinterpretedDataOffset != reinterpretedDataSize)
-      U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
-    else
-      glyph = CodepointInvalid;
-
-    if (inputOffset != other.size())
-      glyphInput = static_cast<uint32_t>(other[inputOffset]);
-    else
-      glyphInput =  CodepointInvalid;
-
-    if constexpr (!CaseSensitive)
+    if constexpr (!CaseSensitiveLeft || !CaseSensitiveRight)
     {
       glyph = u_tolower(glyph);
       glyphInput = u_tolower(glyphInput);
     }
 
-    return glyph <=> glyphInput;
+    if (glyph != glyphInput)
+      return glyph <=> glyphInput;
   }
 
-  template <typename UTFCharTypeInput>
-  requires IsUTF32CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput>
-  [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
+  if (reinterpretedDataOffset != reinterpretedDataSize)
+    U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+  else
+    glyph = CodepointInvalid;
+
+  if (reinterpretedInputOffset != reinterpretedInputSize)
+    U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
+  else
+    glyphInput = CodepointInvalid;
+
+  if constexpr (!CaseSensitiveLeft || !CaseSensitiveRight)
   {
-    auto *reinterpretedInput = reinterpret_cast<const uint8_t *>(other.data());
-    const auto reinterpretedInputSize = other.size();
-    size_t reinterpretedInputOffset = 0;
-    size_t dataOffset = 0;
-    auto glyph = CodepointInvalid;
-    auto glyphInput = CodepointInvalid;
-    while (dataOffset < size() && reinterpretedInputOffset < reinterpretedInputSize)
-    {
-      glyph = static_cast<uint32_t>(utfData[dataOffset++]);
-      U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-
-      if constexpr (!CaseSensitive)
-      {
-        glyph = u_tolower(glyph);
-        glyphInput = u_tolower(glyphInput);
-      }
-
-      if (glyph != glyphInput)
-        return glyph <=> glyphInput;
-    }
-
-    if (dataOffset != size())
-      glyph = static_cast<uint32_t>(utfData[dataOffset]);
-    else
-      glyph = CodepointInvalid;
-
-    if (reinterpretedInputOffset != reinterpretedInputSize)
-      U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-    else
-      glyphInput = CodepointInvalid;
-
-    if constexpr (!CaseSensitive)
-    {
-      glyph = u_tolower(glyph);
-      glyphInput = u_tolower(glyphInput);
-    }
-
-    return glyph <=> glyphInput;
+    glyph = u_tolower(glyph);
+    glyphInput = u_tolower(glyphInput);
   }
 
-  template <typename UTFCharTypeInput>
-  requires IsUTF32CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput>
-  [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
+  return glyph <=> glyphInput;
+}
+
+template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
+requires IsUTF16CharType<UTFCharTypeLeft> && IsUTF32CharType<UTFCharTypeRight>
+[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
+{
+  auto *reinterpretedData = reinterpret_cast<const UChar *>(left.data());
+  const auto reinterpretedDataSize = left.size();
+  size_t reinterpretedDataOffset = 0;
+  size_t inputOffset = 0;
+  auto glyph = CodepointInvalid;
+  auto glyphInput = CodepointInvalid;
+  while (reinterpretedDataOffset < reinterpretedDataSize && inputOffset < right.size())
   {
-    auto *reinterpretedInput = reinterpret_cast<const UChar *>(other.data());
-    const auto reinterpretedInputSize = other.size();
-    size_t reinterpretedInputOffset = 0;
-    size_t dataOffset = 0;
-    auto glyph = CodepointInvalid;
-    auto glyphInput = CodepointInvalid;
-    while (dataOffset < size() && reinterpretedInputOffset < reinterpretedInputSize)
-    {
-      glyph = static_cast<uint32_t>(utfData[dataOffset++]);
+    U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+    glyphInput = static_cast<uint32_t>(right[inputOffset++]);
 
-      U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-
-      if constexpr (!CaseSensitive)
-      {
-        glyph = u_tolower(glyph);
-        glyphInput = u_tolower(glyphInput);
-      }
-
-      if (glyph != glyphInput)
-        return glyph <=> glyphInput;
-    }
-
-    if (dataOffset != size())
-      glyph = static_cast<uint32_t>(utfData[dataOffset]);
-    else
-      glyph = CodepointInvalid;
-
-    if (reinterpretedInputOffset != reinterpretedInputSize)
-      U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyphInput);
-    else
-      glyphInput = CodepointInvalid;
-
-    if constexpr (!CaseSensitive)
+    if constexpr (!CaseSensitiveLeft || !CaseSensitiveRight)
     {
       glyph = u_tolower(glyph);
       glyphInput = u_tolower(glyphInput);
     }
 
-    return glyph <=> glyphInput;
+    if (glyph != glyphInput)
+      return glyph <=> glyphInput;
   }
 
-  template <typename UTFCharTypeInput>
-  requires IsUTF32CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput>
-  [[nodiscard]] auto operator<=>(const std::basic_string_view<UTFCharTypeInput> other) const
+  if (reinterpretedDataOffset != reinterpretedDataSize)
+    U16_NEXT(reinterpretedData, reinterpretedDataOffset, reinterpretedDataSize, glyph);
+  else
+    glyph = CodepointInvalid;
+
+  if (inputOffset != right.size())
+    glyphInput = static_cast<uint32_t>(right[inputOffset]);
+  else
+    glyphInput =  CodepointInvalid;
+
+  if constexpr (!CaseSensitiveLeft || !CaseSensitiveRight)
   {
-    size_t inputOffset = 0;
-    size_t dataOffset = 0;
-    auto glyph = CodepointInvalid;
-    auto glyphInput = CodepointInvalid;
-    while (dataOffset < size() && inputOffset < other.size())
-    {
-      glyph = static_cast<uint32_t>(utfData[dataOffset++]);
-      glyphInput = static_cast<uint32_t>(other[inputOffset++]);
+    glyph = u_tolower(glyph);
+    glyphInput = u_tolower(glyphInput);
+  }
 
-      if constexpr (!CaseSensitive)
-      {
-        glyph = u_tolower(glyph);
-        glyphInput = u_tolower(glyphInput);
-      }
+  return glyph <=> glyphInput;
+}
 
-      if (glyphInput != glyph)
-        return glyphInput <=> glyph;
-    }
+template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
+requires IsUTF32CharType<UTFCharTypeLeft> && IsUTF8CharType<UTFCharTypeRight>
+[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
+{
+   const auto result = right <=> left;
+   if (result == std::strong_ordering::equal)
+     return result;
 
-    if (dataOffset != size())
-      glyph = static_cast<uint32_t>(utfData[dataOffset]);
-    else
-      glyph = CodepointInvalid;
+   return result == std::strong_ordering::less ? std::strong_ordering::greater : std::strong_ordering::less;
+}
 
-    if (inputOffset != other.size())
-      glyphInput = static_cast<uint32_t>(other[inputOffset]);
-    else
-      glyphInput = CodepointInvalid;
+template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
+requires IsUTF32CharType<UTFCharTypeLeft> && IsUTF16CharType<UTFCharTypeRight>
+[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
+{
+   const auto result = right <=> left;
+   if (result == std::strong_ordering::equal)
+     return result;
 
-    if constexpr (!CaseSensitive)
+   return result == std::strong_ordering::less ? std::strong_ordering::greater : std::strong_ordering::less;
+}
+
+template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
+requires IsUTF32CharType<UTFCharTypeLeft> && IsUTF32CharType<UTFCharTypeRight>
+[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
+{
+  size_t inputOffset = 0;
+  size_t dataOffset = 0;
+  auto glyph = CodepointInvalid;
+  auto glyphInput = CodepointInvalid;
+  while (dataOffset < left.size() && inputOffset < right.size())
+  {
+    glyph = static_cast<uint32_t>(left[dataOffset++]);
+    glyphInput = static_cast<uint32_t>(right[inputOffset++]);
+
+    if constexpr (!CaseSensitiveLeft || !CaseSensitiveRight)
     {
       glyph = u_tolower(glyph);
       glyphInput = u_tolower(glyphInput);
     }
 
-    return glyph <=> glyphInput;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] auto operator<=>(const std::basic_string<UTFCharTypeInput>& other) const
-  {
-    return *this <=> std::basic_string_view<UTFCharTypeInput>(other);
-  }
-
-  template <typename UTFCharTypeInput, size_t UTFInputSize>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] auto operator<=>(const UTFCharTypeInput (&other)[UTFInputSize]) const
-  {
-    return *this <=> std::basic_string_view<UTFCharTypeInput>(other, other[UTFInputSize - 1] ==  UTFCharTypeInput(0) ? UTFInputSize - 1 : UTFInputSize);
-  }
-
-  [[nodiscard]] auto operator<=>(const std::filesystem::path& other) const
-  {
-    return *this <=> other.native();
-  }
-
-  template <typename UTFStorageTypeInput, typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>>
-  [[nodiscard]] auto operator<=>(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, true>& other) const
-  {
-    return *this <=> other.native();
-  }
-
-  template <typename UTFStorageTypeInput, typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>>
-  [[nodiscard]] auto operator<=>(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, false>& other) const
-  {
-    return other <=> native();
-  }
-
-  [[nodiscard]] auto operator<=>(const StringWrapper& other) const
-  {
-    return *this <=> other.utfData;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator==(const std::basic_string_view<UTFCharTypeInput> other) const
-  {
-    return (*this <=> other) == std::weak_ordering::equivalent;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator==(const std::basic_string<UTFCharTypeInput>& other) const
-  {
-    return (*this <=> other) == std::weak_ordering::equivalent;
-  }
-
-  template <typename UTFCharTypeInput, size_t UTFInputSize>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator==(const UTFCharTypeInput (&other)[UTFInputSize]) const
-  {
-    return (*this <=> other) == std::weak_ordering::equivalent;
-  }
-
-  [[nodiscard]] bool operator==(const std::filesystem::path& other) const
-  {
-    return (*this <=> other.native()) == std::weak_ordering::equivalent;
-  }
-
-  template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
-  requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>>
-  [[nodiscard]] bool operator==(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, CaseSensitiveInput>& other) const
-  {
-    return (*this <=> other.native()) == std::weak_ordering::equivalent;
-  }
-
-  [[nodiscard]] bool operator==(const StringWrapper& other) const
-  {
-    return (*this <=> other.utfData) == std::weak_ordering::equivalent;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator!=(const std::basic_string_view<UTFCharTypeInput> other) const
-  {
-    return (*this <=> other) == std::weak_ordering::equivalent;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator!=(const std::basic_string<UTFCharTypeInput>& other) const
-  {
-    return (*this <=> other) != std::weak_ordering::equivalent;
-  }
-
-  template <typename UTFCharTypeInput, size_t UTFInputSize>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator!=(const UTFCharTypeInput (&other)[UTFInputSize]) const
-  {
-    return (*this <=> other) != std::weak_ordering::equivalent;
-  }
-
-  [[nodiscard]] bool operator!=(const std::filesystem::path& other) const
-  {
-    return (*this <=> other.native()) != std::weak_ordering::equivalent;
-  }
-
-  template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
-  requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>>
-  [[nodiscard]] bool operator!=(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, CaseSensitiveInput>& other) const
-  {
-    return (*this <=> other.native()) != std::weak_ordering::equivalent;
-  }
-
-  [[nodiscard]] bool operator!=(const StringWrapper& other) const
-  {
-    return (*this <=> other.utfData) != std::weak_ordering::equivalent;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator<=(const std::basic_string_view<UTFCharTypeInput> other) const
-  {
-    const auto cmp = *this <=> other;
-    return cmp == std::weak_ordering::less || cmp == std::weak_ordering::equivalent;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator<=(const std::basic_string<UTFCharTypeInput>& other) const
-  {
-    const auto cmp = *this <=> other;
-    return cmp == std::weak_ordering::less || cmp == std::weak_ordering::equivalent;
-  }
-
-  template <typename UTFCharTypeInput, size_t UTFInputSize>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator<=(const UTFCharTypeInput (&other)[UTFInputSize]) const
-  {
-    const auto cmp = *this <=> other;
-    return cmp == std::weak_ordering::less || cmp == std::weak_ordering::equivalent;
-  }
-
-  [[nodiscard]] bool operator<=(const std::filesystem::path& other) const
-  {
-    const auto cmp = *this <=> other.native();
-    return cmp == std::weak_ordering::less || cmp == std::weak_ordering::equivalent;
-  }
-
-  template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
-  requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>>
-  [[nodiscard]] bool operator<=(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, CaseSensitiveInput>& other) const
-  {
-    const auto cmp = *this <=> other.native();
-    return cmp == std::weak_ordering::less || cmp == std::weak_ordering::equivalent;
-  }
-
-  [[nodiscard]] bool operator<=(const StringWrapper& other) const
-  {
-    const auto cmp = *this <=> other.utfData;
-    return cmp == std::weak_ordering::less || cmp == std::weak_ordering::equivalent;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator>=(const std::basic_string_view<UTFCharTypeInput> other) const
-  {
-    const auto cmp = *this <=> other;
-    return cmp == std::weak_ordering::greater || cmp == std::weak_ordering::equivalent;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator>=(const std::basic_string<UTFCharTypeInput>& other) const
-  {
-    const auto cmp = *this <=> other;
-    return cmp == std::weak_ordering::greater || cmp == std::weak_ordering::equivalent;
-  }
-
-  template <typename UTFCharTypeInput, size_t UTFInputSize>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator>=(const UTFCharTypeInput (&other)[UTFInputSize]) const
-  {
-    const auto cmp = *this <=> other;
-    return cmp == std::weak_ordering::greater || cmp == std::weak_ordering::equivalent;
-  }
-
-  [[nodiscard]] bool operator>=(const std::filesystem::path& other) const
-  {
-    const auto cmp = *this <=> other.native();
-    return cmp == std::weak_ordering::greater || cmp == std::weak_ordering::equivalent;
-  }
-
-  template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
-  requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>>
-  [[nodiscard]] bool operator>=(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, CaseSensitiveInput>& other) const
-  {
-    const auto cmp = *this <=> other.native();
-    return cmp == std::weak_ordering::greater || cmp == std::weak_ordering::equivalent;
-  }
-
-  [[nodiscard]] bool operator>=(const StringWrapper& other) const
-  {
-    const auto cmp = *this <=> other.utfData;
-    return cmp == std::weak_ordering::greater || cmp == std::weak_ordering::equivalent;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator<(const std::basic_string_view<UTFCharTypeInput> other) const
-  {
-    return (*this <=> other) == std::weak_ordering::less;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator<(const std::basic_string<UTFCharTypeInput>& other) const
-  {
-    return (*this <=> other) == std::weak_ordering::less;
-  }
-
-  template <typename UTFCharTypeInput, size_t UTFInputSize>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator<(const UTFCharTypeInput (&other)[UTFInputSize]) const
-  {
-    return (*this <=> other) == std::weak_ordering::less;
-  }
-
-  [[nodiscard]] bool operator<(const std::filesystem::path& other) const
-  {
-    return (*this <=> other.native()) == std::weak_ordering::less;
-  }
-
-  template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
-  requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>>
-  [[nodiscard]] bool operator<(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, CaseSensitiveInput>& other) const
-  {
-    return (*this <=> other.native()) == std::weak_ordering::less;
-  }
-
-  [[nodiscard]] bool operator<(const StringWrapper& other) const
-  {
-    return (*this <=> other.utfData) == std::weak_ordering::less;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator>(const std::basic_string_view<UTFCharTypeInput> other) const
-  {
-    return (*this <=> other) == std::weak_ordering::greater;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator>(const std::basic_string<UTFCharTypeInput>& other) const
-  {
-    return (*this <=> other) == std::weak_ordering::greater;
-  }
-
-  template <typename UTFCharTypeInput, size_t UTFInputSize>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] bool operator>(const UTFCharTypeInput (&other)[UTFInputSize]) const
-  {
-    return (*this <=> other) == std::weak_ordering::greater;
-  }
-
-  [[nodiscard]] bool operator>(const std::filesystem::path& other) const
-  {
-    return (*this <=> other.native()) == std::weak_ordering::greater;
-  }
-
-  template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
-  requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>>
-  [[nodiscard]] bool operator>(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, CaseSensitiveInput>& other) const
-  {
-    return (*this <=> other.native()) == std::weak_ordering::greater;
-  }
-
-  [[nodiscard]] bool operator>(const StringWrapper& other) const
-  {
-    return (*this <=> other.utfData) == std::weak_ordering::greater;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
-  StringWrapper& operator+=(const std::basic_string_view<UTFCharTypeInput> other)
-  {
-    return *this += StringWrapper<std::basic_string_view<UTFCharTypeInput>, UTFCharTypeInput, CaseSensitive>{other};
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
-  StringWrapper& operator+=(const std::basic_string<UTFCharTypeInput>& other)
-  {
-    return *this += StringWrapper<std::basic_string_view<UTFCharTypeInput>, UTFCharTypeInput, CaseSensitive>{other};
-  }
-
-  template <typename UTFCharTypeInput, size_t UTFInputSize>
-  requires IsUTFCharType<UTFCharTypeInput> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
-  StringWrapper& operator+=(const UTFCharTypeInput (&other)[UTFInputSize])
-  {
-    return *this += StringWrapper<std::basic_string_view<UTFCharTypeInput>, UTFCharTypeInput, CaseSensitive>{other};
-  }
-
-  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>>>>
-  StringWrapper& operator+=(const std::filesystem::path& other)
-  {
-    return *this += StringWrapper<std::basic_string_view<wchar_t>, wchar_t, CaseSensitive>{other};
-  }
-
-  template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
-  requires ((IsUTF8CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput>) || (IsUTF16CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput>) || (IsUTF32CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput>)) && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
-  StringWrapper& operator+=(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, CaseSensitiveInput>& other)
-  {
-    if (!other.empty())
-      utfData.append(reinterpret_cast<const UTFCharType *>(other.data()), other.size());
-
-    return *this;
-  }
-
-  template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
-  requires ((!IsUTF8CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput>) || (!IsUTF16CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput>) || (!IsUTF32CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput>)) && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>> && std::same_as<UTFStorageType, std::basic_string<UTFCharType>>
-  StringWrapper& operator+=(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, CaseSensitiveInput>& other)
-  {
-    return *this += StringWrapper{other};
-  }
-
-  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>>>>
-  StringWrapper& operator+=(const StringWrapper& other)
-  {
-    if (!other.empty())
-      utfData.append(other.data(), other.size());
-
-    return *this;
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> operator+(const std::basic_string_view<UTFCharTypeInput> other)
-  {
-    return *this + StringWrapper<std::basic_string_view<UTFCharTypeInput>, UTFCharTypeInput, CaseSensitive>{other};
-  }
-
-  template <typename UTFCharTypeInput>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> operator+(const std::basic_string<UTFCharTypeInput>& other)
-  {
-    return *this + StringWrapper<std::basic_string_view<UTFCharTypeInput>, UTFCharTypeInput, CaseSensitive>{other};
-  }
-
-  template <typename UTFCharTypeInput, size_t UTFInputSize>
-  requires IsUTFCharType<UTFCharTypeInput>
-  [[nodiscard]] StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> operator+(const UTFCharTypeInput (&other)[UTFInputSize])
-  {
-    return *this + StringWrapper<std::basic_string_view<UTFCharTypeInput>, UTFCharTypeInput, CaseSensitive>{other};
-  }
-
-  [[nodiscard]] StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> operator+(const std::filesystem::path& other)
-  {
-    return *this + StringWrapper<std::basic_string_view<wchar_t>, wchar_t, CaseSensitive>{other};
-  }
-
-  template <typename UTFStorageTypeInput, typename UTFCharTypeInput, bool CaseSensitiveInput>
-  requires IsUTFCharType<UTFCharTypeInput> && IsAnyOfTypes<UTFStorageTypeInput, std::basic_string<UTFCharTypeInput>, std::basic_string_view<UTFCharTypeInput>>
-  [[nodiscard]] StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> operator+(const StringWrapper<UTFStorageTypeInput, UTFCharTypeInput, CaseSensitiveInput>& other)
-  {
-    StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> result{*this};
-    return result += other;
-  }
-
-  [[nodiscard]] StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> operator+(const StringWrapper& other)
-  {
-    StringWrapper<std::basic_string<UTFCharType>, UTFCharType, CaseSensitive> result{*this};
-    return result += other;
-  }
-
-  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>>>>
-  [[nodiscard]] auto begin()
-  {
-    return utfData.begin();
-  }
-
-  [[nodiscard]] auto begin() const
-  {
-    return utfData.cbegin();
-  }
-
-  [[nodiscard]] auto cbegin() const
-  {
-    return utfData.cbegin();
-  }
-
-  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>>>>
-  [[nodiscard]] auto end()
-  {
-    return utfData.end();
-  }
-
-  [[nodiscard]] auto end() const
-  {
-    return utfData.cend();
-  }
-
-  [[nodiscard]] auto cend() const
-  {
-    return utfData.cend();
-  }
-
-  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>>>>
-  [[nodiscard]] UTFCharType* data()
-  {
-    return utfData.data();
-  }
-
-  [[nodiscard]] const UTFCharType* data() const
-  {
-    return utfData.data();
-  }
-
-  [[nodiscard]] const UTFCharType* c_str() const
-  {
-    if constexpr (std::same_as<UTFStorageType, std::basic_string<UTFCharType>>)
-      return utfData.c_str();
-    else
-    {
-      if (nullTerminated)
-        return utfData.data();
-
-      utfDataSource = std::make_unique<std::basic_string<UTFCharType>>();
-      utfDataSource->assign(utfData.data(), utfData.size());
-      utfData = *utfDataSource;
-      nullTerminated = true;
-
-      return utfData.data();
-    }
-  }
-
-  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>>>>
-  [[nodiscard]] UTFCharType& front()
-  {
-    return utfData.front();
-  }
-
-  [[nodiscard]] const UTFCharType& front() const
-  {
-    return utfData.front();
-  }
-
-  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>>>>
-  [[nodiscard]] UTFCharType& back()
-  {
-    return utfData.back();
-  }
-
-  [[nodiscard]] const UTFCharType& back() const
-  {
-    return utfData.back();
-  }
-
-  [[nodiscard]] bool empty() const
-  {
-    return utfData.empty();
-  }
-
-  [[nodiscard]] size_t size() const
-  {
-    return utfData.size();
-  }
-
-  [[nodiscard]] size_t length() const
-  {
-    return utfData.length();
-  }
-
-  [[nodiscard]] auto& native()
-  {
-    return utfData;
-  }
-
-  [[nodiscard]] const auto& native() const
-  {
-    return utfData;
-  }
-
-  [[nodiscard]] std::filesystem::path path() const
-  {
-    if constexpr (std::same_as<UTFCharType, wchar_t>)
-      return { utfData };
-    else
-      return StringWrapper<std::basic_string<wchar_t>, wchar_t, true>(utfData).path();
-  }
-
-  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>>>>
-  void clear()
-  {
-    utfData.clear();
-  }
-
-  template<typename = std::enable_if_t<std::same_as<UTFStorageType, std::basic_string<UTFCharType>>>>
-  void resize(const size_t newSize, const UTFCharType defaultChar = static_cast<UTFCharType>(0))
-  {
-    utfData.resize(newSize, defaultChar);
-  }
-
-  bool IsNullTerminated() const
-  {
-    return nullTerminated;
-  }
-
-private:
-  mutable UTFStorageType utfData;
-  mutable std::unique_ptr<std::basic_string<UTFCharType>> utfDataSource;
-  mutable bool nullTerminated = std::same_as<UTFStorageType, std::basic_string<UTFCharType>>;
-};
-
-using String8 = StringWrapper<std::basic_string<char>, char, true>;
-using String16 = StringWrapper<std::basic_string<UChar>, UChar, true>;
-using String32 = StringWrapper<std::basic_string<UChar32>, UChar32, true>;
-
-using StringW = StringWrapper<std::basic_string<wchar_t>, wchar_t, true>;
-
-using String8CI = StringWrapper<std::basic_string<char>, char, false>;
-using String16CI = StringWrapper<std::basic_string<UChar>, UChar, false>;
-using String32CI = StringWrapper<std::basic_string<UChar32>, UChar32, false>;
-
-using StringWCI = StringWrapper<std::basic_string<wchar_t>, wchar_t, false>;
-
-using StringView8 = StringWrapper<std::basic_string_view<char>, char, true>;
-using StringView16 = StringWrapper<std::basic_string_view<UChar>, UChar, true>;
-using StringView32 = StringWrapper<std::basic_string_view<UChar32>, UChar32, true>;
-
-using StringViewW = StringWrapper<std::basic_string_view<wchar_t>, wchar_t, true>;
-
-using StringView8CI = StringWrapper<std::basic_string_view<char>, char, false>;
-using StringView16CI = StringWrapper<std::basic_string_view<UChar>, UChar, false>;
-using StringView32CI = StringWrapper<std::basic_string_view<UChar32>, UChar32, false>;
-
-using StringViewWCI = StringWrapper<std::basic_string_view<wchar_t>, wchar_t, false>;
+    if (glyphInput != glyph)
+      return glyph <=> glyphInput;
+  }
+
+  if (dataOffset != left.size())
+    glyph = static_cast<uint32_t>(left[dataOffset]);
+  else
+    glyph = CodepointInvalid;
+
+  if (inputOffset != right.size())
+    glyphInput = static_cast<uint32_t>(right[inputOffset]);
+  else
+    glyphInput = CodepointInvalid;
+
+  if constexpr (!CaseSensitiveLeft || !CaseSensitiveRight)
+  {
+    glyph = u_tolower(glyph);
+    glyphInput = u_tolower(glyphInput);
+  }
+
+  return glyph <=> glyphInput;
+}
+
+template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>, typename UTFAllocatorLeft = std::allocator<UTFCharTypeLeft>, typename UTFAllocatorRight = std::allocator<UTFCharTypeRight>>
+requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
+[[nodiscard]] inline auto operator<=>(const StringWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft, UTFAllocatorLeft> &left, const StringWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight, UTFAllocatorRight> &right)
+{
+  return StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft>{ left } <=> StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight>{ right };
+}
+
+template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>, typename UTFAllocatorLeft = std::allocator<UTFCharTypeLeft>>
+requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
+[[nodiscard]] inline auto operator<=>(const StringWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft, UTFAllocatorLeft> &left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> &right)
+{
+  return StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft>{ left } <=> right;
+}
+
+template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>, typename UTFAllocatorRight = std::allocator<UTFCharTypeRight>>
+requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
+[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> &left, const StringWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight, UTFAllocatorRight> &right)
+{
+  return left <=> StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight>{ right };
+}
+
+template <typename TypeLeft, typename UTFCharTypeRight, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
+requires StringViewConstructible<TypeLeft> && IsUTFCharType<UTFCharTypeRight>
+[[nodiscard]] inline auto operator<=>(const TypeLeft &left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> &right)
+{
+  if constexpr (StringView8Constructible<TypeLeft>)
+    return StringView8{ left } <=> right;
+  else if constexpr (StringView16Constructible<TypeLeft>)
+    return StringView16{ left } <=> right;
+  else if constexpr (StringView32Constructible<TypeLeft>)
+    return StringView32{ left } <=> right;
+}
+
+template <typename UTFCharTypeLeft, typename TypeRight, bool CaseSensitiveLeft = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>>
+requires IsUTFCharType<UTFCharTypeLeft> && StringViewConstructible<TypeRight>
+[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> &left, const TypeRight &right)
+{
+  if constexpr (StringView8Constructible<TypeRight>)
+    return left <=> StringView8{ right };
+  else if constexpr (StringView16Constructible<TypeRight>)
+    return left <=> StringView16{ right };
+  else if constexpr (StringView32Constructible<TypeRight>)
+    return left <=> StringView32{ right };
+}
+
+template <typename TypeLeft, typename UTFCharTypeRight, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>, typename UTFAllocatorRight = std::allocator<UTFCharTypeRight>>
+requires StringViewConstructible<TypeLeft> && IsUTFCharType<UTFCharTypeRight>
+[[nodiscard]] inline auto operator<=>(const TypeLeft &left, const StringWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight, UTFAllocatorRight> &right)
+{
+  return left <=> StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight>{ right };
+}
+
+template <typename UTFCharTypeLeft, typename TypeRight, bool CaseSensitiveLeft = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFAllocatorLeft = std::allocator<UTFCharTypeLeft>>
+requires IsUTFCharType<UTFCharTypeLeft> && StringViewConstructible<TypeRight>
+[[nodiscard]] inline auto operator<=>(const StringWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft, UTFAllocatorLeft> &left, const TypeRight &right)
+{
+  return StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft>{ left } <=> right;
+}
+
+template <typename TypeLeft, typename TypeRight>
+requires StringViewConstructible<TypeLeft> && StringViewConstructible<TypeRight>
+[[nodiscard]] inline auto operator<=>(const TypeLeft &left, const TypeRight &right)
+{
+  if constexpr (StringView8Constructible<TypeLeft>)
+  {
+    if constexpr (StringView8Constructible<TypeRight>)
+      return StringView8{ left } <=> StringView8{ right };
+    else if constexpr (StringView16Constructible<TypeRight>)
+      return StringView8{ left } <=> StringView16{ right };
+    else if constexpr (StringView32Constructible<TypeRight>)
+      return StringView8{ left } <=> StringView32{ right };
+  }
+  else if constexpr (StringView16Constructible<TypeLeft>)
+  {
+    if constexpr (StringView8Constructible<TypeRight>)
+      return StringView16{ left } <=> StringView8{ right };
+    else if constexpr (StringView16Constructible<TypeRight>)
+      return StringView16{ left } <=> StringView16{ right };
+    else if constexpr (StringView32Constructible<TypeRight>)
+      return StringView16{ left } <=> StringView32{ right };
+  }
+  else if constexpr (StringView32Constructible<TypeLeft>)
+  {
+    if constexpr (StringView8Constructible<TypeRight>)
+      return StringView32{ left } <=> StringView8{ right };
+    else if constexpr (StringView16Constructible<TypeRight>)
+      return StringView32{ left } <=> StringView16{ right };
+    else if constexpr (StringView32Constructible<TypeRight>)
+      return StringView32{ left } <=> StringView32{ right };
+  }
+}
+
+template <typename TypeLeft, typename TypeRight>
+requires StringViewConstructible<TypeLeft> && StringViewConstructible<TypeRight>
+[[nodiscard]] inline bool operator==(const TypeLeft &left, const TypeRight &right)
+{
+  return (left <=> right) == std::strong_ordering::equal;
+}
 
 template <bool CaseSensitive>
-struct StringHasher
+struct StringViewHasher
 {
-  template<typename UTFCharType>
-  requires IsUTFCharType<UTFCharType>
-  [[nodiscard]] size_t operator()(const std::basic_string_view<UTFCharType> utf) const noexcept
+  template <typename UTFCharTypeInput, bool CaseSensitiveInput = true, typename UTFCharTypeTraitsInput = std::char_traits<UTFCharTypeInput>>
+  requires IsUTFCharType<UTFCharTypeInput>
+  [[nodiscard]] size_t operator()(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> utf) const noexcept
   {
     if constexpr (CaseSensitive)
     {
       if constexpr (sizeof(size_t) == sizeof(uint64_t))
-        return XXH3_64bits(utf.data(), utf.size() * sizeof(UTFCharType));
+        return XXH3_64bits(utf.data(), utf.size() * sizeof(UTFCharTypeInput));
 
       if constexpr (sizeof(size_t) == sizeof(uint32_t))
-        return XXH32(utf.data(), utf.size() * sizeof(UTFCharType), 0);
+        return XXH32(utf.data(), utf.size() * sizeof(UTFCharTypeInput), 0);
     }
     else
     {
       size_t result = 0;
 
-      if constexpr (IsUTF8CharType<UTFCharType>)
+      if constexpr (IsUTF8CharType<UTFCharTypeInput>)
       {
         const auto *reinterpretedInput = reinterpret_cast<const uint8_t *>(utf.data());
         const auto reinterpretedInputSize = utf.size();
@@ -1289,11 +452,11 @@ struct StringHasher
           if constexpr (sizeof(size_t) == sizeof(uint64_t))
             result = XXH3_64bits_withSeed(&glyph, sizeof glyph, result);
           else if constexpr (sizeof(size_t) == sizeof(uint32_t))
-            result = XXH32(utf.data(), utf.size() * sizeof(UTFCharType), result);
+            result = XXH32(utf.data(), utf.size() * sizeof(UTFCharTypeInput), result);
         }
       }
 
-      if constexpr (IsUTF16CharType<UTFCharType>)
+      if constexpr (IsUTF16CharType<UTFCharTypeInput>)
       {
         const auto *reinterpretedInput = reinterpret_cast<const UChar *>(utf.data());
         const auto reinterpretedInputSize = utf.size();
@@ -1307,11 +470,11 @@ struct StringHasher
           if constexpr (sizeof(size_t) == sizeof(uint64_t))
             result = XXH3_64bits_withSeed(&glyph, sizeof glyph, result);
           else if constexpr (sizeof(size_t) == sizeof(uint32_t))
-            result = XXH32(utf.data(), utf.size() * sizeof(UTFCharType), result);
+            result = XXH32(utf.data(), utf.size() * sizeof(UTFCharTypeInput), result);
         }
       }
 
-      if constexpr (IsUTF32CharType<UTFCharType>)
+      if constexpr (IsUTF32CharType<UTFCharTypeInput>)
       {
         for (const auto utfChar : utf)
         {
@@ -1320,7 +483,7 @@ struct StringHasher
           if constexpr (sizeof(size_t) == sizeof(uint64_t))
             result = XXH3_64bits_withSeed(&glyph, sizeof glyph, result);
           else if constexpr (sizeof(size_t) == sizeof(uint32_t))
-            result = XXH32(utf.data(), utf.size() * sizeof(UTFCharType), result);
+            result = XXH32(utf.data(), utf.size() * sizeof(UTFCharTypeInput), result);
         }
       }
 
@@ -1328,80 +491,84 @@ struct StringHasher
       {
         for (const auto utfChar : utf)
         {
-          result = XXH3_64bits_withSeed(&utfChar, 1 * sizeof(UTFCharType), result);
+          result = XXH3_64bits_withSeed(&utfChar, 1 * sizeof(UTFCharTypeInput), result);
         }
       }
 
       return result;
     }
   }
-
-  template<typename UTFCharType>
-  requires IsUTFCharType<UTFCharType>
-  [[nodiscard]] size_t operator()(const std::basic_string<UTFCharType> &utf) const noexcept
-  {
-    return operator()(std::basic_string_view<UTFCharType>(utf));
-  }
-
-  template<typename UTFCharType, size_t UTFSize>
-  requires IsUTFCharType<UTFCharType>
-  [[nodiscard]] size_t operator()(const UTFCharType (&utf)[UTFSize]) const noexcept
-  {
-    return operator()(std::basic_string_view<UTFCharType>(utf, UTFSize - 1));
-  }
-
-  template<typename UTFCharType>
-  requires IsUTFCharType<UTFCharType>
-  [[nodiscard]] size_t operator()(const UTFCharType *utf, size_t length) const noexcept
-  {
-    return operator()(std::basic_string_view<UTFCharType>(utf, length));
-  }
-
-  [[nodiscard]] size_t operator()(const std::filesystem::path &utf) const noexcept
-  {
-    return operator()(std::basic_string_view(utf.native()));
-  }
-
-  template <typename UTFStorageType, typename UTFCharType, bool CaseSensitiveInput>
-  requires UTF::IsUTFCharType<UTFCharType> && UTF::IsAnyOfTypes<UTFStorageType, std::basic_string<UTFCharType>, std::basic_string_view<UTFCharType>>
-  [[nodiscard]] size_t operator()(const StringWrapper<UTFStorageType, UTFCharType, CaseSensitiveInput>& utf) const noexcept
-  {
-    return operator()(utf.native());
-  }
 };
+
+template <bool CaseSensitive>
+using StringHasher = StringViewHasher<CaseSensitive>;
 
 }
 
 namespace std
 {
 
-template <typename UTFStorageType, typename UTFCharType, bool CaseSensitive>
-requires UTF::IsUTFCharType<UTFCharType> && UTF::IsAnyOfTypes<UTFStorageType, std::basic_string<UTFCharType>, std::basic_string_view<UTFCharType>>
-struct hash<UTF::StringWrapper<UTFStorageType, UTFCharType, CaseSensitive>>
+template <typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput, typename UTFAllocatorInput>
+requires IsUTFCharType<UTFCharTypeInput>
+struct hash<UTF::StringWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput, UTFAllocatorInput>>
 {
-  [[nodiscard]] size_t operator()(const UTF::StringWrapper<UTFStorageType, UTFCharType, CaseSensitive>& utf) const noexcept
+  [[nodiscard]] size_t operator()(const UTF::StringWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput, UTFAllocatorInput>& utf) const noexcept
   {
-    return UTF::StringHasher<CaseSensitive>{}(utf);
+    return UTF::StringHasher<CaseSensitiveInput>{}(utf);
   }
 };
 
-template <typename UTFStorageType, typename UTFCharType, bool CaseSensitive, typename UTFCharTypeOutput>
-requires UTF::IsUTFCharType<UTFCharType> && UTF::IsAnyOfTypes<UTFStorageType, std::basic_string<UTFCharType>, std::basic_string_view<UTFCharType>>
-struct formatter<UTF::StringWrapper<UTFStorageType, UTFCharType, CaseSensitive>, UTFCharTypeOutput>
+template <typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput>
+requires IsUTFCharType<UTFCharTypeInput>
+struct hash<UTF::StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput>>
+{
+  [[nodiscard]] size_t operator()(const UTF::StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput>& utf) const noexcept
+  {
+    return UTF::StringViewHasher<CaseSensitiveInput>{}(utf);
+  }
+};
+
+template <typename UTFCharTypeOutput, typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput, typename UTFAllocatorInput>
+requires IsUTFCharType<UTFCharTypeInput>
+struct formatter<UTF::StringWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput, UTFAllocatorInput>, UTFCharTypeOutput>
 {
   template <typename FormatParseContext>
-  [[nodiscard]] auto parse(FormatParseContext& pc) const
+  [[nodiscard]] auto parse(FormatParseContext& parseContext) const
   {
-    return pc.end();
+    return parseContext.end();
   }
 
   template<class FormatContext>
-  [[nodiscard]] auto format(const UTF::StringWrapper<UTFStorageType, UTFCharType, CaseSensitive>& utf, FormatContext& ctx) const
+  [[nodiscard]] auto format(const UTF::StringWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput, UTFAllocatorInput>& utf, FormatContext& context) const
   {
-    if constexpr (std::same_as<UTFCharType, UTFCharTypeOutput>)
-      return std::formatter<UTFStorageType, UTFCharTypeOutput>{}.format(utf.native(), ctx);
+    if constexpr (std::same_as<UTFCharTypeInput, UTFCharTypeOutput>)
+      return std::formatter<std::basic_string_view<UTFCharTypeInput, UTFCharTypeTraitsInput>, UTFCharTypeOutput>{}.format(utf.native(), context);
+    else if constexpr (UTF::IsSameUTFCharType<UTFCharTypeInput, UTFCharTypeOutput>)
+      return std::formatter<UTF::StringViewWrapper<UTFCharTypeOutput>, UTFCharTypeOutput>{}.format(utf.native(), context);
     else
-      return std::formatter<UTF::StringWrapper<std::basic_string<UTFCharTypeOutput>, UTFCharTypeOutput, CaseSensitive>, UTFCharTypeOutput>{}.format(utf.native(), ctx);
+      return std::formatter<UTF::StringWrapper<UTFCharTypeOutput, CaseSensitiveInput, UTFCharTypeTraitsInput, UTFAllocatorInput>, UTFCharTypeOutput>{}.format(utf.native(), context);
+  }
+};
+
+template <typename UTFCharTypeOutput, typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput>
+requires IsUTFCharType<UTFCharTypeInput>
+struct formatter<UTF::StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput>, UTFCharTypeOutput>
+{
+  template <typename FormatParseContext>
+  [[nodiscard]] auto parse(FormatParseContext& parseContext) const
+  {
+    return parseContext.end();
+  }
+
+  template<class FormatContext>
+  [[nodiscard]] auto format(const UTF::StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput>& utf, FormatContext& context) const
+  {
+    if constexpr (std::same_as<UTFCharTypeInput, UTFCharTypeOutput>)
+      return std::formatter<std::basic_string_view<UTFCharTypeInput, UTFCharTypeTraitsInput>, UTFCharTypeOutput>{}.format(utf.native(), context);
+    else if constexpr (UTF::IsSameUTFCharType<UTFCharTypeInput, UTFCharTypeOutput>)
+      return std::formatter<UTF::StringViewWrapper<UTFCharTypeOutput>, UTFCharTypeOutput>{}.format(utf.native(), context);
+    else
+      return std::formatter<UTF::StringWrapper<UTFCharTypeOutput, CaseSensitiveInput, UTFCharTypeTraitsInput>, UTFCharTypeOutput>{}.format(utf.native(), context);
   }
 };
 

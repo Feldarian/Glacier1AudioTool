@@ -16,13 +16,13 @@ bool ArchiveDirectory::Clear(const bool retVal)
   return retVal;
 }
 
-ArchiveDirectory& ArchiveDirectory::GetDirectory(const StringView8CI path, std::set<String8CI>& archivePaths)
+ArchiveDirectory& ArchiveDirectory::GetDirectory(const StringView8CI path, OrderedSet<String8CI>& archivePaths)
 {
   auto pathStems = GetPathStems(path);
   return GetDirectory(pathStems, path, archivePaths);
 }
 
-ArchiveDirectory& ArchiveDirectory::GetDirectory(std::vector<StringView8CI> &pathStems, StringView8CI path, std::set<String8CI>& archivePaths)
+ArchiveDirectory& ArchiveDirectory::GetDirectory(std::vector<StringView8CI> &pathStems, StringView8CI path, OrderedSet<String8CI>& archivePaths)
 {
   assert(!pathStems.empty());
 
@@ -57,13 +57,13 @@ ArchiveDirectory& ArchiveDirectory::GetDirectory(std::vector<StringView8CI> &pat
   return directory;
 }
 
-ArchiveFile& ArchiveDirectory::GetFile(const StringView8CI path, std::set<String8CI>& archivePaths)
+ArchiveFile& ArchiveDirectory::GetFile(const StringView8CI path, OrderedSet<String8CI>& archivePaths)
 {
   auto pathStems = GetPathStems(path);
   return GetFile(pathStems, path, archivePaths);
 }
 
-ArchiveFile& ArchiveDirectory::GetFile(std::vector<StringView8CI>& pathStems, StringView8CI path, std::set<String8CI>& archivePaths)
+ArchiveFile& ArchiveDirectory::GetFile(std::vector<StringView8CI>& pathStems, StringView8CI path, OrderedSet<String8CI>& archivePaths)
 {
   assert(!pathStems.empty());
 
@@ -441,7 +441,7 @@ ArchiveFile& ArchiveDialog::GetFile(StringView8CI path)
   return archiveRoot.GetFile(path, archivePaths);
 }
 
-const std::set<String8CI> & ArchiveDialog::GetPaths() const
+const OrderedSet<String8CI> & ArchiveDialog::GetPaths() const
 {
   return archivePaths;
 }

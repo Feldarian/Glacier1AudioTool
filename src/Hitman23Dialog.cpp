@@ -46,8 +46,8 @@ bool Hitman23WAVFile::Clear(const bool retVal)
   return retVal;
 }
 
-bool Hitman23WAVFile::Load(const StringView8CI loadPath, const std::map<StringView8CI, Hitman23WHDRecord *> &whdRecordsMap,
-                           std::map<StringView8CI, HitmanFile>& fileMap, const bool isMissionWAV)
+bool Hitman23WAVFile::Load(const StringView8CI loadPath, const OrderedMap<StringView8CI, Hitman23WHDRecord *> &whdRecordsMap,
+                           OrderedMap<StringView8CI, HitmanFile>& fileMap, const bool isMissionWAV)
 {
   const auto wavData = ReadWholeBinaryFile(loadPath);
   if (wavData.empty())
@@ -61,8 +61,8 @@ bool Hitman23WAVFile::Load(const StringView8CI loadPath, const std::map<StringVi
 
   auto resampledOffset = static_cast<uint32_t>(wavData.size());
   size_t foundItems = 0;
-  std::map<uint32_t, uint32_t> resampledMap;
-  std::map<uint32_t, WAVFileData> offsetToWAVFileDataMap;
+  OrderedMap<uint32_t, uint32_t> resampledMap;
+  OrderedMap<uint32_t, WAVFileData> offsetToWAVFileDataMap;
   for (auto& [whdRecordPath, whdRecord] : whdRecordsMap)
   {
     if ((whdRecord->dataInStreams == 0) != isMissionWAV)
@@ -270,7 +270,7 @@ bool Hitman23Dialog::ImportSingle(const StringView8CI importFolderPathView, Stri
   auto whdRecordsIt = whdRecordsMap.find(filePath);
   if (fileIt == fileMap.end() || whdRecordsIt == whdRecordsMap.end())
   {
-    const StringView8CI nextExtension = filePath.path().extension() == StringView8CI(".wav") ? ".ogg" : ".wav";
+    const StringView8CI nextExtension = filePath.path().extension() == StringViewWCI(L".wav") ? ".ogg" : ".wav";
     filePath = ChangeExtension(filePath, nextExtension);
     fileIt = fileMap.find(filePath);
     whdRecordsIt = whdRecordsMap.find(filePath);
@@ -309,7 +309,7 @@ bool Hitman23Dialog::LoadImpl(const StringView8CI loadPathView)
 
   basePath = rootPath;
 
-  std::map<StringView8CI, Hitman23WHDRecord *> allWHDRecords;
+  OrderedMap<StringView8CI, Hitman23WHDRecord *> allWHDRecords;
   for (const auto &whdPath : allWHDFiles)
   {
     auto &whdFile = whdFiles.emplace_back();
@@ -335,7 +335,7 @@ bool Hitman23Dialog::LoadImpl(const StringView8CI loadPathView)
 
   dataPath /= L"data";
   dataPath /= L"records";
-  dataPath /= streamsWAV.recordMap[0].data.get().data()[0] == 0x6F ? L"h2" : L"h3";
+  dataPath /= streamsWAV.recordMap[0].data.get()[0] == 0x6F ? L"h2" : L"h3";
 
   originalDataPath = dataPath;
 

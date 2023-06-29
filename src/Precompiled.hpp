@@ -29,6 +29,12 @@ extern "C"
 #include <variant>
 #include <vector>
 
+template <typename KeyType, typename ValueType, typename ComparatorLessType = std::less<>, typename AllocatorType = std::allocator<std::pair<const KeyType, ValueType>>>
+using OrderedMap = std::map<KeyType, ValueType, ComparatorLessType, AllocatorType>;
+
+template <typename ValueType, typename ComparatorLessType = std::less<>, typename AllocatorType = std::allocator<ValueType>>
+using OrderedSet = std::set<ValueType, ComparatorLessType, AllocatorType>;
+
 #include "Singleton.hpp"
 #include "UTF/UTF.hpp"
 

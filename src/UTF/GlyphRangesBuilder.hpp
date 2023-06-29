@@ -79,9 +79,9 @@ public:
     glyphsInUse.set(glyph);
   }
 
-  template <typename UTFCharType>
+  template <typename UTFCharType, bool CaseSensitive = true, typename UTFCharTraits = std::char_traits<UTFCharType>>
   requires IsUTF8CharType<UTFCharType>
-  void AddText(const std::basic_string_view<UTFCharType> utf)
+  void AddText(const StringViewWrapper<UTFCharType, CaseSensitive, UTFCharTraits> utf)
   {
     const auto *utfData = utf.data();
     const auto utfSize = utf.size();
@@ -94,9 +94,9 @@ public:
     }
   }
 
-  template <typename UTFCharType>
+  template <typename UTFCharType, bool CaseSensitive = true, typename UTFCharTraits = std::char_traits<UTFCharType>>
   requires IsUTF16CharType<UTFCharType>
-  void AddText(const std::basic_string_view<UTFCharType> utf)
+  void AddText(const StringViewWrapper<UTFCharType, CaseSensitive, UTFCharTraits> utf)
   {
     const auto *utfData = utf.data();
     const auto utfSize = utf.size();
@@ -109,45 +109,24 @@ public:
     }
   }
 
-  template <typename UTFCharType>
+  template <typename UTFCharType, bool CaseSensitive = true, typename UTFCharTraits = std::char_traits<UTFCharType>>
   requires IsUTF32CharType<UTFCharType>
-  void AddText(const std::basic_string_view<UTFCharType> utf)
+  void AddText(const StringViewWrapper<UTFCharType, CaseSensitive, UTFCharTraits> utf)
   {
-    for (const auto glyph : utf)
+    for (const auto glyph : utf.native())
       Add(static_cast<uint32_t>(glyph));
   }
 
-  template <typename UTFCharType>
-  requires IsUTFCharType<UTFCharType>
-  void AddText(const std::basic_string<UTFCharType> &utf)
+  template <typename ...Args>
+  requires StringViewConstructible<Args...>
+  void AddText(const Args&... args)
   {
-    AddText(std::basic_string_view<UTFCharType>(utf));
-  }
-
-  template <typename UTFCharType, size_t UTFSize>
-  requires IsUTFCharType<UTFCharType>
-  void AddText(const UTFCharType (&utf)[UTFSize])
-  {
-    AddText(std::basic_string_view<UTFCharType>(utf, UTFSize - 1));
-  }
-
-  template <typename UTFCharType>
-  requires IsUTFCharType<UTFCharType>
-  void AddText(const UTFCharType *utf, const size_t length)
-  {
-    AddText(std::basic_string_view<UTFCharType>(utf, length));
-  }
-
-  void AddText(const std::filesystem::path& path)
-  {
-    AddText(std::basic_string_view<wchar_t>(path.native()));
-  }
-
-  template <typename UTFStorageType, typename UTFCharType, bool CaseSensitive>
-  requires IsUTFCharType<UTFCharType> && IsAnyOfTypes<UTFStorageType, std::basic_string<UTFCharType>, std::basic_string_view<UTFCharType>>
-  void AddText(const StringWrapper<UTFStorageType, UTFCharType, CaseSensitive>& utf)
-  {
-    AddText(utf.native());
+    if constexpr (std::constructible_from<StringViewWrapper<char>, Args...>)
+      return AddText(StringViewWrapper<char>(args...));
+    else if constexpr (std::constructible_from<StringViewWrapper<UChar>, Args...>)
+      return AddText(StringViewWrapper<UChar>(args...));
+    else if constexpr (std::constructible_from<StringViewWrapper<UChar32>, Args...>)
+      return AddText(StringViewWrapper<UChar32>(args...));
   }
 
 private:
