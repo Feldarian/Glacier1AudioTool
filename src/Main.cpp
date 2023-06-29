@@ -69,6 +69,10 @@ bool BuildFontAtlas()
 
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 {
+  // TODO - make testing stuff better, this is very primitive and ugly (and inefficient in general... but does the job for now...)
+  void RunTests();
+  RunTests();
+
   auto dataPath = GetProgramPath().path();
   if (dataPath.empty())
     return -1;

@@ -3,6 +3,11 @@
 // Copyright © 2015-2023 Feldarian Softworks. All rights reserved.
 // SPDX-License-Identifier: EUPL-1.2
 //
+// TODO - original records data is heavily dependent on archive contents currently! make it do some more proper caching of data.
+//      - also make sure that dialogs shared between multiple games do not check bytes of files directly (contents different == bytes different)
+//      - current record data corresponds to Steam versions, they do not match for GOG (reason for this to be brought up)
+//      - WHY TF is there different uncompressed size?
+//
 
 #include "Precompiled.hpp"
 

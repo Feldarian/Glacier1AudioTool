@@ -13,7 +13,6 @@ add_rules("c++.unity_build")
 add_defines("UNICODE=1", "_UNICODE=1")
 
 if (is_plat("windows")) then
-  --add_cxflags("/bigobj", "/utf-8")
   add_cxflags("/bigobj", "/MP", "/utf-8")
   add_defines("_CRT_SECURE_NO_WARNINGS=1", "WIN32_LEAN_AND_MEAN=1", "NOMINMAX=1", "WINVER=_WIN32_WINNT_WIN10", "_WIN32_WINNT=_WIN32_WINNT_WIN10", "NTDDI=NTDDI_WIN10_19H1", "ENABLE_SNDFILE_WINDOWS_PROTOTYPES=1")
 end
@@ -44,9 +43,6 @@ elseif is_mode("release") then
   set_warnings("all", "error")
   set_policy("build.optimization.lto", true)
 end
-
---set_toolchains("clang-cl")
---add_cxflags("-Wno-pragma-system-header-outside-header", "-Wno-microsoft-include")
 
 set_runtimes(vsRuntime);
 
@@ -100,7 +96,7 @@ target("HitmanAudioTool")
   set_rundir("$(projectdir)")
   add_defines("IMGUI_USER_CONFIG=\""..imguiUserConfig.."\"")
 
-  add_defines("HAT_SAFE_LOCALIZATION")
+  --add_defines("HAT_BUILD_TESTS")
 
   set_kind("binary")
   

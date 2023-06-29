@@ -3,6 +3,9 @@
 // Copyright © 2015-2023 Feldarian Softworks. All rights reserved.
 // SPDX-License-Identifier: EUPL-1.2
 //
+// TODO - optimize conversions, as right now, we force keys to StringView8CI when we can now use generic <=> comparator
+//      - look in code for other examples like this (there are quite a few), we often do unnecessary UTF conversions
+//
 
 #pragma once
 
