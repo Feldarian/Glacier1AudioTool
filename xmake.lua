@@ -45,6 +45,9 @@ elseif is_mode("release") then
 end
 
 set_runtimes(vsRuntime);
+set_toolchains("clang-cl", "msvc", {vs = "2022"})
+
+add_cxflags("-Wno-unused-command-line-argument", "-Wno-pragma-system-header-outside-header") -- this line should be enabled only when using clang-cl
 
 add_defines("IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1", "GL_GLEXT_PROTOTYPES=1", "TOML_EXCEPTIONS=0")
 
@@ -54,7 +57,7 @@ add_requires("scnlib 1.1.2", { configs = { header_only = false } })
 add_requires("libsdl 2.28.0", { configs = { shared = true, use_sdlmain = true } })
 add_requires("libsndfile 1.2.0", { configs = { shared = true } })
 add_requires("xxhash v0.8.1")
---add_requires("toml++ 3.3.0", { configs = { header_only = true } })
+--add_requires("toml++ 3.3.0", { configs = { header_only = true } }) -- 3.3.0 misses important patch for us, wait for newer version which contains fix from master or make a fork...
 add_requires("toml++ master", { configs = { header_only = true } })
 
 local imguiUserConfig = path.absolute("src/ImGuiConfig.hpp");

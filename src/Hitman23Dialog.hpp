@@ -48,7 +48,7 @@ struct Hitman23WAVHeader
 
 struct Hitman23WAVRecord
 {
-  std::reference_wrapper<std::vector<char>> data = *static_cast<std::vector<char> *>(nullptr);
+  std::vector<char>& data;
   uint32_t newOffset = 0;
 };
 

@@ -90,7 +90,7 @@ protected:
   String8 progressMessage;
   std::atomic_uint64_t progressNext = 0;
   std::atomic_uint64_t progressNextTotal = 0;
-  std::atomic_bool progressNextActive = false;
+  std::future<void> progressTask;
 
 private:
   ArchiveDirectory archiveRoot;

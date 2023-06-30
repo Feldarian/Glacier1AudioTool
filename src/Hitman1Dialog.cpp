@@ -1,4 +1,4 @@
- //
+//
 // Created by Andrej Redeky.
 // Copyright © 2015-2023 Feldarian Softworks. All rights reserved.
 // SPDX-License-Identifier: EUPL-1.2
@@ -30,16 +30,28 @@ bool Hitman1Dialog::LoadImpl(StringView8CI loadPathView)
 
   const auto oldSync = std::ios_base::sync_with_stdio(false);
 
-  std::ifstream archiveIdx(loadPath);
   auto archiveBin = ReadWholeBinaryFile(archiveBinFilePath);
+  auto archiveIdx = ReadWholeTextFile(String8CI(loadPath)).native();
+  auto archiveIdxScan = scn::make_result(archiveIdx);
   size_t archiveBinOffset = 0;
-  std::string archiveIdxLine;
-  while (std::getline(archiveIdx, archiveIdxLine))
+
+  while (archiveIdxScan && archiveBinOffset < archiveBin.size())
   {
-    std::string month, day, time;
+    std::string_view entryPath;
+    std::string_view month;
+    std::string_view day;
+    std::string_view time;
     int64_t dataSize = 0;
-    std::string entryPath;
-    scn::scan(archiveIdxLine, "-rw-rw-r--   1 zope {} {} {} {} {}", dataSize, month, day, time, entryPath);
+    archiveIdxScan = scn::scan(archiveIdxScan.range(), "-rw-rw-r--   1 zope {} {} {} {} {}", dataSize, month, day, time, entryPath);
+    archiveIdxScan = scn::ignore_until(archiveIdxScan.range(), '-');
+
+    if (!archiveIdxScan)
+    {
+      if (archiveIdxScan.error() == scn::error::code::end_of_range)
+        break;
+      else
+        return Clear(false);
+    }
 
     auto& file = GetFile(entryPath);
 
@@ -59,6 +71,9 @@ bool Hitman1Dialog::LoadImpl(StringView8CI loadPathView)
 
     archiveBinOffset += dataSize;
   }
+
+  if (archiveBinOffset < archiveBin.size())
+    return Clear(false);
 
   std::ios_base::sync_with_stdio(oldSync);
 
@@ -92,7 +107,8 @@ bool Hitman1Dialog::ImportSingle(const StringView8CI importFolderPathView, Strin
     fileIt = fileMap.find(filePath);
     if (fileIt == fileMap.end())
     {
-      DisplayWarning(LocalizationManager::Get().LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", importFilePathView));
+      DisplayWarning(
+          LocalizationManager::Get().LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", importFilePathView));
       return false;
     }
   }
@@ -113,7 +129,7 @@ bool Hitman1Dialog::SaveImpl(StringView8CI savePathView)
   std::ofstream archiveBin(archiveBinFilePath.path(), std::ios::binary | std::ios::trunc);
 
   thread_local static std::vector<char> exportBytes;
-  for (const auto filePath : indexToKey)
+  for (const auto &filePath : indexToKey)
   {
     auto fileIt = fileMap.find(filePath);
     if (fileIt == fileMap.end())
@@ -125,8 +141,8 @@ bool Hitman1Dialog::SaveImpl(StringView8CI savePathView)
 
     fileIt->second.Export(exportBytes);
 
-    archiveIdx << std::format("-rw-rw-r--   1 zope {:12d} {} {}\n", exportBytes.size(),
-                                          lastModifiedDateIt->second, filePath);
+    archiveIdx << std::format("-rw-rw-r--   1 zope {:12d} {} {}\n", exportBytes.size(), lastModifiedDateIt->second,
+                              filePath);
     archiveBin.write(exportBytes.data(), static_cast<int64_t>(exportBytes.size()));
 
     GetFile(filePath).dirty = false;

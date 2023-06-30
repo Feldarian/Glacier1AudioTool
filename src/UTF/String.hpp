@@ -450,7 +450,7 @@ struct StringViewHasher
           glyph = u_tolower(glyph);
 
           if constexpr (sizeof(size_t) == sizeof(uint64_t))
-            result = XXH3_64bits_withSeed(&glyph, sizeof glyph, result);
+            result = XXH3_64bits_withSeed(&glyph, sizeof(glyph), result);
           else if constexpr (sizeof(size_t) == sizeof(uint32_t))
             result = XXH32(utf.data(), utf.size() * sizeof(UTFCharTypeInput), result);
         }
@@ -468,7 +468,7 @@ struct StringViewHasher
           glyph = u_tolower(glyph);
 
           if constexpr (sizeof(size_t) == sizeof(uint64_t))
-            result = XXH3_64bits_withSeed(&glyph, sizeof glyph, result);
+            result = XXH3_64bits_withSeed(&glyph, sizeof(glyph), result);
           else if constexpr (sizeof(size_t) == sizeof(uint32_t))
             result = XXH32(utf.data(), utf.size() * sizeof(UTFCharTypeInput), result);
         }
@@ -481,7 +481,7 @@ struct StringViewHasher
           const auto glyph = u_tolower(utfChar);
 
           if constexpr (sizeof(size_t) == sizeof(uint64_t))
-            result = XXH3_64bits_withSeed(&glyph, sizeof glyph, result);
+            result = XXH3_64bits_withSeed(&glyph, sizeof(glyph), result);
           else if constexpr (sizeof(size_t) == sizeof(uint32_t))
             result = XXH32(utf.data(), utf.size() * sizeof(UTFCharTypeInput), result);
         }
@@ -509,7 +509,7 @@ namespace std
 {
 
 template <typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput, typename UTFAllocatorInput>
-requires IsUTFCharType<UTFCharTypeInput>
+requires UTF::IsUTFCharType<UTFCharTypeInput>
 struct hash<UTF::StringWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput, UTFAllocatorInput>>
 {
   [[nodiscard]] size_t operator()(const UTF::StringWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput, UTFAllocatorInput>& utf) const noexcept
@@ -519,7 +519,7 @@ struct hash<UTF::StringWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharType
 };
 
 template <typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput>
-requires IsUTFCharType<UTFCharTypeInput>
+requires UTF::IsUTFCharType<UTFCharTypeInput>
 struct hash<UTF::StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput>>
 {
   [[nodiscard]] size_t operator()(const UTF::StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput>& utf) const noexcept
@@ -529,7 +529,7 @@ struct hash<UTF::StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFChar
 };
 
 template <typename UTFCharTypeOutput, typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput, typename UTFAllocatorInput>
-requires IsUTFCharType<UTFCharTypeInput>
+requires UTF::IsUTFCharType<UTFCharTypeInput>
 struct formatter<UTF::StringWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput, UTFAllocatorInput>, UTFCharTypeOutput>
 {
   template <typename FormatParseContext>
@@ -551,7 +551,7 @@ struct formatter<UTF::StringWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCha
 };
 
 template <typename UTFCharTypeOutput, typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput>
-requires IsUTFCharType<UTFCharTypeInput>
+requires UTF::IsUTFCharType<UTFCharTypeInput>
 struct formatter<UTF::StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput>, UTFCharTypeOutput>
 {
   template <typename FormatParseContext>

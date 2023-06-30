@@ -116,9 +116,9 @@ struct Hitman4LIPData
 
 struct Hitman4WAVRecord
 {
-  std::reference_wrapper<std::vector<char>> data = *static_cast<std::vector<char> *>(nullptr);
+  std::vector<char>& data;
   uint32_t newOffset = 0;
-  std::reference_wrapper<std::vector<char>> lipData = *static_cast<std::vector<char> *>(nullptr);
+  OptionalReference<std::vector<char>> lipData = std::nullopt;
 };
 
 struct Hitman4WAVFile

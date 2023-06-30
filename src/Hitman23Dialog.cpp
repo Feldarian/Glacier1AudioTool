@@ -31,7 +31,7 @@ void Hitman23WHDRecord::FromHitmanSoundRecord(const HitmanSoundRecord &soundReco
   dataSizeUncompressed = soundRecord.dataSizeUncompressed;
   dataSize = soundRecord.dataSize;
   channels = soundRecord.channels;
-  samplesCount = soundRecord.dataSizeUncompressed / sizeof int16_t;
+  samplesCount = soundRecord.dataSizeUncompressed / sizeof(int16_t);
   blockAlign = soundRecord.blockAlign;
   fmtExtra = soundRecord.fmtExtra;
 }
@@ -123,8 +123,8 @@ bool Hitman23WAVFile::Load(const StringView8CI loadPath, const OrderedMap<String
     recordMap.try_emplace(currOffset, Hitman23WAVRecord{newData, currOffset});
   }
 
-  if (isMissionWAV)
-    header = reinterpret_cast<Hitman23WAVHeader *>(recordMap[0].data.get().data());
+  if (isMissionWAV && !recordMap.empty())
+    header = reinterpret_cast<Hitman23WAVHeader *>(recordMap.at(0).data.data());
   else
     header = nullptr;
 
@@ -146,14 +146,14 @@ bool Hitman23WAVFile::Save(const StringView8CI savePathView)
   for (auto &record : recordMap | std::views::values)
   {
     record.newOffset = offset;
-    offset += static_cast<uint32_t>(record.data.get().size());
+    offset += static_cast<uint32_t>(record.data.size());
   }
 
   if (header != nullptr)
     header->fileSizeWithHeader = offset;
 
   for (auto &record : recordMap | std::views::values)
-    wavData.write(record.data.get().data(), record.data.get().size());
+    wavData.write(record.data.data(), record.data.size());
 
   std::ios_base::sync_with_stdio(oldSync);
 
@@ -184,7 +184,7 @@ bool Hitman23WHDFile::Load(Hitman23Dialog& archiveDialog, const StringView8CI lo
 
   auto *whdPtr = data.data();
   header = reinterpret_cast<Hitman23WHDHeader *>(whdPtr);
-  whdPtr += sizeof Hitman23WHDHeader;
+  whdPtr += sizeof(Hitman23WHDHeader);
 
   while (*whdPtr)
   {
@@ -195,7 +195,7 @@ bool Hitman23WHDFile::Load(Hitman23Dialog& archiveDialog, const StringView8CI lo
       whdPtr += 4 - (reinterpret_cast<uintptr_t>(whdPtr) % 4);
       whdRecord = reinterpret_cast<Hitman23WHDRecord *>(whdPtr);
     }
-    whdPtr += sizeof Hitman23WHDRecord;
+    whdPtr += sizeof(Hitman23WHDRecord);
 
     assert(whdRecord->type == 0x06);
 
@@ -335,7 +335,7 @@ bool Hitman23Dialog::LoadImpl(const StringView8CI loadPathView)
 
   dataPath /= L"data";
   dataPath /= L"records";
-  dataPath /= streamsWAV.recordMap[0].data.get()[0] == 0x6F ? L"h2" : L"h3";
+  dataPath /= streamsWAV.recordMap.at(0).data[0] == 0x6F ? L"h2" : L"h3";
 
   originalDataPath = dataPath;
 

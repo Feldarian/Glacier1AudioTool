@@ -13,7 +13,7 @@ template <typename UTFCharType, bool CaseSensitive, typename UTFCharTypeTraits, 
 requires IsUTFCharType<UTFCharType>
 template <typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput>
 requires IsUTFCharType<UTFCharTypeInput>
-inline StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::StringWrapper(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
+inline constexpr StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::StringWrapper(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
 {
   *this += other;
 }
@@ -22,7 +22,7 @@ template <typename UTFCharType, bool CaseSensitive, typename UTFCharTypeTraits, 
 requires IsUTFCharType<UTFCharType>
 template <typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput>
 requires IsUTFCharType<UTFCharTypeInput>
-inline StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::operator=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
+inline constexpr StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::operator=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
 {
   if ((static_cast<const void *>(data()) == static_cast<const void *>(other.data())) && (size() == other.size()))
     return *this;
@@ -36,7 +36,7 @@ template <typename UTFCharType, bool CaseSensitive, typename UTFCharTypeTraits, 
 requires IsUTFCharType<UTFCharType>
 template <typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput>
 requires IsSameUTFCharType<UTFCharType, UTFCharTypeInput>
-inline StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
+inline constexpr StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
 {
   if (!other.empty())
     utfData.append(reinterpret_cast<const UTFCharType *>(other.data()), other.size());
@@ -48,7 +48,7 @@ template <typename UTFCharType, bool CaseSensitive, typename UTFCharTypeTraits, 
 requires IsUTFCharType<UTFCharType>
 template <typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput>
 requires IsUTF8CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput>
-inline StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
+inline constexpr StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
 {
   if (other.empty())
     return *this;
@@ -74,7 +74,7 @@ template <typename UTFCharType, bool CaseSensitive, typename UTFCharTypeTraits, 
 requires IsUTFCharType<UTFCharType>
 template <typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput>
 requires IsUTF8CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput>
-inline StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
+inline constexpr StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
 {
   if (other.empty())
     return *this;
@@ -110,7 +110,7 @@ template <typename UTFCharType, bool CaseSensitive, typename UTFCharTypeTraits, 
 requires IsUTFCharType<UTFCharType>
 template <typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput>
 requires IsUTF16CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput>
-inline StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
+inline constexpr StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
 {
   if (other.empty())
     return *this;
@@ -136,7 +136,7 @@ template <typename UTFCharType, bool CaseSensitive, typename UTFCharTypeTraits, 
 requires IsUTFCharType<UTFCharType>
 template <typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput>
 requires IsUTF16CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput>
-inline StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
+inline constexpr StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
 {
   if (other.empty())
     return *this;
@@ -162,7 +162,7 @@ template <typename UTFCharType, bool CaseSensitive, typename UTFCharTypeTraits, 
 requires IsUTFCharType<UTFCharType>
 template <typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput>
 requires IsUTF32CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput>
-inline StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
+inline constexpr StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
 {
   if (other.empty())
     return *this;
@@ -192,7 +192,7 @@ template <typename UTFCharType, bool CaseSensitive, typename UTFCharTypeTraits, 
 requires IsUTFCharType<UTFCharType>
 template <typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput>
 requires IsUTF32CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput>
-inline StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
+inline constexpr StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>::operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
 {
   if (other.empty())
     return *this;

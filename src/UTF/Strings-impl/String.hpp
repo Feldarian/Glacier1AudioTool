@@ -1078,7 +1078,7 @@ struct StringHasher
           glyph = u_tolower(glyph);
 
           if constexpr (sizeof(size_t) == sizeof(uint64_t))
-            result = XXH3_64bits_withSeed(&glyph, sizeof glyph, result);
+            result = XXH3_64bits_withSeed(&glyph, sizeof(glyph), result);
           else if constexpr (sizeof(size_t) == sizeof(uint32_t))
             result = XXH32(utf.data(), utf.size() * sizeof(UTFCharType), result);
         }
@@ -1096,7 +1096,7 @@ struct StringHasher
           glyph = u_tolower(glyph);
 
           if constexpr (sizeof(size_t) == sizeof(uint64_t))
-            result = XXH3_64bits_withSeed(&glyph, sizeof glyph, result);
+            result = XXH3_64bits_withSeed(&glyph, sizeof(glyph), result);
           else if constexpr (sizeof(size_t) == sizeof(uint32_t))
             result = XXH32(utf.data(), utf.size() * sizeof(UTFCharType), result);
         }
@@ -1109,7 +1109,7 @@ struct StringHasher
           const auto glyph = u_tolower(utfChar);
 
           if constexpr (sizeof(size_t) == sizeof(uint64_t))
-            result = XXH3_64bits_withSeed(&glyph, sizeof glyph, result);
+            result = XXH3_64bits_withSeed(&glyph, sizeof(glyph), result);
           else if constexpr (sizeof(size_t) == sizeof(uint32_t))
             result = XXH32(utf.data(), utf.size() * sizeof(UTFCharType), result);
         }

@@ -44,7 +44,7 @@ bool HitmanFile::Import(char inputBytes[], const size_t inputBytesCount, const O
   }
 
   auto channels = static_cast<uint16_t>(sndFile.channels());
-  uint32_t dataSizeUncompressed = frames * channels * sizeof int16_t;
+  uint32_t dataSizeUncompressed = frames * channels * sizeof(int16_t);
   uint32_t sampleRate = sndFile.samplerate();
 
   thread_local static std::vector<char> sndFileData;
@@ -63,7 +63,7 @@ bool HitmanFile::Import(char inputBytes[], const size_t inputBytesCount, const O
   if (!options.common.importOriginalFiles && (originalRecord.dataXXH3 == archiveRecord.dataXXH3))
     return true;
 
-  auto castedDataSize = sndFileData.size() / sizeof int16_t;
+  auto castedDataSize = sndFileData.size() / sizeof(int16_t);
   auto* castedData = reinterpret_cast<int16_t *>(sndFileData.data());
 
   if (options.common.fixChannels)
@@ -81,7 +81,7 @@ bool HitmanFile::Import(char inputBytes[], const size_t inputBytesCount, const O
       dataSizeUncompressed /= 2;
 
       sndFileData.resize(dataSizeUncompressed, 0);
-      castedDataSize = sndFileData.size() / sizeof int16_t;
+      castedDataSize = sndFileData.size() / sizeof(int16_t);
       castedData = reinterpret_cast<int16_t *>(sndFileData.data());
     }
     else if (originalRecord.channels > channels)
@@ -93,7 +93,7 @@ bool HitmanFile::Import(char inputBytes[], const size_t inputBytesCount, const O
       dataSizeUncompressed *= 2;
 
       sndFileData.resize(dataSizeUncompressed, 0);
-      castedDataSize = sndFileData.size() / sizeof int16_t;
+      castedDataSize = sndFileData.size() / sizeof(int16_t);
       castedData = reinterpret_cast<int16_t *>(sndFileData.data());
 
       for (size_t i = castedDataSize / 2 - 1; i < castedDataSize / 2; --i)
@@ -132,8 +132,8 @@ bool HitmanFile::Import(char inputBytes[], const size_t inputBytesCount, const O
         return false;
       }
 
-      sndFileData.resize(convData.output_frames_gen * channels * sizeof int16_t, 0);
-      castedDataSize = sndFileData.size() / sizeof int16_t;
+      sndFileData.resize(convData.output_frames_gen * channels * sizeof(int16_t), 0);
+      castedDataSize = sndFileData.size() / sizeof(int16_t);
       castedData = reinterpret_cast<int16_t *>(sndFileData.data());
 
       src_float_to_short_array(convertedOutSndFileData.data(), castedData,
@@ -281,14 +281,14 @@ bool HitmanFile::ImportNative(char inputBytes[], const size_t inputBytesCount, c
       archiveRecord.fmtExtra = 1;
 
       data.resize(riffHeader->dataSize);
-      memcpy(data.data(), inputBytes + sizeof RIFFHeaderPCM, riffHeader->dataSize);
+      memcpy(data.data(), inputBytes + sizeof(RIFFHeaderPCM), riffHeader->dataSize);
 
       break;
     }
     case 17: {
       const auto* riffHeader = reinterpret_cast<RIFFHeaderADPCM*>(inputBytes);
 
-      archiveRecord.dataSizeUncompressed = riffHeader->factSamplesCount * sizeof int16_t;
+      archiveRecord.dataSizeUncompressed = riffHeader->factSamplesCount * sizeof(int16_t);
       archiveRecord.dataSize = riffHeader->dataSize;
       archiveRecord.sampleRate = riffHeader->fmtSampleRate;
       archiveRecord.formatTag = riffHeader->fmtFormat;
@@ -298,7 +298,7 @@ bool HitmanFile::ImportNative(char inputBytes[], const size_t inputBytesCount, c
       archiveRecord.fmtExtra = riffHeader->fmtExtra;
 
       data.resize(riffHeader->dataSize);
-      memcpy(data.data(), inputBytes + sizeof RIFFHeaderADPCM, riffHeader->dataSize);
+      memcpy(data.data(), inputBytes + sizeof(RIFFHeaderADPCM), riffHeader->dataSize);
 
       break;
     }
@@ -309,7 +309,7 @@ bool HitmanFile::ImportNative(char inputBytes[], const size_t inputBytesCount, c
       archiveRecord.formatTag = 4096;
       archiveRecord.bitsPerSample = 16;
       archiveRecord.channels = channels;
-      archiveRecord.blockAlign = channels * sizeof int16_t;
+      archiveRecord.blockAlign = channels * sizeof(int16_t);
       archiveRecord.fmtExtra = 1;
 
       data.resize(inputBytesCount);
@@ -357,8 +357,8 @@ bool HitmanFile::Export(std::vector<char> &outputBytes) const
     riffHeader.fmtBitsPerSample = archiveRecord.bitsPerSample;
     riffHeader.dataSize = archiveRecord.dataSize;
 
-    outputBytes.resize(sizeof riffHeader);
-    memcpy(outputBytes.data(), &riffHeader, sizeof riffHeader);
+    outputBytes.resize(sizeof(riffHeader));
+    memcpy(outputBytes.data(), &riffHeader, sizeof(riffHeader));
   }
   else if (archiveRecord.formatTag == 17)
   {
@@ -372,11 +372,11 @@ bool HitmanFile::Export(std::vector<char> &outputBytes) const
     riffHeader.fmtBlockAlign = archiveRecord.blockAlign;
     riffHeader.fmtBitsPerSample = archiveRecord.bitsPerSample;
     riffHeader.fmtExtra = archiveRecord.fmtExtra;
-    riffHeader.factSamplesCount = archiveRecord.dataSizeUncompressed / sizeof int16_t;
+    riffHeader.factSamplesCount = archiveRecord.dataSizeUncompressed / sizeof(int16_t);
     riffHeader.dataSize = archiveRecord.dataSize;
 
-    outputBytes.resize(sizeof riffHeader, 0);
-    memcpy(outputBytes.data(), &riffHeader, sizeof riffHeader);
+    outputBytes.resize(sizeof(riffHeader), 0);
+    memcpy(outputBytes.data(), &riffHeader, sizeof(riffHeader));
   }
   else if (archiveRecord.formatTag == 4096)
   {
@@ -447,13 +447,13 @@ bool HitmanDialog::GenerateOriginalData()
 
   std::ofstream genFile(dataPath, std::ios::binary | std::ios::trunc);
   uint64_t entriesCount = fileMap.size();
-  genFile.write(reinterpret_cast<char *>(&entriesCount), sizeof entriesCount);
+  genFile.write(reinterpret_cast<char *>(&entriesCount), sizeof(entriesCount));
 
   thread_local static std::vector<char> exportBytes;
   for (auto &[filePath, file] : fileMap)
   {
     auto &archiveFile = GetFile(filePath);
-    ZeroMemory(&file.originalRecord, sizeof file.originalRecord);
+    ZeroMemory(&file.originalRecord, sizeof(file).originalRecord);
 
     file.Export(exportBytes);
 
@@ -467,9 +467,9 @@ bool HitmanDialog::GenerateOriginalData()
 
     const auto frames = static_cast<uint32_t>(sndFile.frames());
     const auto channels = static_cast<uint16_t>(sndFile.channels());
-    const auto dataUncompressedSize = frames * channels * sizeof int16_t;
+    const auto dataUncompressedSize = frames * channels * sizeof(int16_t);
 
-    std::vector<int16_t> sndFileData(dataUncompressedSize / sizeof int16_t, 0);
+    std::vector<int16_t> sndFileData(dataUncompressedSize / sizeof(int16_t), 0);
     if (sndFile.readf(sndFileData.data(), frames) != frames)
     {
       assert(false);
@@ -483,7 +483,7 @@ bool HitmanDialog::GenerateOriginalData()
 
     archiveFile.original = true;
 
-    genFile.write(reinterpret_cast<char *>(&file.originalRecord), sizeof file.originalRecord);
+    genFile.write(reinterpret_cast<char *>(&file.originalRecord), sizeof(file).originalRecord);
   }
 
   std::ios_base::sync_with_stdio(oldSync);
@@ -501,14 +501,14 @@ bool HitmanDialog::LoadOriginalData()
 
   std::ifstream genFile(dataPath, std::ios::binary);
   uint64_t entriesCount = 0;
-  genFile.read(reinterpret_cast<char *>(&entriesCount), sizeof entriesCount);
+  genFile.read(reinterpret_cast<char *>(&entriesCount), sizeof(entriesCount));
 
   thread_local static std::vector<char> exportBytes;
   for (auto &[filePath, file] : fileMap)
   {
     auto &archiveFile = GetFile(filePath);
     auto &originalRecord = file.originalRecord;
-    genFile.read(reinterpret_cast<char *>(&originalRecord), sizeof originalRecord);
+    genFile.read(reinterpret_cast<char *>(&originalRecord), sizeof(originalRecord));
 
     file.archiveRecord.dataXXH3 = file.originalRecord.dataXXH3;
     archiveFile.original = file.originalRecord == file.archiveRecord;
@@ -529,9 +529,9 @@ bool HitmanDialog::LoadOriginalData()
 
     const auto frames = static_cast<uint32_t>(sndFile.frames());
     const auto channels = static_cast<uint16_t>(sndFile.channels());
-    const auto dataUncompressedSize = frames * channels * sizeof int16_t;
+    const auto dataUncompressedSize = frames * channels * sizeof(int16_t);
 
-    std::vector<int16_t> sndFileData(dataUncompressedSize / sizeof int16_t, 0);
+    std::vector<int16_t> sndFileData(dataUncompressedSize / sizeof(int16_t), 0);
     if (sndFile.readf(sndFileData.data(), frames) != frames)
     {
       assert(false);
@@ -584,7 +584,7 @@ bool HitmanDialog::ExportSingle(StringView8CI exportFolderPath, StringView8CI ex
 
 void HitmanDialog::ReloadOriginalData()
 {
-  if (progressNextActive.load())
+  if (IsInProgress())
   {
     needsOriginalDataReload = true;
     return;
@@ -595,16 +595,14 @@ void HitmanDialog::ReloadOriginalData()
     progressMessage = LocalizationManager::Get().Localize("HITMAN_DIALOG_LOADING_ORIGINAL_RECORDS");
     progressNext = 0;
     progressNextTotal = 1;
-    progressNextActive = true;
 
-    std::thread([this] {
+    progressTask = std::async(std::launch::async, [this] {
       LoadOriginalData();
 
       std::unique_lock progressMessageLock(progressMessageMutex);
       progressMessage.clear();
       progressNext = 1;
-      progressNextActive = false;
-    }).detach();
+    });
   }
 
   needsOriginalDataReload = false;

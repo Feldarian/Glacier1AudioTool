@@ -21,6 +21,7 @@ extern "C"
 #include <compare>
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <map>
 #include <set>
 #include <shared_mutex>
@@ -34,6 +35,9 @@ using OrderedMap = std::map<KeyType, ValueType, ComparatorLessType, AllocatorTyp
 
 template <typename ValueType, typename ComparatorLessType = std::less<>, typename AllocatorType = std::allocator<ValueType>>
 using OrderedSet = std::set<ValueType, ComparatorLessType, AllocatorType>;
+
+template <typename ValueType>
+using OptionalReference = std::optional<std::reference_wrapper<ValueType>>;
 
 #include "Singleton.hpp"
 #include "UTF/UTF.hpp"

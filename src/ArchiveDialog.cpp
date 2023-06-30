@@ -214,9 +214,8 @@ bool ArchiveDialog::Load(StringView8CI loadPath)
   progressMessage = LocalizationManager::Get().Localize("ARCHIVE_DIALOG_LOAD_PROGRESS_READING_ARCHIVE");
   progressNext = 0;
   progressNextTotal = 1;
-  progressNextActive = true;
 
-  std::thread([loadPath = String8CI(loadPath), this] {
+  progressTask = std::async(std::launch::async, [loadPath = String8CI(loadPath), this] {
     switch (UnsavedChangesPopup())
     {
       case 1: {
@@ -230,7 +229,6 @@ bool ArchiveDialog::Load(StringView8CI loadPath)
       case -1: {
         std::unique_lock progressMessageLock(progressMessageMutex);
         progressMessage.clear();
-        progressNextActive = false;
         return;
       }
     }
@@ -249,8 +247,7 @@ bool ArchiveDialog::Load(StringView8CI loadPath)
 
     std::unique_lock progressMessageLock(progressMessageMutex);
     progressMessage.clear();
-    progressNextActive = false;
-  }).detach();
+  });
 
   return true;
 }
@@ -268,9 +265,8 @@ bool ArchiveDialog::Import(const StringView8CI importFolderPath)
   progressMessage = LocalizationManager::Get().Localize("ARCHIVE_DIALOG_IMPORT_PROGRESS_IMPORTING_DATA");
   progressNext = 0;
   progressNextTotal = 1;
-  progressNextActive = true;
 
-  std::thread([importFolderPath = String8CI(importFolderPath), this] {
+  progressTask = std::async(std::launch::async, [importFolderPath = String8CI(importFolderPath), this] {
     const auto allImportFiles = GetAllFilesInDirectory(importFolderPath, "", true);
 
     if (allImportFiles.empty())
@@ -278,7 +274,7 @@ bool ArchiveDialog::Import(const StringView8CI importFolderPath)
       std::unique_lock progressMessageLock(progressMessageMutex);
       progressMessage.clear();
       progressNext = 1;
-      progressNextActive = false;
+      return;
     }
 
     progressNextTotal = allImportFiles.size();
@@ -297,8 +293,7 @@ bool ArchiveDialog::Import(const StringView8CI importFolderPath)
 
     std::unique_lock progressMessageLock(progressMessageMutex);
     progressMessage.clear();
-    progressNextActive = false;
-  }).detach();
+  });
 
   return true;
 }
@@ -316,15 +311,14 @@ bool ArchiveDialog::Export(const StringView8CI exportFolderPath)
   progressMessage = LocalizationManager::Get().Localize("ARCHIVE_DIALOG_EXPORT_PROGRESS_EXPORTING_DATA");
   progressNext = 0;
   progressNextTotal = 1;
-  progressNextActive = true;
 
-  std::thread([exportFolderPath = String8CI(exportFolderPath), this] {
+  progressTask = std::async(std::launch::async, [exportFolderPath = String8CI(exportFolderPath), this] {
     if (archivePaths.empty())
     {
       std::unique_lock progressMessageLock(progressMessageMutex);
       progressMessage.clear();
       progressNext = 1;
-      progressNextActive = false;
+      return;
     }
 
     progressNextTotal = archivePaths.size();
@@ -343,8 +337,7 @@ bool ArchiveDialog::Export(const StringView8CI exportFolderPath)
 
     std::unique_lock progressMessageLock(progressMessageMutex);
     progressMessage.clear();
-    progressNextActive = false;
-  }).detach();
+  });
 
   return true;
 }
@@ -365,15 +358,13 @@ bool ArchiveDialog::Save(const StringView8CI savePath, bool async)
   progressNext = 0;
   progressNextTotal = 1;
 
-  progressNextActive = true;
-
-  std::thread saveThread([savePath = String8CI(savePath), async, this] {
+  progressTask = std::async(std::launch::async, [savePath = String8CI(savePath), this] {
     if (archivePaths.empty())
     {
       std::unique_lock progressMessageLock(progressMessageMutex);
       progressMessage.clear();
       progressNext = 1;
-      progressNextActive = !async;
+      return;
     }
 
     if (SaveImpl(savePath))
@@ -381,13 +372,13 @@ bool ArchiveDialog::Save(const StringView8CI savePath, bool async)
 
     std::unique_lock progressMessageLock(progressMessageMutex);
     progressMessage.clear();
-    progressNextActive = !async;
   });
 
-  if (async)
-    saveThread.detach();
-  else
-    saveThread.join();
+  if (!async)
+  {
+    progressTask.wait();
+    progressTask.get();
+  }
 
   return true;
 }
@@ -428,7 +419,7 @@ StringView8CI ArchiveDialog::GetPath() const
 
 bool ArchiveDialog::IsInProgress() const
 {
-  return progressNextActive.load();
+  return progressTask.valid();
 }
 
 ArchiveDirectory& ArchiveDialog::GetDirectory(StringView8CI path)
@@ -468,7 +459,19 @@ void ArchiveDialog::CleanOriginal()
 
 void ArchiveDialog::DrawBaseDialog(const StringView8CI dialogName, const StringView8CI filters, const StringView8CI defaultFilename)
 {
-  const auto progressActive = progressNextActive.load();
+  auto progressActive = progressTask.valid();
+  if (progressActive)
+  {
+    using namespace std::chrono_literals;
+
+    if (progressTask.wait_for(1ms) == std::future_status::ready)
+    {
+      progressTask.get();
+      progressActive = false;
+    }
+  }
+
+  auto wasProgressActive = progressActive;
 
   if (!ImGui::BeginTabItem(dialogName.c_str()))
     return;
@@ -481,30 +484,62 @@ void ArchiveDialog::DrawBaseDialog(const StringView8CI dialogName, const StringV
   if (ImGui::Button(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_OPEN").c_str(), ImVec2(itemWidth, 0)))
     GetAndLoad(filters, defaultFilename);
 
-  if (!progressActive && path.empty())
+  progressActive = progressTask.valid();
+  if (!wasProgressActive && (progressActive || path.empty()))
+  {
+    wasProgressActive |= progressActive;
     ImGui::BeginDisabled();
+  }
 
   ImGui::SameLine();
 
   if (ImGui::Button(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_SAVE").c_str(), ImVec2(itemWidth, 0)))
     Save(path, true);
 
+  progressActive = progressTask.valid();
+  if (!wasProgressActive && progressActive)
+  {
+    wasProgressActive |= progressActive;
+    ImGui::BeginDisabled();
+  }
+
   ImGui::SameLine();
 
   if (ImGui::Button(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_SAVE_INTO").c_str(), ImVec2(itemWidth, 0)))
     GetAndSave(filters, defaultFilename);
+
+  progressActive = progressTask.valid();
+  if (!wasProgressActive && progressActive)
+  {
+    wasProgressActive |= progressActive;
+    ImGui::BeginDisabled();
+  }
 
   ImGui::SameLine();
 
   if (ImGui::Button(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_EXPORT_TO").c_str(), ImVec2(itemWidth, 0)))
     GetAndExport();
 
+  progressActive = progressTask.valid();
+  if (!wasProgressActive && progressActive)
+  {
+    wasProgressActive |= progressActive;
+    ImGui::BeginDisabled();
+  }
+
   ImGui::SameLine();
 
   if (ImGui::Button(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_IMPORT_FROM").c_str(), ImVec2(itemWidth, 0)))
     GetAndImport();
 
-  if (progressActive)
+  progressActive = progressTask.valid();
+  if (!wasProgressActive && progressActive)
+  {
+    wasProgressActive |= progressActive;
+    ImGui::BeginDisabled();
+  }
+
+  if (wasProgressActive)
   {
     ImGui::EndDisabled();
 
