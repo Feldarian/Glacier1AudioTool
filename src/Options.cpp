@@ -18,7 +18,6 @@ void CommonSettings::Load(const toml::table &aInputRoot)
   const auto& commonTable = aInputRoot["common"];
 
   disableWarnings = commonTable["disable_warnings"].value_or(disableWarnings);
-  convertToGameFormat = commonTable["convert_to_game_format"].value_or(convertToGameFormat);
   checkOriginality = commonTable["check_originality"].value_or(checkOriginality);
   importOriginalFiles = commonTable["import_original_files"].value_or(importOriginalFiles);
   fixChannels = commonTable["fix_channels"].value_or(fixChannels);
@@ -34,7 +33,6 @@ void CommonSettings::Save(toml::table &aOutputRoot) const
   toml::table commonTable;
 
   commonTable.emplace("disable_warnings", disableWarnings);
-  commonTable.emplace("convert_to_game_format", convertToGameFormat);
   commonTable.emplace("check_originality", checkOriginality);
   commonTable.emplace("import_original_files", importOriginalFiles);
   commonTable.emplace("fix_channels", fixChannels);
@@ -105,28 +103,14 @@ void CommonSettings::DrawDialog()
 
   ImGui::TreePush(&directImport);
 
-  convertToGameFormat &= !directImport;
-  ImGui::Checkbox(LocalizationManager::Get().Localize("SETTINGS_DIALOG_CONVERT_TO_GAME_FORMAT").c_str(),
-                  &convertToGameFormat);
-
-  if (!convertToGameFormat)
-    ImGui::BeginDisabled();
-
-  ImGui::TreePush(&convertToGameFormat);
-
-  fixChannels &= convertToGameFormat;
+  fixChannels &= !directImport;
   ImGui::Checkbox(LocalizationManager::Get().Localize("SETTINGS_DIALOG_FIX_CHANNELS").c_str(), &fixChannels);
 
-  fixSampleRate &= convertToGameFormat;
+  fixSampleRate &= !directImport;
   ImGui::Checkbox(LocalizationManager::Get().Localize("SETTINGS_DIALOG_FIX_SAMPLE_RATE").c_str(), &fixSampleRate);
 
-  transcodeToOriginalFormat &= convertToGameFormat;
+  transcodeToOriginalFormat &= !directImport;
   ImGui::Checkbox(LocalizationManager::Get().Localize("SETTINGS_DIALOG_TRANSCODE_TO_ORIGINAL_FORMAT").c_str(), &transcodeToOriginalFormat);
-
-  ImGui::TreePop();
-
-  if (!convertToGameFormat)
-    ImGui::EndDisabled();
 
   ImGui::TreePop();
 

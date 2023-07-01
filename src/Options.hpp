@@ -19,7 +19,6 @@ public:
   bool disableWarnings{false};
   bool checkOriginality{true};
   bool importOriginalFiles{false};
-  bool convertToGameFormat{true};
   bool fixChannels{true};
   bool fixSampleRate{true};
   bool transcodeToOriginalFormat{true};

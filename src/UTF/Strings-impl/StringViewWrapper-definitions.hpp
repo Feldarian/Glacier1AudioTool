@@ -24,10 +24,7 @@ requires IsUTFCharType<UTFCharType>
   if constexpr (IsSameUTFCharType<UTFCharType, wchar_t>)
     return std::wstring{ reinterpret_cast<const wchar_t *>(data()), size() };
   else
-  {
-    // TODO - clean this up a bit, ugly we can't use default template values...
-    return StringWrapper<wchar_t>(utfData).path();
-  }
+    return StringW(utfData).path();
 }
 
 }
