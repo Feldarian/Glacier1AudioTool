@@ -13,11 +13,11 @@ class Hitman1Dialog final : public HitmanDialog, public Singleton<Hitman1Dialog>
 public:
   bool Clear(bool retVal = false) override;
 
-  bool ImportSingle(StringView8CI importFolderPath, StringView8CI importFilePath) override;
+  bool ImportSingle(StringView8CI importFolderPath, StringView8CI importFilePath, const Options &options) override;
 
-  bool LoadImpl(StringView8CI loadPath) override;
+  bool LoadImpl(StringView8CI loadPath, const Options &options) override;
 
-  bool SaveImpl(StringView8CI savePath) override;
+  bool SaveImpl(StringView8CI savePath, const Options &options) override;
 
   void DrawDialog() override;
 

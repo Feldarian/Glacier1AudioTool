@@ -6,25 +6,11 @@
 // TODO - original records data is heavily dependent on archive contents currently! make it do some more proper caching of data.
 //      - also make sure that dialogs shared between multiple games do not check bytes of files directly (contents different == bytes different)
 //      - current record data corresponds to Steam versions, they do not match for GOG (reason for this to be brought up)
-//      - WHY TF is there different uncompressed size?
 //
 
 #include "Precompiled.hpp"
 
 #include "HitmanDialog.hpp"
-
-bool HitmanSoundRecord::operator==(const HitmanSoundRecord &other) const
-{
-  return dataXXH3 == other.dataXXH3
-   && dataSizeUncompressed == other.dataSizeUncompressed
-   && dataSize == other.dataSize
-   && sampleRate == other.sampleRate
-   && formatTag == other.formatTag
-   && bitsPerSample == other.bitsPerSample
-   && channels == other.channels
-   && blockAlign == other.blockAlign
-   && fmtExtra == other.fmtExtra;
-}
 
 bool HitmanFile::Import(char inputBytes[], const size_t inputBytesCount, const Options& options)
 {
@@ -32,14 +18,16 @@ bool HitmanFile::Import(char inputBytes[], const size_t inputBytesCount, const O
   SndfileHandle sndFile(g_VirtSndFileIOFixed, &virtSndData);
   if (!sndFile)
   {
-    DisplayWarning(LocalizationManager::Get().Localize("HITMAN_DIALOG_WARNING_IMPORT_LOADING_DATA"));
+    DisplayWarning(LocalizationManager::Get().Localize("HITMAN_DIALOG_WARNING_IMPORT_LOADING_DATA"),
+                   LocalizationManager::Get().Localize("MESSAGEBOX_WARNING_GENERIC_TITLE"), false, options);
     return false;
   }
 
   auto frames = static_cast<uint32_t>(sndFile.frames());
   if (frames == 0)
   {
-    DisplayWarning(LocalizationManager::Get().Localize("HITMAN_DIALOG_WARNING_IMPORT_DECODING_DATA"));
+    DisplayWarning(LocalizationManager::Get().Localize("HITMAN_DIALOG_WARNING_IMPORT_DECODING_DATA"),
+                   LocalizationManager::Get().Localize("MESSAGEBOX_WARNING_GENERIC_TITLE"), false, options);
     return false;
   }
 
@@ -51,7 +39,8 @@ bool HitmanFile::Import(char inputBytes[], const size_t inputBytesCount, const O
   sndFileData.resize(dataSizeUncompressed, 0);
   if (sndFile.readf(reinterpret_cast<int16_t *>(sndFileData.data()), frames) != frames)
   {
-    DisplayWarning(LocalizationManager::Get().Localize("HITMAN_DIALOG_WARNING_IMPORT_DECODING_DATA"));
+    DisplayWarning(LocalizationManager::Get().Localize("HITMAN_DIALOG_WARNING_IMPORT_DECODING_DATA"),
+                   LocalizationManager::Get().Localize("MESSAGEBOX_WARNING_GENERIC_TITLE"), false, options);
     return false;
   }
 
@@ -128,7 +117,8 @@ bool HitmanFile::Import(char inputBytes[], const size_t inputBytesCount, const O
       const auto retVal = src_simple(&convData, SRC_SINC_BEST_QUALITY, channels);
       if (retVal != 0 || convData.input_frames != convData.input_frames_used)
       {
-        DisplayWarning(LocalizationManager::Get().LocalizeFormat("HITMAN_DIALOG_WARNING_IMPORT_TRANCODING_DATA", src_strerror(retVal)));
+        DisplayWarning(LocalizationManager::Get().LocalizeFormat("HITMAN_DIALOG_WARNING_IMPORT_TRANCODING_DATA", src_strerror(retVal)),
+                       LocalizationManager::Get().Localize("MESSAGEBOX_WARNING_GENERIC_TITLE"), false, options);
         return false;
       }
 
@@ -182,7 +172,8 @@ bool HitmanFile::Import(char inputBytes[], const size_t inputBytesCount, const O
 
   if (!nativeFile)
   {
-    DisplayWarning(LocalizationManager::Get().Localize("HITMAN_DIALOG_WARNING_IMPORT_CREATING_NATIVE_DATA"));
+    DisplayWarning(LocalizationManager::Get().Localize("HITMAN_DIALOG_WARNING_IMPORT_CREATING_NATIVE_DATA"),
+                   LocalizationManager::Get().Localize("MESSAGEBOX_WARNING_GENERIC_TITLE"), false, options);
     return false;
   }
 
@@ -193,7 +184,8 @@ bool HitmanFile::Import(char inputBytes[], const size_t inputBytesCount, const O
     const uint32_t framesToWrite = std::min(maxFramesPerWrite, frames);
     if (nativeFile.writef(castedData + castedDataOffset, framesToWrite) != framesToWrite)
     {
-      DisplayWarning(LocalizationManager::Get().Localize("HITMAN_DIALOG_WARNING_IMPORT_ENCODING_NATIVE_DATA"));
+      DisplayWarning(LocalizationManager::Get().Localize("HITMAN_DIALOG_WARNING_IMPORT_ENCODING_NATIVE_DATA"),
+                     LocalizationManager::Get().Localize("MESSAGEBOX_WARNING_GENERIC_TITLE"), false, options);
       return false;
     }
     frames -= framesToWrite;
@@ -225,14 +217,16 @@ bool HitmanFile::ImportNative(char inputBytes[], const size_t inputBytesCount, c
   SndfileHandle sndFile(g_VirtSndFileIOFixed, &virtSndData);
   if (!sndFile)
   {
-    DisplayWarning(LocalizationManager::Get().Localize("HITMAN_DIALOG_WARNING_IMPORT_LOADING_DATA"));
+    DisplayWarning(LocalizationManager::Get().Localize("HITMAN_DIALOG_WARNING_IMPORT_LOADING_DATA"),
+                   LocalizationManager::Get().Localize("MESSAGEBOX_WARNING_GENERIC_TITLE"), false, options);
     return false;
   }
 
   const auto frames = static_cast<uint32_t>(sndFile.frames());
   if (frames == 0)
   {
-    DisplayWarning(LocalizationManager::Get().Localize("HITMAN_DIALOG_WARNING_IMPORT_DECODING_DATA"));
+    DisplayWarning(LocalizationManager::Get().Localize("HITMAN_DIALOG_WARNING_IMPORT_DECODING_DATA"),
+                   LocalizationManager::Get().Localize("MESSAGEBOX_WARNING_GENERIC_TITLE"), false, options);
     return false;
   }
 
@@ -245,7 +239,8 @@ bool HitmanFile::ImportNative(char inputBytes[], const size_t inputBytesCount, c
   sndFileData.resize(dataSizeUncompressed / 2, 0);
   if (sndFile.readf(sndFileData.data(), frames) != frames)
   {
-    DisplayWarning(LocalizationManager::Get().Localize("HITMAN_DIALOG_WARNING_IMPORT_DECODING_DATA"));
+    DisplayWarning(LocalizationManager::Get().Localize("HITMAN_DIALOG_WARNING_IMPORT_DECODING_DATA"),
+                   LocalizationManager::Get().Localize("MESSAGEBOX_WARNING_GENERIC_TITLE"), false, options);
     return false;
   }
 
@@ -549,7 +544,7 @@ bool HitmanDialog::LoadOriginalData()
   return true;
 }
 
-bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringView8CI hitmanFilePath, std::vector<char> &data, const bool doConversion)
+bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringView8CI hitmanFilePath, std::vector<char> &data, const bool doConversion, const Options &options)
 {
   if (doConversion)
     hitmanFile.Import(data, options);
@@ -566,13 +561,13 @@ bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringVi
   return true;
 }
 
-bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringView8CI hitmanFilePath, const StringView8CI importFilePath)
+bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringView8CI hitmanFilePath, const StringView8CI importFilePath, const Options &options)
 {
   auto inputData = ReadWholeBinaryFile(importFilePath);
-  return ImportSingleHitmanFile(hitmanFile, hitmanFilePath, inputData, !Options::Get().common.directImport);
+  return ImportSingleHitmanFile(hitmanFile, hitmanFilePath, inputData, !options.common.directImport, options);
 }
 
-bool HitmanDialog::ExportSingle(StringView8CI exportFolderPath, StringView8CI exportFilePath) const
+bool HitmanDialog::ExportSingle(StringView8CI exportFolderPath, StringView8CI exportFilePath, const Options &) const
 {
   const auto fileMapIt = fileMap.find(exportFilePath);
   if (fileMapIt == fileMap.cend())

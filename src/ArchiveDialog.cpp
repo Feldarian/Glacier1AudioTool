@@ -204,7 +204,7 @@ bool ArchiveDialog::Clear(const bool retVal)
   return retVal;
 }
 
-bool ArchiveDialog::Load(StringView8CI loadPath)
+bool ArchiveDialog::Load(const StringView8CI loadPath)
 {
   if (loadPath.empty())
     return false;
@@ -215,7 +215,7 @@ bool ArchiveDialog::Load(StringView8CI loadPath)
   progressNext = 0;
   progressNextTotal = 1;
 
-  progressTask = std::async(std::launch::async, [loadPath = String8CI(loadPath), this] {
+  progressTask = std::async(std::launch::async, [this, loadPath = String8CI(loadPath), options = Options::Get()] {
     switch (UnsavedChangesPopup())
     {
       case 1: {
@@ -233,7 +233,7 @@ bool ArchiveDialog::Load(StringView8CI loadPath)
       }
     }
 
-    if (LoadImpl(loadPath))
+    if (LoadImpl(loadPath, options))
     {
       // TODO - this is causing a lot of synchronizations at the end of loading
       //        best would be to do this on the main thread
@@ -266,7 +266,7 @@ bool ArchiveDialog::Import(const StringView8CI importFolderPath)
   progressNext = 0;
   progressNextTotal = 1;
 
-  progressTask = std::async(std::launch::async, [importFolderPath = String8CI(importFolderPath), this] {
+  progressTask = std::async(std::launch::async, [this, importFolderPath = String8CI(importFolderPath), options = Options::Get()] {
     const auto allImportFiles = GetAllFilesInDirectory(importFolderPath, "", true);
 
     if (allImportFiles.empty())
@@ -288,7 +288,7 @@ bool ArchiveDialog::Import(const StringView8CI importFolderPath)
         ++progressNext;
       }
 
-      ImportSingle(importFolderPath, importFilePath);
+      ImportSingle(importFolderPath, importFilePath, options);
     }
 
     std::unique_lock progressMessageLock(progressMessageMutex);
@@ -312,7 +312,7 @@ bool ArchiveDialog::Export(const StringView8CI exportFolderPath)
   progressNext = 0;
   progressNextTotal = 1;
 
-  progressTask = std::async(std::launch::async, [exportFolderPath = String8CI(exportFolderPath), this] {
+  progressTask = std::async(std::launch::async, [this, exportFolderPath = String8CI(exportFolderPath), options = Options::Get()] {
     if (archivePaths.empty())
     {
       std::unique_lock progressMessageLock(progressMessageMutex);
@@ -332,7 +332,7 @@ bool ArchiveDialog::Export(const StringView8CI exportFolderPath)
         ++progressNext;
       }
 
-      ExportSingle(exportFolderPath, exportFilePath);
+      ExportSingle(exportFolderPath, exportFilePath, options);
     }
 
     std::unique_lock progressMessageLock(progressMessageMutex);
@@ -358,7 +358,7 @@ bool ArchiveDialog::Save(const StringView8CI savePath, bool async)
   progressNext = 0;
   progressNextTotal = 1;
 
-  progressTask = std::async(std::launch::async, [savePath = String8CI(savePath), this] {
+  progressTask = std::async(std::launch::async, [this, savePath = String8CI(savePath), options = Options::Get()] {
     if (archivePaths.empty())
     {
       std::unique_lock progressMessageLock(progressMessageMutex);
@@ -367,7 +367,7 @@ bool ArchiveDialog::Save(const StringView8CI savePath, bool async)
       return;
     }
 
-    if (SaveImpl(savePath))
+    if (SaveImpl(savePath, options))
       path = savePath;
 
     std::unique_lock progressMessageLock(progressMessageMutex);
@@ -394,7 +394,7 @@ int32_t ArchiveDialog::UnsavedChangesPopup() const
     return 0;
 
   const auto msgBoxResult = DisplayWarning(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_UNSAVED_CHANGES_MESSAGE"),
-      LocalizationManager::Get().Localize("ARCHIVE_DIALOG_UNSAVED_CHANGES_TITLE"), true);
+                                           LocalizationManager::Get().Localize("ARCHIVE_DIALOG_UNSAVED_CHANGES_TITLE"), true);
 
   switch (msgBoxResult)
   {

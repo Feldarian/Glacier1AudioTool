@@ -83,7 +83,7 @@ struct Hitman23WAVFile
 
   Hitman23WAVHeader *header = nullptr;
   OrderedMap<uint32_t, Hitman23WAVRecord> recordMap;
-  std::vector<std::vector<char>> extraData;
+  std::list<std::vector<char>> extraData;
   String8CI path;
 };
 
@@ -106,11 +106,11 @@ class Hitman23Dialog final : public HitmanDialog, public Singleton<Hitman23Dialo
 public:
   bool Clear(bool retVal = false) override;
 
-  bool ImportSingle(StringView8CI importFolderPath, StringView8CI importFilePath) override;
+  bool ImportSingle(StringView8CI importFolderPath, StringView8CI importFilePath, const Options &options) override;
 
-  bool LoadImpl(StringView8CI loadPath) override;
+  bool LoadImpl(StringView8CI loadPath, const Options &options) override;
 
-  bool SaveImpl(StringView8CI savePath) override;
+  bool SaveImpl(StringView8CI savePath, const Options &options) override;
 
   void DrawDialog() override;
 

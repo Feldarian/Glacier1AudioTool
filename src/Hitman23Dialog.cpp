@@ -95,7 +95,8 @@ bool Hitman23WAVFile::Load(const StringView8CI loadPath, const OrderedMap<String
     newData.shrink_to_fit();
 
     std::memcpy(newData.data(), wavData.data(), wavData.size());
-    if (recordMap.try_emplace(0, Hitman23WAVRecord{newData, 0}).second && isMissionWAV)
+    recordMap.try_emplace(0, Hitman23WAVRecord{newData, 0});
+    if (isMissionWAV && !recordMap.empty())
       header = reinterpret_cast<Hitman23WAVHeader *>(recordMap.at(0).data.data());
     else
       header = nullptr;
@@ -221,12 +222,9 @@ bool Hitman23WHDFile::Load(Hitman23Dialog& archiveDialog, const StringView8CI lo
       return Clear(false);
 
     if (whdRecord->dataInStreams == 0)
-      filePath = ChangeExtension(String8CI(relative(loadPathView.path(), archiveDialog.basePath.path())), filePath);
+      filePath = relative(loadPathView.path(), archiveDialog.basePath.path()) / filePath.path();
     else
-    {
-      if (!filePathNative.has_parent_path())
-        filePath = L"Streams" / filePathNative;
-    }
+      filePath = L"Streams" / filePathNative;
 
     auto& file = archiveDialog.GetFile(filePath);
 
@@ -278,7 +276,7 @@ bool Hitman23Dialog::Clear(const bool retVal)
   return HitmanDialog::Clear(retVal);
 }
 
-bool Hitman23Dialog::ImportSingle(const StringView8CI importFolderPathView, StringView8CI importFilePathView)
+bool Hitman23Dialog::ImportSingle(const StringView8CI importFolderPathView, StringView8CI importFilePathView, const Options &options)
 {
   auto filePath = String8CI(relative(importFilePathView.path(), importFolderPathView.path()));
   auto fileIt = fileMap.find(filePath);
@@ -291,12 +289,13 @@ bool Hitman23Dialog::ImportSingle(const StringView8CI importFolderPathView, Stri
     whdRecordsIt = whdRecordsMap.find(filePath);
     if (fileIt == fileMap.end() || whdRecordsIt == whdRecordsMap.end())
     {
-      DisplayWarning(LocalizationManager::Get().LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", importFilePathView));
+      DisplayWarning(LocalizationManager::Get().LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", importFilePathView),
+                     LocalizationManager::Get().Localize("MESSAGEBOX_WARNING_GENERIC_TITLE"), false, options);
       return false;
     }
   }
 
-  if (!ImportSingleHitmanFile(fileIt->second, filePath, importFilePathView))
+  if (!ImportSingleHitmanFile(fileIt->second, filePath, importFilePathView, options))
     return false;
 
   for (auto* whdRecord : whdRecordsIt->second)
@@ -305,7 +304,7 @@ bool Hitman23Dialog::ImportSingle(const StringView8CI importFolderPathView, Stri
   return true;
 }
 
-bool Hitman23Dialog::LoadImpl(const StringView8CI loadPathView)
+bool Hitman23Dialog::LoadImpl(const StringView8CI loadPathView, const Options &options)
 {
   Clear();
 
@@ -332,7 +331,12 @@ bool Hitman23Dialog::LoadImpl(const StringView8CI loadPathView)
       return Clear(false);
 
     for (const auto& whdRecordMapKV : whdFile.recordMap)
-      allWHDRecords.insert(whdRecordMapKV);
+    {
+      const auto res = allWHDRecords.insert(whdRecordMapKV);
+
+      // TODO - do we want to handle this in some way? duplicates pointing to streams should not be an issue unless offsets are different...
+      assert(res.second || (res.first->second->dataInStreams && res.first->second->dataInStreams == whdRecordMapKV.second->dataInStreams && res.first->second->dataOffset == whdRecordMapKV.second->dataOffset));
+    }
 
     if (!wavFiles.emplace_back().Load(ChangeExtension(whdFile.path, ".wav"), whdFile.recordMap, fileMap, true))
       return Clear(false);
@@ -360,7 +364,7 @@ bool Hitman23Dialog::LoadImpl(const StringView8CI loadPathView)
   return true;
 }
 
-bool Hitman23Dialog::SaveImpl(const StringView8CI savePathView)
+bool Hitman23Dialog::SaveImpl(const StringView8CI savePathView, const Options &)
 {
   const auto newBasePath = savePathView.path().parent_path();
 

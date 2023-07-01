@@ -216,9 +216,9 @@ int32_t DisplayError(const StringView8 message, StringView8 title, const bool ye
   return MessageBoxA(nullptr, message.c_str(), title.c_str(), MB_ICONERROR | (yesNo ? MB_YESNOCANCEL : MB_OK));
 }
 
-int32_t DisplayWarning(const StringView8 message, StringView8 title, const bool yesNo)
+int32_t DisplayWarning(const StringView8 message, StringView8 title, const bool yesNo, const Options &options)
 {
-  if (!yesNo && Options::Get().common.disableWarnings)
+  if (!yesNo && options.common.disableWarnings)
     return IDCLOSE;
 
   if (title.empty())

@@ -47,19 +47,19 @@ public:
 
   virtual bool Clear(bool retVal = false);
 
-  virtual bool LoadImpl(StringView8CI loadPath) = 0;
+  virtual bool LoadImpl(StringView8CI loadPath, const Options &options) = 0;
   bool Load(StringView8CI loadPath);
   bool GetAndLoad(StringView8CI filters, StringView8CI defaultFilename);
 
-  virtual bool ImportSingle(StringView8CI importFolderPath, StringView8CI importFilePath) = 0;
+  virtual bool ImportSingle(StringView8CI importFolderPath, StringView8CI importFilePath, const Options &options) = 0;
   bool Import(StringView8CI importFolderPath);
   bool GetAndImport();
 
-  virtual bool ExportSingle(StringView8CI exportFolderPath, StringView8CI exportFilePath) const = 0;
+  virtual bool ExportSingle(StringView8CI exportFolderPath, StringView8CI exportFilePath, const Options &options) const = 0;
   bool Export(StringView8CI exportFolderPath);
   bool GetAndExport();
 
-  virtual bool SaveImpl(StringView8CI savePath) = 0;
+  virtual bool SaveImpl(StringView8CI savePath, const Options &options) = 0;
   bool Save(StringView8CI savePath, bool async);
   bool GetAndSave(StringView8CI filters, StringView8CI defaultFilename);
 

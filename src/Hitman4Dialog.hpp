@@ -85,6 +85,9 @@ union Hitman4WHDRecord
     void FromHitmanSoundRecord(const HitmanSoundRecord& soundRecord);
   } streams;
 
+  static_assert(sizeof(mission) == sizeof(concatenated));
+  static_assert(sizeof(concatenated) == sizeof(streams));
+
   HitmanSoundRecord ToHitmanSoundRecord() const;
   void FromHitmanSoundRecord(const HitmanSoundRecord& soundRecord);
 };
@@ -132,8 +135,8 @@ struct Hitman4WAVFile
 
   Hitman4WAVHeader *header = nullptr;
   OrderedMap<uint32_t, Hitman4WAVRecord> recordMap;
-  std::vector<std::vector<char>> lipsData;
-  std::vector<std::vector<char>> extraData;
+  std::list<std::vector<char>> lipsData;
+  std::list<std::vector<char>> extraData;
   String8CI path;
 };
 
@@ -156,11 +159,11 @@ class Hitman4Dialog final : public HitmanDialog, public Singleton<Hitman4Dialog>
 public:
   bool Clear(bool retVal = false) override;
 
-  bool ImportSingle(StringView8CI importFolderPath, StringView8CI importFilePath) override;
+  bool ImportSingle(StringView8CI importFolderPath, StringView8CI importFilePath, const Options &options) override;
 
-  bool LoadImpl(StringView8CI loadPath) override;
+  bool LoadImpl(StringView8CI loadPath, const Options &options) override;
 
-  bool SaveImpl(StringView8CI savePath) override;
+  bool SaveImpl(StringView8CI savePath, const Options &options) override;
 
   void DrawDialog() override;
 

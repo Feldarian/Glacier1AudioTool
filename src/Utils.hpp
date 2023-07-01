@@ -63,7 +63,7 @@ StringView8CI GetProgramPath();
 
 int32_t DisplayError(StringView8 message, StringView8 title = "", bool yesNo = false);
 
-int32_t DisplayWarning(StringView8 message, StringView8 title = "", bool yesNo = false);
+int32_t DisplayWarning(StringView8 message, StringView8 title = "", bool yesNo = false, const Options &options = Options::Get());
 
 std::vector<StringView8CI> GetPathStems(StringView8CI pathView);
 

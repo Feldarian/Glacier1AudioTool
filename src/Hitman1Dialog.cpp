@@ -16,7 +16,7 @@ bool Hitman1Dialog::Clear(const bool retVal)
   return HitmanDialog::Clear(retVal);
 }
 
-bool Hitman1Dialog::LoadImpl(StringView8CI loadPathView)
+bool Hitman1Dialog::LoadImpl(StringView8CI loadPathView, const Options &options)
 {
   auto loadPath = loadPathView.path();
   Clear();
@@ -49,8 +49,8 @@ bool Hitman1Dialog::LoadImpl(StringView8CI loadPathView)
     {
       if (archiveIdxScan.error() == scn::error::code::end_of_range)
         break;
-      else
-        return Clear(false);
+
+      return Clear(false);
     }
 
     auto& file = GetFile(entryPath);
@@ -66,7 +66,7 @@ bool Hitman1Dialog::LoadImpl(StringView8CI loadPathView)
 
     std::vector<char> fileData(dataSize, 0);
     std::memcpy(fileData.data(), archiveBin.data() + archiveBinOffset, dataSize);
-    if (!ImportSingleHitmanFile(fileMapIt->second, file.path, fileData, false))
+    if (!ImportSingleHitmanFile(fileMapIt->second, file.path, fileData, false, options))
       return Clear(false);
 
     archiveBinOffset += dataSize;
@@ -96,7 +96,7 @@ bool Hitman1Dialog::LoadImpl(StringView8CI loadPathView)
   return true;
 }
 
-bool Hitman1Dialog::ImportSingle(const StringView8CI importFolderPathView, StringView8CI importFilePathView)
+bool Hitman1Dialog::ImportSingle(const StringView8CI importFolderPathView, StringView8CI importFilePathView, const Options &options)
 {
   auto filePath = String8CI(relative(importFilePathView.path(), importFolderPathView.path()));
   auto fileIt = fileMap.find(filePath);
@@ -107,19 +107,19 @@ bool Hitman1Dialog::ImportSingle(const StringView8CI importFolderPathView, Strin
     fileIt = fileMap.find(filePath);
     if (fileIt == fileMap.end())
     {
-      DisplayWarning(
-          LocalizationManager::Get().LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", importFilePathView));
+      DisplayWarning(LocalizationManager::Get().LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", importFilePathView),
+                     LocalizationManager::Get().Localize("MESSAGEBOX_WARNING_GENERIC_TITLE"), false, options);
       return false;
     }
   }
 
-  if (!ImportSingleHitmanFile(fileIt->second, filePath, importFilePathView))
+  if (!ImportSingleHitmanFile(fileIt->second, filePath, importFilePathView, options))
     return false;
 
   return true;
 }
 
-bool Hitman1Dialog::SaveImpl(StringView8CI savePathView)
+bool Hitman1Dialog::SaveImpl(StringView8CI savePathView, const Options &)
 {
   const auto archiveBinFilePath = ChangeExtension(savePathView, ".bin");
 
