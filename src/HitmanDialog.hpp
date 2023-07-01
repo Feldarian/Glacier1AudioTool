@@ -27,14 +27,14 @@ struct HitmanFile
 {
   bool Import(char inputBytes[], size_t inputBytesCount, const Options& options);
   bool Import(std::vector<char> &inputBytes, const Options& options);
-  bool Import(StringView8CI importPath, const Options& options);
+  bool Import(const StringView8CI &importPath, const Options& options);
 
   bool ImportNative(char inputBytes[], size_t inputBytesCount, const Options& options, bool doHashing);
   bool ImportNative(std::vector<char> &inputBytes, const Options& options, bool doHashing);
-  bool ImportNative(StringView8CI importPath, const Options& options, bool doHashing);
+  bool ImportNative(const StringView8CI &importPath, const Options& options, bool doHashing);
 
   bool Export(std::vector<char> &outputBytes) const;
-  bool Export(StringView8CI exportPath, bool fixExtension) const;
+  bool Export(const StringView8CI &exportPath, bool fixExtension) const;
 
   HitmanSoundRecord originalRecord;
   HitmanSoundRecord archiveRecord;
@@ -50,15 +50,15 @@ public:
 
   bool LoadOriginalData();
 
-  bool ImportSingleHitmanFile(HitmanFile &hitmanFile, StringView8CI hitmanFilePath, std::vector<char> &data, bool doConversion, const Options &options);
+  bool ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringView8CI &hitmanFilePath, std::vector<char> &data, bool doConversion, const Options &options);
 
-  bool ImportSingleHitmanFile(HitmanFile &hitmanFile, StringView8CI hitmanFilePath, StringView8CI importFilePath, const Options &options);
+  bool ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringView8CI &hitmanFilePath, const StringView8CI &importFilePath, const Options &options);
 
-  bool ExportSingle(StringView8CI exportFolderPath, StringView8CI exportFilePath, const Options &options) const override;
+  bool ExportSingle(const StringView8CI &exportFolderPath, const StringView8CI &exportFilePath, const Options &options) const override;
 
   void ReloadOriginalData();
 
-  void DrawHitmanDialog(StringView8CI dialogName, StringView8CI filters, StringView8CI defaultFilename);
+  void DrawHitmanDialog(const StringView8CI &dialogName, const StringView8CI &filters, const StringView8CI &defaultFilename);
 
   OrderedMap<StringView8CI, HitmanFile> fileMap;
   String8CI originalDataPath;

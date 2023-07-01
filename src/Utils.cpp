@@ -8,7 +8,7 @@
 
 #include "Utils.hpp"
 
-std::vector<char> ReadWholeBinaryFile(const StringView8CI acpPath)
+std::vector<char> ReadWholeBinaryFile(const StringView8CI &acpPath)
 {
   const auto path = acpPath.path();
   if (path.empty() || !exists(path))
@@ -25,7 +25,7 @@ std::vector<char> ReadWholeBinaryFile(const StringView8CI acpPath)
   return result;
 }
 
-String8 ReadWholeTextFile(const StringView8CI acpPath)
+String8 ReadWholeTextFile(const StringView8CI &acpPath)
 {
   const auto path = acpPath.path();
   if (path.empty() || !exists(path))
@@ -75,7 +75,7 @@ String8CI BrowseDirectoryDialog()
   return path;
 }
 
-String8CI OpenFileDialog(StringView8CI filters, StringView8CI defaultFileName)
+String8CI OpenFileDialog(const StringView8CI &filters, const StringView8CI &defaultFileName)
 {
   OPENFILENAMEA ofn;
   ZeroMemory(&ofn, sizeof(ofn));
@@ -128,7 +128,7 @@ String8CI OpenFileDialog(StringView8CI filters, StringView8CI defaultFileName)
   return fileName;
 }
 
-String8CI SaveFileDialog(const StringView8CI filters, const StringView8CI defaultFileName)
+String8CI SaveFileDialog(const StringView8CI &filters, const StringView8CI &defaultFileName)
 {
   OPENFILENAMEA ofn;
   ZeroMemory(&ofn, sizeof(ofn));
@@ -164,7 +164,7 @@ String8CI SaveFileDialog(const StringView8CI filters, const StringView8CI defaul
   return fileName;
 }
 
-std::vector<String8CI> GetAllFilesInDirectory(const StringView8CI directory, StringView8CI extension, bool recursive)
+std::vector<String8CI> GetAllFilesInDirectory(const StringView8CI &directory, const StringView8CI &extension, bool recursive)
 {
   std::vector<String8CI> filesWithExtension;
 
@@ -208,21 +208,15 @@ StringView8CI GetProgramPath()
   return programPath;
 }
 
-int32_t DisplayError(const StringView8 message, StringView8 title, const bool yesNo)
+int32_t DisplayError(const StringView8 &message, const StringView8 &title, const bool yesNo)
 {
-  if (title.empty())
-    title = LocalizationManager::Get().Localize("MESSAGEBOX_ERROR_GENERIC_TITLE");
-
   return MessageBoxA(nullptr, message.c_str(), title.c_str(), MB_ICONERROR | (yesNo ? MB_YESNOCANCEL : MB_OK));
 }
 
-int32_t DisplayWarning(const StringView8 message, StringView8 title, const bool yesNo, const Options &options)
+int32_t DisplayWarning(const StringView8 &message, const StringView8 &title, const bool yesNo, const Options &options)
 {
   if (!yesNo && options.common.disableWarnings)
     return IDCLOSE;
-
-  if (title.empty())
-    title = LocalizationManager::Get().Localize("MESSAGEBOX_WARNING_GENERIC_TITLE");
 
   return MessageBoxA(nullptr, message.c_str(), title.c_str(), MB_ICONWARNING | (yesNo ? MB_YESNOCANCEL : MB_OK));
 }
@@ -255,7 +249,7 @@ std::vector<StringView8CI> GetPathStems(StringView8CI pathView)
   return pathStems;
 }
 
-String8CI ChangeExtension(StringView8CI path, const StringView8CI newExtension)
+String8CI ChangeExtension(const StringView8CI &path, const StringView8CI &newExtension)
 {
   const auto pathExtPos = path.native().rfind('.');
   if (pathExtPos == StringView8CI::npos)

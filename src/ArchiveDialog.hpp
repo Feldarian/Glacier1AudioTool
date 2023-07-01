@@ -20,8 +20,8 @@ public:
 
   virtual bool Clear(bool retVal = false);
 
-  ArchiveDirectory& GetDirectory(StringView8CI searchPath, OrderedSet<String8CI>& archivePaths);
-  ArchiveFile& GetFile(StringView8CI searchPath, OrderedSet<String8CI>& archivePaths);
+  ArchiveDirectory& GetDirectory(const StringView8CI &searchPath, OrderedSet<String8CI>& archivePaths);
+  ArchiveFile& GetFile(const StringView8CI &searchPath, OrderedSet<String8CI>& archivePaths);
 
   bool IsDirty() const;
   bool IsOriginal() const;
@@ -29,7 +29,7 @@ public:
   void CleanDirty();
   void CleanOriginal();
 
-  void DrawTree(StringView8CI thisPath = "") const;
+  void DrawTree(const StringView8CI &thisPath = "") const;
 
 private:
   ArchiveDirectory& GetDirectory(std::vector<StringView8CI>& pathStems, StringView8CI searchPath, OrderedSet<String8CI>& archivePaths);
@@ -47,21 +47,21 @@ public:
 
   virtual bool Clear(bool retVal = false);
 
-  virtual bool LoadImpl(StringView8CI loadPath, const Options &options) = 0;
-  bool Load(StringView8CI loadPath);
-  bool GetAndLoad(StringView8CI filters, StringView8CI defaultFilename);
+  virtual bool LoadImpl(const StringView8CI &loadPath, const Options &options) = 0;
+  bool Load(const StringView8CI &loadPath);
+  bool GetAndLoad(const StringView8CI &filters, const StringView8CI &defaultFilename);
 
-  virtual bool ImportSingle(StringView8CI importFolderPath, StringView8CI importFilePath, const Options &options) = 0;
-  bool Import(StringView8CI importFolderPath);
+  virtual bool ImportSingle(const StringView8CI &importFolderPath, const StringView8CI &importFilePath, const Options &options) = 0;
+  bool Import(const StringView8CI &importFolderPath);
   bool GetAndImport();
 
-  virtual bool ExportSingle(StringView8CI exportFolderPath, StringView8CI exportFilePath, const Options &options) const = 0;
-  bool Export(StringView8CI exportFolderPath);
+  virtual bool ExportSingle(const StringView8CI &exportFolderPath, const StringView8CI &exportFilePath, const Options &options) const = 0;
+  bool Export(const StringView8CI &exportFolderPath);
   bool GetAndExport();
 
-  virtual bool SaveImpl(StringView8CI savePath, const Options &options) = 0;
-  bool Save(StringView8CI savePath, bool async);
-  bool GetAndSave(StringView8CI filters, StringView8CI defaultFilename);
+  virtual bool SaveImpl(const StringView8CI &savePath, const Options &options) = 0;
+  bool Save(const StringView8CI &savePath, bool async);
+  bool GetAndSave(const StringView8CI &filters, const StringView8CI &defaultFilename);
 
   int32_t UnsavedChangesPopup() const;
 
@@ -71,8 +71,8 @@ public:
 
   bool IsInProgress() const;
 
-  ArchiveDirectory& GetDirectory(StringView8CI searchPath);
-  ArchiveFile& GetFile(StringView8CI searchPath);
+  ArchiveDirectory& GetDirectory(const StringView8CI &searchPath);
+  ArchiveFile& GetFile(const StringView8CI &searchPath);
   const OrderedSet<String8CI>& GetPaths() const;
 
   bool IsDirty() const;
@@ -82,7 +82,7 @@ public:
   void CleanOriginal();
 
 protected:
-  void DrawBaseDialog(StringView8CI dialogName, StringView8CI filters, StringView8CI defaultFilename);
+  void DrawBaseDialog(const StringView8CI &dialogName, const StringView8CI &filters, const StringView8CI &defaultFilename);
 
   String8CI path;
 

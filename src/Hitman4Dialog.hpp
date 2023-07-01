@@ -128,10 +128,10 @@ struct Hitman4WAVFile
 {
   bool Clear(bool retVal = false);
 
-  bool Load(StringView8CI loadPath, const OrderedMap<StringView8CI, Hitman4WHDRecord *> &whdRecordsMap,
+  bool Load(const StringView8CI &loadPath, const OrderedMap<StringView8CI, Hitman4WHDRecord *> &whdRecordsMap,
             OrderedMap<StringView8CI, HitmanFile>& fileMap, bool isMissionWAV);
 
-  bool Save(StringView8CI savePath);
+  bool Save(const StringView8CI &savePath);
 
   Hitman4WAVHeader *header = nullptr;
   OrderedMap<uint32_t, Hitman4WAVRecord> recordMap;
@@ -144,9 +144,9 @@ struct Hitman4WHDFile
 {
   bool Clear(bool retVal = false);
 
-  bool Load(Hitman4Dialog& archiveDialog, StringView8CI loadPathView);
+  bool Load(Hitman4Dialog& archiveDialog, const StringView8CI &loadPathView);
 
-  bool Save(const Hitman4WAVFile &streamsWAV, const Hitman4WAVFile &missionWAV, StringView8CI savePath);
+  bool Save(const Hitman4WAVFile &streamsWAV, const Hitman4WAVFile &missionWAV, const StringView8CI &savePath);
 
   Hitman4WHDHeader *header = nullptr;
   OrderedMap<StringView8CI, Hitman4WHDRecord *> recordMap;
@@ -159,11 +159,11 @@ class Hitman4Dialog final : public HitmanDialog, public Singleton<Hitman4Dialog>
 public:
   bool Clear(bool retVal = false) override;
 
-  bool ImportSingle(StringView8CI importFolderPath, StringView8CI importFilePath, const Options &options) override;
+  bool ImportSingle(const StringView8CI &importFolderPath, const StringView8CI &importFilePath, const Options &options) override;
 
-  bool LoadImpl(StringView8CI loadPath, const Options &options) override;
+  bool LoadImpl(const StringView8CI &loadPath, const Options &options) override;
 
-  bool SaveImpl(StringView8CI savePath, const Options &options) override;
+  bool SaveImpl(const StringView8CI &savePath, const Options &options) override;
 
   void DrawDialog() override;
 

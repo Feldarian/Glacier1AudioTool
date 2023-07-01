@@ -81,7 +81,7 @@ public:
 
   template <typename UTFCharType, bool CaseSensitive = true, typename UTFCharTraits = std::char_traits<UTFCharType>>
   requires IsUTF8CharType<UTFCharType>
-  void AddText(const StringViewWrapper<UTFCharType, CaseSensitive, UTFCharTraits> utf)
+  void AddText(const StringViewWrapper<UTFCharType, CaseSensitive, UTFCharTraits> &utf)
   {
     const auto *utfData = utf.data();
     const auto utfSize = utf.size();
@@ -96,7 +96,7 @@ public:
 
   template <typename UTFCharType, bool CaseSensitive = true, typename UTFCharTraits = std::char_traits<UTFCharType>>
   requires IsUTF16CharType<UTFCharType>
-  void AddText(const StringViewWrapper<UTFCharType, CaseSensitive, UTFCharTraits> utf)
+  void AddText(const StringViewWrapper<UTFCharType, CaseSensitive, UTFCharTraits> &utf)
   {
     const auto *utfData = utf.data();
     const auto utfSize = utf.size();
@@ -111,7 +111,7 @@ public:
 
   template <typename UTFCharType, bool CaseSensitive = true, typename UTFCharTraits = std::char_traits<UTFCharType>>
   requires IsUTF32CharType<UTFCharType>
-  void AddText(const StringViewWrapper<UTFCharType, CaseSensitive, UTFCharTraits> utf)
+  void AddText(const StringViewWrapper<UTFCharType, CaseSensitive, UTFCharTraits> &utf)
   {
     for (const auto glyph : utf.native())
       Add(static_cast<uint32_t>(glyph));

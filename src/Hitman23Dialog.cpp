@@ -46,7 +46,7 @@ bool Hitman23WAVFile::Clear(const bool retVal)
   return retVal;
 }
 
-bool Hitman23WAVFile::Load(const StringView8CI loadPath, const OrderedMap<StringView8CI, Hitman23WHDRecord *> &whdRecordsMap,
+bool Hitman23WAVFile::Load(const StringView8CI &loadPath, const OrderedMap<StringView8CI, Hitman23WHDRecord *> &whdRecordsMap,
                            OrderedMap<StringView8CI, HitmanFile>& fileMap, const bool isMissionWAV)
 {
   const auto wavData = ReadWholeBinaryFile(loadPath);
@@ -147,7 +147,7 @@ bool Hitman23WAVFile::Load(const StringView8CI loadPath, const OrderedMap<String
   return true;
 }
 
-bool Hitman23WAVFile::Save(const StringView8CI savePathView)
+bool Hitman23WAVFile::Save(const StringView8CI &savePathView)
 {
   const auto savePath = savePathView.path();
   create_directories(savePath.parent_path());
@@ -186,7 +186,7 @@ bool Hitman23WHDFile::Clear(const bool retVal)
   return retVal;
 }
 
-bool Hitman23WHDFile::Load(Hitman23Dialog& archiveDialog, const StringView8CI loadPathView)
+bool Hitman23WHDFile::Load(Hitman23Dialog& archiveDialog, const StringView8CI &loadPathView)
 {
   if (data.empty())
     data = ReadWholeBinaryFile(loadPathView);
@@ -238,7 +238,7 @@ bool Hitman23WHDFile::Load(Hitman23Dialog& archiveDialog, const StringView8CI lo
   return true;
 }
 
-bool Hitman23WHDFile::Save(const Hitman23WAVFile &streamsWAV, const Hitman23WAVFile &missionWAV, const StringView8CI savePath)
+bool Hitman23WHDFile::Save(const Hitman23WAVFile &streamsWAV, const Hitman23WAVFile &missionWAV, const StringView8CI &savePath)
 {
   for (auto *whdRecord : recordMap | std::views::values)
   {
@@ -274,7 +274,7 @@ bool Hitman23Dialog::Clear(const bool retVal)
   return HitmanDialog::Clear(retVal);
 }
 
-bool Hitman23Dialog::ImportSingle(const StringView8CI importFolderPathView, StringView8CI importFilePathView, const Options &options)
+bool Hitman23Dialog::ImportSingle(const StringView8CI &importFolderPathView, const StringView8CI &importFilePathView, const Options &options)
 {
   auto filePath = String8CI(relative(importFilePathView.path(), importFolderPathView.path()));
   auto fileIt = fileMap.find(filePath);
@@ -302,7 +302,7 @@ bool Hitman23Dialog::ImportSingle(const StringView8CI importFolderPathView, Stri
   return true;
 }
 
-bool Hitman23Dialog::LoadImpl(const StringView8CI loadPathView, const Options &options)
+bool Hitman23Dialog::LoadImpl(const StringView8CI &loadPathView, const Options &options)
 {
   Clear();
 
@@ -362,7 +362,7 @@ bool Hitman23Dialog::LoadImpl(const StringView8CI loadPathView, const Options &o
   return true;
 }
 
-bool Hitman23Dialog::SaveImpl(const StringView8CI savePathView, const Options &)
+bool Hitman23Dialog::SaveImpl(const StringView8CI &savePathView, const Options &)
 {
   const auto newBasePath = savePathView.path().parent_path();
 

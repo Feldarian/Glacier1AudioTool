@@ -204,7 +204,7 @@ bool HitmanFile::Import(std::vector<char> &inputBytes, const Options& options)
   return Import(inputBytes.data(), inputBytes.size(), options);
 }
 
-bool HitmanFile::Import(const StringView8CI importPath, const Options& options)
+bool HitmanFile::Import(const StringView8CI &importPath, const Options& options)
 {
   auto importData = ReadWholeBinaryFile(importPath);
   if (importData.empty())
@@ -329,7 +329,7 @@ bool HitmanFile::ImportNative(std::vector<char> &inputBytes, const Options& opti
   return ImportNative(inputBytes.data(), inputBytes.size(), options, doHashing);
 }
 
-bool HitmanFile::ImportNative(const StringView8CI importPath, const Options& options, const bool doHashing)
+bool HitmanFile::ImportNative(const StringView8CI &importPath, const Options& options, const bool doHashing)
 {
   auto importData = ReadWholeBinaryFile(importPath);
   if (importData.empty())
@@ -392,7 +392,7 @@ bool HitmanFile::Export(std::vector<char> &outputBytes) const
   return true;
 }
 
-bool HitmanFile::Export(const StringView8CI export_path_view, const bool fixExtension) const
+bool HitmanFile::Export(const StringView8CI &export_path_view, const bool fixExtension) const
 {
   thread_local static std::vector<char> exportData;
   if (!Export(exportData))
@@ -546,7 +546,7 @@ bool HitmanDialog::LoadOriginalData()
   return true;
 }
 
-bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringView8CI hitmanFilePath, std::vector<char> &data, const bool doConversion, const Options &options)
+bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringView8CI &hitmanFilePath, std::vector<char> &data, const bool doConversion, const Options &options)
 {
   if (doConversion)
     hitmanFile.Import(data, options);
@@ -563,13 +563,13 @@ bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringVi
   return true;
 }
 
-bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringView8CI hitmanFilePath, const StringView8CI importFilePath, const Options &options)
+bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringView8CI &hitmanFilePath, const StringView8CI &importFilePath, const Options &options)
 {
   auto inputData = ReadWholeBinaryFile(importFilePath);
   return ImportSingleHitmanFile(hitmanFile, hitmanFilePath, inputData, !options.common.directImport, options);
 }
 
-bool HitmanDialog::ExportSingle(StringView8CI exportFolderPath, StringView8CI exportFilePath, const Options &) const
+bool HitmanDialog::ExportSingle(const StringView8CI &exportFolderPath, const StringView8CI &exportFilePath, const Options &) const
 {
   const auto fileMapIt = fileMap.find(exportFilePath);
   if (fileMapIt == fileMap.cend())
@@ -605,7 +605,7 @@ void HitmanDialog::ReloadOriginalData()
   needsOriginalDataReload = false;
 }
 
-void HitmanDialog::DrawHitmanDialog(const StringView8CI dialogName, const StringView8CI filters, const StringView8CI defaultFilename)
+void HitmanDialog::DrawHitmanDialog(const StringView8CI &dialogName, const StringView8CI &filters, const StringView8CI &defaultFilename)
 {
   if (needsOriginalDataReload)
     ReloadOriginalData();

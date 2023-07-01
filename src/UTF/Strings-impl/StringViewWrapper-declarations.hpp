@@ -58,7 +58,7 @@ public:
 
   template <typename UTFCharTypeInput, bool CaseSensitiveInput = CaseSensitive, typename UTFCharTypeTraitsInput = std::char_traits<UTFCharTypeInput>>
   requires IsSameUTFCharType<UTFCharType, UTFCharTypeInput>
-  StringViewWrapper(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
+  StringViewWrapper(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> &other)
     : StringViewWrapper{ other.native(), other.IsNullTerminated() }
   {}
 
@@ -132,7 +132,7 @@ public:
   [[nodiscard]] const UTFCharType* c_str() const
   {
     if (nullTerminated)
-    return utfData.data();
+      return utfData.data();
 
     utfDataSource = std::make_unique<std::basic_string<UTFCharType>>();
     utfDataSource->assign(utfData.data(), utfData.size());

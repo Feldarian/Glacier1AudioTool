@@ -16,7 +16,7 @@ bool ArchiveDirectory::Clear(const bool retVal)
   return retVal;
 }
 
-ArchiveDirectory& ArchiveDirectory::GetDirectory(const StringView8CI searchPath, OrderedSet<String8CI>& archivePaths)
+ArchiveDirectory& ArchiveDirectory::GetDirectory(const StringView8CI &searchPath, OrderedSet<String8CI>& archivePaths)
 {
   auto pathStems = GetPathStems(searchPath);
   return GetDirectory(pathStems, searchPath, archivePaths);
@@ -57,7 +57,7 @@ ArchiveDirectory& ArchiveDirectory::GetDirectory(std::vector<StringView8CI> &pat
   return directory;
 }
 
-ArchiveFile& ArchiveDirectory::GetFile(const StringView8CI searchPath, OrderedSet<String8CI>& archivePaths)
+ArchiveFile& ArchiveDirectory::GetFile(const StringView8CI &searchPath, OrderedSet<String8CI>& archivePaths)
 {
   auto pathStems = GetPathStems(searchPath);
   return GetFile(pathStems, searchPath, archivePaths);
@@ -150,7 +150,7 @@ void ArchiveDirectory::CleanOriginal()
     file.original = true;
 }
 
-void ArchiveDirectory::DrawTree(const StringView8CI thisPath) const
+void ArchiveDirectory::DrawTree(const StringView8CI &thisPath) const
 {
   if (!thisPath.empty() && !ImGui::TreeNode(String8(thisPath).c_str()))
     return;
@@ -204,7 +204,7 @@ bool ArchiveDialog::Clear(const bool retVal)
   return retVal;
 }
 
-bool ArchiveDialog::Load(const StringView8CI loadPath)
+bool ArchiveDialog::Load(const StringView8CI &loadPath)
 {
   if (loadPath.empty())
     return false;
@@ -252,12 +252,12 @@ bool ArchiveDialog::Load(const StringView8CI loadPath)
   return true;
 }
 
-bool ArchiveDialog::GetAndLoad(const StringView8CI filters, const StringView8CI defaultFilename)
+bool ArchiveDialog::GetAndLoad(const StringView8CI &filters, const StringView8CI &defaultFilename)
 {
   return Load(OpenFileDialog(filters, defaultFilename));
 }
 
-bool ArchiveDialog::Import(const StringView8CI importFolderPath)
+bool ArchiveDialog::Import(const StringView8CI &importFolderPath)
 {
   if (importFolderPath.empty())
     return false;
@@ -303,7 +303,7 @@ bool ArchiveDialog::GetAndImport()
   return Import(BrowseDirectoryDialog());
 }
 
-bool ArchiveDialog::Export(const StringView8CI exportFolderPath)
+bool ArchiveDialog::Export(const StringView8CI &exportFolderPath)
 {
   if (exportFolderPath.empty())
     return false;
@@ -347,7 +347,7 @@ bool ArchiveDialog::GetAndExport()
   return Export(BrowseDirectoryDialog());
 }
 
-bool ArchiveDialog::Save(const StringView8CI savePath, bool async)
+bool ArchiveDialog::Save(const StringView8CI &savePath, bool async)
 {
   if (savePath.empty())
     return false;
@@ -383,7 +383,7 @@ bool ArchiveDialog::Save(const StringView8CI savePath, bool async)
   return true;
 }
 
-bool ArchiveDialog::GetAndSave(const StringView8CI filters, const StringView8CI defaultFilename)
+bool ArchiveDialog::GetAndSave(const StringView8CI &filters, const StringView8CI &defaultFilename)
 {
   return Save(SaveFileDialog(filters, defaultFilename), true);
 }
@@ -422,12 +422,12 @@ bool ArchiveDialog::IsInProgress() const
   return progressTask.valid();
 }
 
-ArchiveDirectory& ArchiveDialog::GetDirectory(const StringView8CI searchPath)
+ArchiveDirectory& ArchiveDialog::GetDirectory(const StringView8CI &searchPath)
 {
   return archiveRoot.GetDirectory(searchPath, archivePaths);
 }
 
-ArchiveFile& ArchiveDialog::GetFile(const StringView8CI searchPath)
+ArchiveFile& ArchiveDialog::GetFile(const StringView8CI &searchPath)
 {
   return archiveRoot.GetFile(searchPath, archivePaths);
 }
@@ -457,7 +457,7 @@ void ArchiveDialog::CleanOriginal()
   archiveRoot.CleanOriginal();
 }
 
-void ArchiveDialog::DrawBaseDialog(const StringView8CI dialogName, const StringView8CI filters, const StringView8CI defaultFilename)
+void ArchiveDialog::DrawBaseDialog(const StringView8CI &dialogName, const StringView8CI &filters, const StringView8CI &defaultFilename)
 {
   auto progressActive = IsInProgress();
   if (progressActive)

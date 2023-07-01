@@ -182,7 +182,7 @@ bool Hitman4WAVFile::Clear(const bool retVal)
   return retVal;
 }
 
-bool Hitman4WAVFile::Load(const StringView8CI loadPath, const OrderedMap<StringView8CI, Hitman4WHDRecord *> &whdRecordsMap, OrderedMap<StringView8CI, HitmanFile>& fileMap, const bool isMissionWAV)
+bool Hitman4WAVFile::Load(const StringView8CI &loadPath, const OrderedMap<StringView8CI, Hitman4WHDRecord *> &whdRecordsMap, OrderedMap<StringView8CI, HitmanFile>& fileMap, const bool isMissionWAV)
 {
   Clear();
 
@@ -295,7 +295,7 @@ bool Hitman4WAVFile::Load(const StringView8CI loadPath, const OrderedMap<StringV
   return true;
 }
 
-bool Hitman4WAVFile::Save(const StringView8CI savePathView)
+bool Hitman4WAVFile::Save(const StringView8CI &savePathView)
 {
   const auto savePath = savePathView.path();
   create_directories(savePath.parent_path());
@@ -331,7 +331,7 @@ bool Hitman4WHDFile::Clear(const bool retVal)
   return retVal;
 }
 
-bool Hitman4WHDFile::Load(Hitman4Dialog& archiveDialog, StringView8CI loadPathView)
+bool Hitman4WHDFile::Load(Hitman4Dialog& archiveDialog, const StringView8CI &loadPathView)
 {
   if (data.empty())
     data = ReadWholeBinaryFile(loadPathView);
@@ -402,7 +402,7 @@ bool Hitman4WHDFile::Load(Hitman4Dialog& archiveDialog, StringView8CI loadPathVi
   return true;
 }
 
-bool Hitman4WHDFile::Save(const Hitman4WAVFile &streamsWAV, const Hitman4WAVFile &missionWAV, const StringView8CI savePathView)
+bool Hitman4WHDFile::Save(const Hitman4WAVFile &streamsWAV, const Hitman4WAVFile &missionWAV, const StringView8CI &savePathView)
 {
   for (auto *whdRecord : recordMap | std::views::values)
   {
@@ -438,7 +438,7 @@ bool Hitman4Dialog::Clear(const bool retVal)
   return HitmanDialog::Clear(retVal);
 }
 
-bool Hitman4Dialog::ImportSingle(const StringView8CI importFolderPath, const StringView8CI importFilePath, const Options &options)
+bool Hitman4Dialog::ImportSingle(const StringView8CI &importFolderPath, const StringView8CI &importFilePath, const Options &options)
 {
   String8CI filePath = relative(importFilePath.path(), importFolderPath.path());
   auto fileIt = fileMap.find(filePath);
@@ -466,7 +466,7 @@ bool Hitman4Dialog::ImportSingle(const StringView8CI importFolderPath, const Str
   return true;
 }
 
-bool Hitman4Dialog::LoadImpl(const StringView8CI loadPath, const Options &options)
+bool Hitman4Dialog::LoadImpl(const StringView8CI &loadPath, const Options &options)
 {
   Clear();
 
@@ -526,7 +526,7 @@ bool Hitman4Dialog::LoadImpl(const StringView8CI loadPath, const Options &option
   return true;
 }
 
-bool Hitman4Dialog::SaveImpl(const StringView8CI savePathView, const Options &options)
+bool Hitman4Dialog::SaveImpl(const StringView8CI &savePathView, const Options &options)
 {
   const auto newBasePath = savePathView.path().parent_path();
 

@@ -43,7 +43,7 @@ public:
     return true;
   }
 
-  const String8 &Localize(const StringView8CI key) const
+  const String8 &Localize(const StringView8CI &key) const
   {
     const auto localizationIt = localizationMap.find(key);
     if (localizationIt == localizationMap.end())
@@ -81,7 +81,7 @@ private:
 class LocalizationManager : public Singleton<LocalizationManager>
 {
 public:
-  bool LoadLocalization(const StringView8CI localizationPathView)
+  bool LoadLocalization(const StringView8CI &localizationPathView)
   {
     const auto localizationPath = localizationPathView.path();
     if (!exists(localizationPath))
@@ -141,7 +141,7 @@ public:
     return {languagesRange.begin(), languagesRange.end()};
   }
 
-  bool SetDefaultLanguage(const StringView8CI language)
+  bool SetDefaultLanguage(const StringView8CI &language)
   {
     if (language.empty())
       return false;
@@ -164,7 +164,7 @@ public:
     return defaultLocalizationLanguage;
   }
 
-  bool SetLanguage(const StringView8CI language)
+  bool SetLanguage(const StringView8CI &language)
   {
     if (language.empty())
       return false;

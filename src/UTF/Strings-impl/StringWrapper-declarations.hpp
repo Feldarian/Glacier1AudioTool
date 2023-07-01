@@ -24,11 +24,11 @@ public:
 
   template <typename UTFCharTypeInput, bool CaseSensitiveInput = CaseSensitive, typename UTFCharTypeTraitsInput = std::char_traits<UTFCharTypeInput>>
   requires IsUTFCharType<UTFCharTypeInput>
-  StringWrapper(StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other);
+  StringWrapper(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> &other);
 
   template <typename UTFCharTypeInput, bool CaseSensitiveInput = CaseSensitive, typename UTFCharTypeTraitsInput = std::char_traits<UTFCharTypeInput>, typename UTFAllocatorInput = std::allocator<UTFCharTypeInput>>
   requires IsUTFCharType<UTFCharTypeInput>
-  StringWrapper(const StringWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput, UTFAllocatorInput>& other)
+  StringWrapper(const StringWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput, UTFAllocatorInput> &other)
     : StringWrapper(StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput>{ other })
   {
   }
@@ -63,11 +63,11 @@ public:
 
   template <typename UTFCharTypeInput, bool CaseSensitiveInput = CaseSensitive, typename UTFCharTypeTraitsInput = std::char_traits<UTFCharTypeInput>>
   requires IsUTFCharType<UTFCharTypeInput>
-  StringWrapper& operator=(StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other);
+  StringWrapper& operator=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> &other);
 
   template <typename Type>
   requires StringViewConstructible<Type>
-  StringWrapper& operator=(const Type& other)
+  StringWrapper& operator=(const Type &other)
   {
     utfData.clear();
 
@@ -112,35 +112,35 @@ public:
 
   template <typename UTFCharTypeInput, bool CaseSensitiveInput = CaseSensitive, typename UTFCharTypeTraitsInput = std::char_traits<UTFCharTypeInput>>
   requires IsSameUTFCharType<UTFCharType, UTFCharTypeInput>
-  StringWrapper& operator+=(StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other);
+  StringWrapper& operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> &other);
 
   template <typename UTFCharTypeInput, bool CaseSensitiveInput = CaseSensitive, typename UTFCharTypeTraitsInput = std::char_traits<UTFCharTypeInput>>
   requires IsUTF8CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput>
-  StringWrapper& operator+=(StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other);
+  StringWrapper& operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> &other);
 
   template <typename UTFCharTypeInput, bool CaseSensitiveInput = CaseSensitive, typename UTFCharTypeTraitsInput = std::char_traits<UTFCharTypeInput>>
   requires IsUTF8CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput>
-  StringWrapper& operator+=(StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other);
+  StringWrapper& operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> &other);
 
   template <typename UTFCharTypeInput, bool CaseSensitiveInput = CaseSensitive, typename UTFCharTypeTraitsInput = std::char_traits<UTFCharTypeInput>>
   requires IsUTF16CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput>
-  StringWrapper& operator+=(StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other);
+  StringWrapper& operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> &other);
 
   template <typename UTFCharTypeInput, bool CaseSensitiveInput = CaseSensitive, typename UTFCharTypeTraitsInput = std::char_traits<UTFCharTypeInput>>
   requires IsUTF16CharType<UTFCharType> && IsUTF32CharType<UTFCharTypeInput>
-  StringWrapper& operator+=(StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other);
+  StringWrapper& operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> &other);
 
   template <typename UTFCharTypeInput, bool CaseSensitiveInput = CaseSensitive, typename UTFCharTypeTraitsInput = std::char_traits<UTFCharTypeInput>>
   requires IsUTF32CharType<UTFCharType> && IsUTF8CharType<UTFCharTypeInput>
-  StringWrapper& operator+=(StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other);
+  StringWrapper& operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> &other);
 
   template <typename UTFCharTypeInput, bool CaseSensitiveInput = CaseSensitive, typename UTFCharTypeTraitsInput = std::char_traits<UTFCharTypeInput>>
   requires IsUTF32CharType<UTFCharType> && IsUTF16CharType<UTFCharTypeInput>
-  StringWrapper& operator+=(StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other);
+  StringWrapper& operator+=(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> &other);
 
   template <typename Type>
   requires StringViewConstructible<Type>
-  StringWrapper& operator+=(const Type& other)
+  StringWrapper& operator+=(const Type &other)
   {
     if constexpr (StringView8Constructible<Type>)
       return *this += StringView8(other);

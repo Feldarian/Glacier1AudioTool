@@ -45,26 +45,26 @@ struct RIFFHeaderADPCM
   uint32_t dataSize = 0;
 };
 
-std::vector<char> ReadWholeBinaryFile(StringView8CI acpPath);
+std::vector<char> ReadWholeBinaryFile(const StringView8CI &acpPath);
 
-String8 ReadWholeTextFile(StringView8CI acpPath);
+String8 ReadWholeTextFile(const StringView8CI &acpPath);
 
 float GetAlignedItemWidth(int64_t acItemsCount);
 
 String8CI BrowseDirectoryDialog();
 
-String8CI OpenFileDialog(StringView8CI filters, StringView8CI defaultFileName);
+String8CI OpenFileDialog(const StringView8CI &filters, const StringView8CI &defaultFileName);
 
-String8CI SaveFileDialog(StringView8CI filters, StringView8CI defaultFileName);
+String8CI SaveFileDialog(const StringView8CI &filters, const StringView8CI &defaultFileName);
 
-std::vector<String8CI> GetAllFilesInDirectory(StringView8CI directory, StringView8CI extension, bool recursive);
+std::vector<String8CI> GetAllFilesInDirectory(const StringView8CI &directory, const StringView8CI &extension, bool recursive);
 
 StringView8CI GetProgramPath();
 
-int32_t DisplayError(StringView8 message, StringView8 title = "", bool yesNo = false);
+int32_t DisplayError(const StringView8 &message, const StringView8 &title = LocalizationManager::Get().Localize("MESSAGEBOX_ERROR_GENERIC_TITLE"), bool yesNo = false);
 
-int32_t DisplayWarning(StringView8 message, StringView8 title = "", bool yesNo = false, const Options &options = Options::Get());
+int32_t DisplayWarning(const StringView8 &message, const StringView8 &title = LocalizationManager::Get().Localize("MESSAGEBOX_WARNING_GENERIC_TITLE"), bool yesNo = false, const Options &options = Options::Get());
 
 std::vector<StringView8CI> GetPathStems(StringView8CI pathView);
 
-String8CI ChangeExtension(StringView8CI path, StringView8CI newExtension);
+String8CI ChangeExtension(const StringView8CI &path, const StringView8CI &newExtension);

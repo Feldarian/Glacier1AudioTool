@@ -16,9 +16,9 @@ bool Hitman1Dialog::Clear(const bool retVal)
   return HitmanDialog::Clear(retVal);
 }
 
-bool Hitman1Dialog::LoadImpl(StringView8CI loadPathView, const Options &options)
+bool Hitman1Dialog::LoadImpl(const StringView8CI &loadPathView, const Options &options)
 {
-  auto loadPath = loadPathView.path();
+  const auto loadPath = loadPathView.path();
   Clear();
 
   const auto archiveBinFilePath = ChangeExtension(loadPathView, ".bin");
@@ -30,7 +30,7 @@ bool Hitman1Dialog::LoadImpl(StringView8CI loadPathView, const Options &options)
 
   const auto oldSync = std::ios_base::sync_with_stdio(false);
 
-  auto archiveBin = ReadWholeBinaryFile(archiveBinFilePath);
+  const auto archiveBin = ReadWholeBinaryFile(archiveBinFilePath);
   auto archiveIdx = ReadWholeTextFile(String8CI(loadPath)).native();
   auto archiveIdxScan = scn::make_result(archiveIdx);
   size_t archiveBinOffset = 0;
@@ -96,7 +96,7 @@ bool Hitman1Dialog::LoadImpl(StringView8CI loadPathView, const Options &options)
   return true;
 }
 
-bool Hitman1Dialog::ImportSingle(const StringView8CI importFolderPathView, StringView8CI importFilePathView, const Options &options)
+bool Hitman1Dialog::ImportSingle(const StringView8CI &importFolderPathView, const StringView8CI &importFilePathView, const Options &options)
 {
   auto filePath = String8CI(relative(importFilePathView.path(), importFolderPathView.path()));
   auto fileIt = fileMap.find(filePath);
@@ -119,7 +119,7 @@ bool Hitman1Dialog::ImportSingle(const StringView8CI importFolderPathView, Strin
   return true;
 }
 
-bool Hitman1Dialog::SaveImpl(StringView8CI savePathView, const Options &)
+bool Hitman1Dialog::SaveImpl(const StringView8CI &savePathView, const Options &)
 {
   const auto archiveBinFilePath = ChangeExtension(savePathView, ".bin");
 

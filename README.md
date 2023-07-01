@@ -29,7 +29,7 @@
      * This code is currently locked under debug builds, so you have to build the tool yourself if you want to try this feature out for now
      * Will be made as part of regular release when I figure out enough to be able to reliably import the files back and save the archives
 
-## Used Open-Source License Tools
+## Used "Open-Source Licensed" Tools
  * [PVS-Studio](https://pvs-studio.com/en/pvs-studio/?utm_source=website&utm_medium=github&utm_campaign=open_source) - static analyzer for C, C++, C#, and Java code.
  * [ReSharper C++](https://www.jetbrains.com/community/opensource/#support) - provides multiple features for increasing productivity when working with C++ code.
  * [SmartGit](https://www.syntevo.com/register-non-commercial/) - cross-platform Git GUI client.
