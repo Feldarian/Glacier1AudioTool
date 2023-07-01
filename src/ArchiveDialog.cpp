@@ -3,8 +3,6 @@
 // Copyright © 2015-2023 Feldarian Softworks. All rights reserved.
 // SPDX-License-Identifier: EUPL-1.2
 //
-// TODO - access to path member is not thread safe!
-//
 
 #include "Precompiled.hpp"
 

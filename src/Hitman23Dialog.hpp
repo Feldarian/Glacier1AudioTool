@@ -46,6 +46,26 @@ struct Hitman23WAVHeader
   uint32_t unkC = 4; // always 4
 };
 
+struct Hitman2WAVHeader
+{
+  uint32_t unk0 = 0; // always 0
+  uint32_t fileSizeWithHeader;
+  uint32_t unk8 = 3; // always 3
+  uint32_t unkC = 4; // always 4
+};
+
+struct Hitman3WAVHeader
+{
+  uint32_t unk0 = 0; // always 0
+  uint32_t fileSizeWithHeader;
+  uint32_t unk8 = 3; // always 3
+  uint32_t unkC = 4; // always 4
+  uint32_t unk10 = 5; // always 5
+  uint32_t unk14 = 6; // always 6
+  uint32_t unk18 = 7; // always 7
+  uint32_t unk1C = 8; // always 8
+};
+
 struct Hitman23WAVRecord
 {
   std::vector<char>& data;

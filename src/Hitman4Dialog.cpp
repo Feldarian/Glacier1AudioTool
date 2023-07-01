@@ -193,7 +193,7 @@ bool Hitman4WAVFile::Load(const StringView8CI loadPath, const OrderedMap<StringV
   struct WAVFileData
   {
     Hitman4WHDRecord *record = nullptr;
-    HitmanFile* file = nullptr;
+    HitmanFile& file;
   };
 
   auto resampledOffset = static_cast<uint32_t>(wavData.size());
@@ -207,23 +207,40 @@ bool Hitman4WAVFile::Load(const StringView8CI loadPath, const OrderedMap<StringV
 
     auto offsetToWAVFileDataIt = offsetToWAVFileDataMap.find(whdRecord->streams.dataOffset);
     if (offsetToWAVFileDataIt == offsetToWAVFileDataMap.end())
-      offsetToWAVFileDataMap.insert({whdRecord->streams.dataOffset, {whdRecord, &fileMap[whdRecordPath]}});
+      offsetToWAVFileDataMap.insert({whdRecord->streams.dataOffset, {whdRecord, fileMap.at(whdRecordPath)}});
     else
     {
       resampledMap[resampledOffset] = whdRecord->streams.dataOffset;
       whdRecord->streams.dataOffset = resampledOffset;
       resampledOffset += whdRecord->streams.dataSize;
 
-      offsetToWAVFileDataMap.insert({whdRecord->streams.dataOffset, {whdRecord, &fileMap[whdRecordPath]}});
+      offsetToWAVFileDataMap.insert({whdRecord->streams.dataOffset, {whdRecord, fileMap.at(whdRecordPath)}});
     }
 
     ++foundItems;
   }
 
-  if (offsetToWAVFileDataMap.empty() || offsetToWAVFileDataMap.size() != foundItems)
-    return true;
+  if (offsetToWAVFileDataMap.size() != foundItems)
+    return Clear(false);
 
-  extraData.reserve(2 * offsetToWAVFileDataMap.size() + 1);
+  recordMap.clear();
+
+  if (offsetToWAVFileDataMap.empty())
+  {
+    auto& newData = extraData.emplace_back();
+    newData.resize(wavData.size(), 0);
+    newData.shrink_to_fit();
+
+    std::memcpy(newData.data(), wavData.data(), wavData.size());
+    if (recordMap.try_emplace(0, Hitman4WAVRecord{newData, 0}).second && isMissionWAV)
+      header = reinterpret_cast<Hitman4WAVHeader *>(recordMap.at(0).data.data());
+    else
+      header = nullptr;
+
+    path = loadPath;
+
+    return true;
+  }
 
   uint32_t currOffset = 0;
   for (auto& [offset, wavFileData] : offsetToWAVFileDataMap)
@@ -239,7 +256,7 @@ bool Hitman4WAVFile::Load(const StringView8CI loadPath, const OrderedMap<StringV
     }
     assert(currOffset <= offset);
 
-    auto& newData = wavFileData.file->data;
+    auto& newData = wavFileData.file.data;
     newData.resize(wavFileData.record->streams.dataSize, 0);
     newData.shrink_to_fit();
 
@@ -259,7 +276,7 @@ bool Hitman4WAVFile::Load(const StringView8CI loadPath, const OrderedMap<StringV
     }
     std::memcpy(newData.data(), wavData.data() + trueOffset, wavFileData.record->streams.dataSize);
     currOffset = offset + wavFileData.record->streams.dataSize + (lipData ? static_cast<uint32_t>(lipData->get().size()) : 0u);
-    recordMap.try_emplace(offset, Hitman4WAVRecord{newData, offset, std::move(lipData)});
+    recordMap.try_emplace(offset, Hitman4WAVRecord{newData, offset, lipData});
   }
 
   if (currOffset < wavData.size())
@@ -512,9 +529,8 @@ bool Hitman4Dialog::SaveImpl(const StringView8CI savePathView)
 
   for (size_t i = 0; i < whdFiles.size(); ++i)
   {
-    String8CI savePath = newBasePath / relative(wavFiles[i].path.path(), basePath.path());
-    wavFiles[i].Save(savePath);
-    whdFiles[i].Save(streamsWAV, wavFiles[i], savePath);
+    wavFiles[i].Save(String8CI(newBasePath / relative(wavFiles[i].path.path(), basePath.path())));
+    whdFiles[i].Save(streamsWAV, wavFiles[i], String8CI(newBasePath / relative(whdFiles[i].path.path(), basePath.path())));
   }
 
   basePath = newBasePath;

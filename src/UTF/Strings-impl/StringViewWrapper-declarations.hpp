@@ -8,6 +8,7 @@
 
 namespace UTF
 {
+
 template <typename UTFCharType, bool CaseSensitive, typename UTFCharTypeTraits, typename UTFAllocator>
 requires IsUTFCharType<UTFCharType>
 class StringWrapper;
@@ -56,8 +57,8 @@ public:
   StringViewWrapper(const StringWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput, UTFAllocatorInput>& other);
 
   template <typename UTFCharTypeInput, bool CaseSensitiveInput = CaseSensitive, typename UTFCharTypeTraitsInput = std::char_traits<UTFCharTypeInput>>
+  requires IsSameUTFCharType<UTFCharType, UTFCharTypeInput>
   StringViewWrapper(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
-    requires IsSameUTFCharType<UTFCharType, UTFCharTypeInput>
     : StringViewWrapper{ other.native(), other.IsNullTerminated() }
   {}
 
@@ -190,6 +191,10 @@ private:
 };
 
 template <typename ...Args>
+concept StringViewBasicConstructible = std::constructible_from<StringViewWrapper<char>, Args...>
+                                    || std::constructible_from<StringViewWrapper<wchar_t>, Args...>;
+
+template <typename ...Args>
 concept StringView8Constructible = std::constructible_from<StringViewWrapper<char8_t>, Args...>;
 
 template <typename ...Args>
@@ -197,10 +202,6 @@ concept StringView16Constructible = std::constructible_from<StringViewWrapper<ch
 
 template <typename ...Args>
 concept StringView32Constructible = std::constructible_from<StringViewWrapper<char32_t>, Args...>;
-
-template <typename ...Args>
-concept StringViewNativeConstructible = std::constructible_from<StringViewWrapper<char>, Args...>
-                                    || std::constructible_from<StringViewWrapper<wchar_t>, Args...>;
 
 template <typename ...Args>
 concept StringViewConstructible = StringView8Constructible<Args...>

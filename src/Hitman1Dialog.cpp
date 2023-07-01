@@ -39,9 +39,9 @@ bool Hitman1Dialog::LoadImpl(StringView8CI loadPathView)
   {
     std::string_view entryPath;
     std::string_view month;
-    std::string_view day;
+    auto day = 0ull;
     std::string_view time;
-    int64_t dataSize = 0;
+    auto dataSize = 0ull;
     archiveIdxScan = scn::scan(archiveIdxScan.range(), "-rw-rw-r--   1 zope {} {} {} {} {}", dataSize, month, day, time, entryPath);
     archiveIdxScan = scn::ignore_until(archiveIdxScan.range(), '-');
 
@@ -59,7 +59,7 @@ bool Hitman1Dialog::LoadImpl(StringView8CI loadPathView)
     if (!inserted)
       return Clear(false);
 
-    if (!lastModifiedDatesMap.try_emplace(file.path, std::format("{} {} {}", month, day, time)).second)
+    if (!lastModifiedDatesMap.try_emplace(file.path, std::format("{} {:2d} {}", month, day, time)).second)
       return Clear(false);
 
     indexToKey.emplace_back(file.path);

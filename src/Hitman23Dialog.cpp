@@ -56,7 +56,7 @@ bool Hitman23WAVFile::Load(const StringView8CI loadPath, const OrderedMap<String
   struct WAVFileData
   {
     uint32_t size = 0;
-    HitmanFile* file = nullptr;
+    HitmanFile& file;
   };
 
   auto resampledOffset = static_cast<uint32_t>(wavData.size());
@@ -70,25 +70,40 @@ bool Hitman23WAVFile::Load(const StringView8CI loadPath, const OrderedMap<String
 
     auto offsetToWAVFileDataIt = offsetToWAVFileDataMap.find(whdRecord->dataOffset);
     if (offsetToWAVFileDataIt == offsetToWAVFileDataMap.end())
-      offsetToWAVFileDataMap.insert({whdRecord->dataOffset, {whdRecord->dataSize, &fileMap[whdRecordPath]}});
+      offsetToWAVFileDataMap.insert({whdRecord->dataOffset, {whdRecord->dataSize, fileMap.at(whdRecordPath)}});
     else
     {
       resampledMap[resampledOffset] = whdRecord->dataOffset;
       whdRecord->dataOffset = resampledOffset;
       resampledOffset += whdRecord->dataSize;
 
-      offsetToWAVFileDataMap.insert({whdRecord->dataOffset, {whdRecord->dataSize, &fileMap[whdRecordPath]}});
+      offsetToWAVFileDataMap.insert({whdRecord->dataOffset, {whdRecord->dataSize, fileMap.at(whdRecordPath)}});
     }
 
     ++foundItems;
   }
 
-  if (offsetToWAVFileDataMap.empty() || offsetToWAVFileDataMap.size() != foundItems)
-    return true;
+  if (offsetToWAVFileDataMap.size() != foundItems)
+    return Clear(false);
 
   recordMap.clear();
 
-  extraData.reserve(2 * offsetToWAVFileDataMap.size() + 1);
+  if (offsetToWAVFileDataMap.empty())
+  {
+    auto& newData = extraData.emplace_back();
+    newData.resize(wavData.size(), 0);
+    newData.shrink_to_fit();
+
+    std::memcpy(newData.data(), wavData.data(), wavData.size());
+    if (recordMap.try_emplace(0, Hitman23WAVRecord{newData, 0}).second && isMissionWAV)
+      header = reinterpret_cast<Hitman23WAVHeader *>(recordMap.at(0).data.data());
+    else
+      header = nullptr;
+
+    path = loadPath;
+
+    return true;
+  }
 
   uint32_t currOffset = 0;
   for (auto& [offset, wavFileData] : offsetToWAVFileDataMap)
@@ -103,7 +118,7 @@ bool Hitman23WAVFile::Load(const StringView8CI loadPath, const OrderedMap<String
       recordMap.try_emplace(currOffset, Hitman23WAVRecord{newData, currOffset});
     }
 
-    auto& newData = wavFileData.file->data;
+    auto& newData = wavFileData.file.data;
     newData.resize(wavFileData.size, 0);
     newData.shrink_to_fit();
 
@@ -353,9 +368,8 @@ bool Hitman23Dialog::SaveImpl(const StringView8CI savePathView)
 
   for (size_t i = 0; i < whdFiles.size(); ++i)
   {
-    String8CI savePath(newBasePath / relative(wavFiles[i].path.path(), basePath.path()));
-    wavFiles[i].Save(savePath);
-    whdFiles[i].Save(streamsWAV, wavFiles[i], savePath);
+    wavFiles[i].Save(String8CI(newBasePath / relative(wavFiles[i].path.path(), basePath.path())));
+    whdFiles[i].Save(streamsWAV, wavFiles[i], String8CI(newBasePath / relative(whdFiles[i].path.path(), basePath.path())));
   }
 
   basePath = newBasePath;
