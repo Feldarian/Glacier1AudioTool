@@ -3,6 +3,8 @@
 // Copyright © 2015-2023 Feldarian Softworks. All rights reserved.
 // SPDX-License-Identifier: EUPL-1.2
 //
+// TODO - access to path member is not thread safe!
+//
 
 #include "Precompiled.hpp"
 
@@ -459,7 +461,7 @@ void ArchiveDialog::CleanOriginal()
 
 void ArchiveDialog::DrawBaseDialog(const StringView8CI dialogName, const StringView8CI filters, const StringView8CI defaultFilename)
 {
-  auto progressActive = progressTask.valid();
+  auto progressActive = IsInProgress();
   if (progressActive)
   {
     using namespace std::chrono_literals;
@@ -473,6 +475,8 @@ void ArchiveDialog::DrawBaseDialog(const StringView8CI dialogName, const StringV
 
   auto wasProgressActive = progressActive;
 
+  const auto archivePath = progressActive ? "" : path;
+
   if (!ImGui::BeginTabItem(dialogName.c_str()))
     return;
 
@@ -484,8 +488,8 @@ void ArchiveDialog::DrawBaseDialog(const StringView8CI dialogName, const StringV
   if (ImGui::Button(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_OPEN").c_str(), ImVec2(itemWidth, 0)))
     GetAndLoad(filters, defaultFilename);
 
-  progressActive = progressTask.valid();
-  if (!wasProgressActive && (progressActive || path.empty()))
+  progressActive = IsInProgress();
+  if (!wasProgressActive && (progressActive || archivePath.empty()))
   {
     wasProgressActive |= progressActive;
     ImGui::BeginDisabled();
@@ -494,10 +498,10 @@ void ArchiveDialog::DrawBaseDialog(const StringView8CI dialogName, const StringV
   ImGui::SameLine();
 
   if (ImGui::Button(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_SAVE").c_str(), ImVec2(itemWidth, 0)))
-    Save(path, true);
+    Save(archivePath, true);
 
-  progressActive = progressTask.valid();
-  if (!wasProgressActive && progressActive)
+  progressActive = IsInProgress();
+  if (!archivePath.empty() && !wasProgressActive && progressActive)
   {
     wasProgressActive |= progressActive;
     ImGui::BeginDisabled();
@@ -508,8 +512,8 @@ void ArchiveDialog::DrawBaseDialog(const StringView8CI dialogName, const StringV
   if (ImGui::Button(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_SAVE_INTO").c_str(), ImVec2(itemWidth, 0)))
     GetAndSave(filters, defaultFilename);
 
-  progressActive = progressTask.valid();
-  if (!wasProgressActive && progressActive)
+  progressActive = IsInProgress();
+  if (!archivePath.empty() && !wasProgressActive && progressActive)
   {
     wasProgressActive |= progressActive;
     ImGui::BeginDisabled();
@@ -520,8 +524,8 @@ void ArchiveDialog::DrawBaseDialog(const StringView8CI dialogName, const StringV
   if (ImGui::Button(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_EXPORT_TO").c_str(), ImVec2(itemWidth, 0)))
     GetAndExport();
 
-  progressActive = progressTask.valid();
-  if (!wasProgressActive && progressActive)
+  progressActive = IsInProgress();
+  if (!archivePath.empty() && !wasProgressActive && progressActive)
   {
     wasProgressActive |= progressActive;
     ImGui::BeginDisabled();
@@ -532,8 +536,8 @@ void ArchiveDialog::DrawBaseDialog(const StringView8CI dialogName, const StringV
   if (ImGui::Button(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_IMPORT_FROM").c_str(), ImVec2(itemWidth, 0)))
     GetAndImport();
 
-  progressActive = progressTask.valid();
-  if (!wasProgressActive && progressActive)
+  progressActive = IsInProgress();
+  if (!archivePath.empty() && !wasProgressActive && progressActive)
   {
     wasProgressActive |= progressActive;
     ImGui::BeginDisabled();
@@ -561,13 +565,13 @@ void ArchiveDialog::DrawBaseDialog(const StringView8CI dialogName, const StringV
   }
   else
   {
-    if (path.empty())
+    if (archivePath.empty())
     {
       ImGui::EndDisabled();
       ImGui::TextUnformatted(LocalizationManager::Get().Localize("ARCHIVE_DIALOG_NO_ARCHIVE").c_str());
     }
     else
-      ImGui::TextUnformatted(LocalizationManager::Get().LocalizeFormat("ARCHIVE_DIALOG_LOADED_ARCHIVE", path).c_str());
+      ImGui::TextUnformatted(LocalizationManager::Get().LocalizeFormat("ARCHIVE_DIALOG_LOADED_ARCHIVE", archivePath).c_str());
 
     ImGui::Separator();
 

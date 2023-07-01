@@ -49,7 +49,7 @@ concept IsSameUTFCharType = IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFC
 	&& IsUTF16CharType<UTFCharTypeLeft> == IsUTF16CharType<UTFCharTypeRight>
 	&& IsUTF32CharType<UTFCharTypeLeft> == IsUTF32CharType<UTFCharTypeRight>;
 
-static constexpr auto CodepointInvalid{ 0u };
-static constexpr auto CodepointMax{ 0x10FFFFu };
+static constexpr auto CodepointInvalid{ 0ul };
+static constexpr auto CodepointMax{ 0x10FFFFul };
 
 }

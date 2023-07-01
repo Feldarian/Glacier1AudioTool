@@ -3,7 +3,6 @@
 // Copyright © 2015-2023 Feldarian Softworks. All rights reserved.
 // SPDX-License-Identifier: EUPL-1.2
 //
-// TODO - verify null-terminated flag for std::string
 
 #pragma once
 
@@ -20,54 +19,54 @@ class StringViewWrapper
 public:
   inline static constexpr auto npos{ std::basic_string_view<UTFCharType, UTFCharTypeTraits>::npos };
 
-  constexpr StringViewWrapper() = default;
+  StringViewWrapper() = default;
 
   template <typename UTFCharTypeInput, typename UTFCharTypeTraitsInput = std::char_traits<UTFCharTypeInput>>
   requires IsSameUTFCharType<UTFCharType, UTFCharTypeInput>
-  constexpr StringViewWrapper(const std::basic_string_view<UTFCharTypeInput, UTFCharTypeTraitsInput> other, const bool nullTerminated = false)
+  StringViewWrapper(const std::basic_string_view<UTFCharTypeInput, UTFCharTypeTraitsInput> other, const bool nullTerminated = false)
     : utfData{ other.empty() ? reinterpret_cast<const UTFCharType *>("") : reinterpret_cast<const UTFCharType *>(other.data()), other.size() }
     , nullTerminated{ nullTerminated }
   {}
 
   template <typename UTFCharTypeInput, typename UTFCharTypeTraitsInput = std::char_traits<UTFCharTypeInput>, typename UTFAllocatorInput = std::allocator<UTFCharTypeInput>>
   requires IsSameUTFCharType<UTFCharType, UTFCharTypeInput>
-  constexpr StringViewWrapper(const std::basic_string<UTFCharTypeInput, UTFCharTypeTraitsInput, UTFAllocatorInput> &other)
+  StringViewWrapper(const std::basic_string<UTFCharTypeInput, UTFCharTypeTraitsInput, UTFAllocatorInput> &other)
     : StringViewWrapper{ std::basic_string_view<UTFCharTypeInput, UTFCharTypeTraitsInput>(other), true }
   {}
 
   template <typename UTFCharTypeInput, size_t UTFSizeInput>
   requires IsSameUTFCharType<UTFCharType, UTFCharTypeInput>
-  constexpr StringViewWrapper(const UTFCharTypeInput (&other)[UTFSizeInput])
+  StringViewWrapper(const UTFCharTypeInput (&other)[UTFSizeInput])
     : StringViewWrapper{ std::basic_string_view<UTFCharTypeInput>(other, other[UTFSizeInput - 1] == UTFCharTypeInput(0) ? UTFSizeInput - 1 : UTFSizeInput), other[UTFSizeInput - 1] == UTFCharTypeInput(0) }
   {}
 
   template <typename UTFCharTypeInput>
   requires IsSameUTFCharType<UTFCharType, UTFCharTypeInput>
-  constexpr StringViewWrapper(const UTFCharTypeInput *other, const size_t length)
+  StringViewWrapper(const UTFCharTypeInput *other, const size_t length)
     : StringViewWrapper{ std::basic_string_view<UTFCharTypeInput>(other, (length - 1 < length) && other[length - 1] == UTFCharTypeInput(0) ? length - 1 : length), (length - 1 < length) && other[length - 1] == UTFCharTypeInput(0) }
   {}
 
-  constexpr StringViewWrapper(const std::filesystem::path &other)
+  StringViewWrapper(const std::filesystem::path &other)
     requires IsSameUTFCharType<UTFCharType, wchar_t>
     : StringViewWrapper{ other.native() }
   {}
 
   template <typename UTFCharTypeInput, bool CaseSensitiveInput = CaseSensitive, typename UTFCharTypeTraitsInput = std::char_traits<UTFCharTypeInput>, typename UTFAllocatorInput = std::allocator<UTFCharTypeInput>>
   requires IsSameUTFCharType<UTFCharType, UTFCharTypeInput>
-  constexpr StringViewWrapper(const StringWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput, UTFAllocatorInput>& other);
+  StringViewWrapper(const StringWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput, UTFAllocatorInput>& other);
 
   template <typename UTFCharTypeInput, bool CaseSensitiveInput = CaseSensitive, typename UTFCharTypeTraitsInput = std::char_traits<UTFCharTypeInput>>
-  constexpr StringViewWrapper(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
+  StringViewWrapper(const StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput> other)
     requires IsSameUTFCharType<UTFCharType, UTFCharTypeInput>
     : StringViewWrapper{ other.native(), other.IsNullTerminated() }
   {}
 
-  constexpr StringViewWrapper(const StringViewWrapper& other)
+  StringViewWrapper(const StringViewWrapper& other)
     : utfData{ other.utfData }
     , nullTerminated{ other.nullTerminated }
   {}
 
-  constexpr StringViewWrapper(StringViewWrapper&& other) noexcept
+  StringViewWrapper(StringViewWrapper&& other) noexcept
     : utfData{ std::move(other.utfData) }
     , nullTerminated{ other.nullTerminated }
   {}
@@ -94,42 +93,42 @@ public:
     return *this;
   }
 
-  [[nodiscard]] constexpr UTFCharType& operator[](const size_t index)
+  [[nodiscard]] UTFCharType& operator[](const size_t index)
   {
     return utfData[index];
   }
 
-  [[nodiscard]] constexpr UTFCharType operator[](const size_t index) const
+  [[nodiscard]] UTFCharType operator[](const size_t index) const
   {
     return utfData[index];
   }
 
-  [[nodiscard]] constexpr auto begin() const
+  [[nodiscard]] auto begin() const
   {
     return utfData.cbegin();
   }
 
-  [[nodiscard]] constexpr auto cbegin() const
+  [[nodiscard]] auto cbegin() const
   {
     return utfData.cbegin();
   }
 
-  [[nodiscard]] constexpr auto end() const
+  [[nodiscard]] auto end() const
   {
     return utfData.cend();
   }
 
-  [[nodiscard]] constexpr auto cend() const
+  [[nodiscard]] auto cend() const
   {
     return utfData.cend();
   }
 
-  [[nodiscard]] constexpr const UTFCharType* data() const
+  [[nodiscard]] const UTFCharType* data() const
   {
     return utfData.data();
   }
 
-  [[nodiscard]] constexpr const UTFCharType* c_str() const
+  [[nodiscard]] const UTFCharType* c_str() const
   {
     if (nullTerminated)
     return utfData.data();
@@ -142,44 +141,44 @@ public:
     return utfData.data();
   }
 
-  [[nodiscard]] constexpr const UTFCharType& front() const
+  [[nodiscard]] const UTFCharType& front() const
   {
     return utfData.front();
   }
 
-  [[nodiscard]] constexpr const UTFCharType& back() const
+  [[nodiscard]] const UTFCharType& back() const
   {
     return utfData.back();
   }
 
-  [[nodiscard]] constexpr bool empty() const
+  [[nodiscard]] bool empty() const
   {
     return utfData.empty();
   }
 
-  [[nodiscard]] constexpr size_t size() const
+  [[nodiscard]] size_t size() const
   {
     return utfData.size();
   }
 
-  [[nodiscard]] constexpr size_t length() const
+  [[nodiscard]] size_t length() const
   {
     return utfData.length();
   }
 
-  [[nodiscard]] constexpr auto& native()
+  [[nodiscard]] auto& native()
   {
     return utfData;
   }
 
-  [[nodiscard]] constexpr const auto& native() const
+  [[nodiscard]] const auto& native() const
   {
     return utfData;
   }
 
-  [[nodiscard]] constexpr std::filesystem::path path() const;
+  [[nodiscard]] std::filesystem::path path() const;
 
-  [[nodiscard]] constexpr bool IsNullTerminated() const
+  [[nodiscard]] bool IsNullTerminated() const
   {
     return nullTerminated;
   }
@@ -191,13 +190,13 @@ private:
 };
 
 template <typename ...Args>
-concept StringView8Constructible = std::constructible_from<StringViewWrapper<char>, Args...>;
+concept StringView8Constructible = std::constructible_from<StringViewWrapper<char8_t>, Args...>;
 
 template <typename ...Args>
-concept StringView16Constructible = std::constructible_from<StringViewWrapper<UChar>, Args...>;
+concept StringView16Constructible = std::constructible_from<StringViewWrapper<char16_t>, Args...>;
 
 template <typename ...Args>
-concept StringView32Constructible = std::constructible_from<StringViewWrapper<UChar32>, Args...>;
+concept StringView32Constructible = std::constructible_from<StringViewWrapper<char32_t>, Args...>;
 
 template <typename ...Args>
 concept StringViewNativeConstructible = std::constructible_from<StringViewWrapper<char>, Args...>

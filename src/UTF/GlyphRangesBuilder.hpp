@@ -121,12 +121,12 @@ public:
   requires StringViewConstructible<Args...>
   void AddText(const Args&... args)
   {
-    if constexpr (std::constructible_from<StringViewWrapper<char>, Args...>)
-      return AddText(StringViewWrapper<char>(args...));
-    else if constexpr (std::constructible_from<StringViewWrapper<UChar>, Args...>)
-      return AddText(StringViewWrapper<UChar>(args...));
-    else if constexpr (std::constructible_from<StringViewWrapper<UChar32>, Args...>)
-      return AddText(StringViewWrapper<UChar32>(args...));
+    if constexpr (StringView8Constructible<Args...>)
+      return AddText(StringView8(args...));
+    else if constexpr (StringView16Constructible<Args...>)
+      return AddText(StringView16(args...));
+    else if constexpr (StringView32Constructible<Args...>)
+      return AddText(StringView32(args...));
   }
 
 private:

@@ -21,7 +21,7 @@ namespace UTF
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
 requires IsUTF8CharType<UTFCharTypeLeft> && IsUTF8CharType<UTFCharTypeRight>
-[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
+[[nodiscard]] auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
 {
   auto *reinterpretedData = reinterpret_cast<const uint8_t *>(left.data());
   const auto reinterpretedDataSize = left.size();
@@ -67,7 +67,7 @@ requires IsUTF8CharType<UTFCharTypeLeft> && IsUTF8CharType<UTFCharTypeRight>
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
 requires IsUTF8CharType<UTFCharTypeLeft> && IsUTF16CharType<UTFCharTypeRight>
-[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
+[[nodiscard]] auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
 {
   auto *reinterpretedData = reinterpret_cast<const uint8_t *>(left.data());
   const auto reinterpretedDataSize = left.size();
@@ -113,7 +113,7 @@ requires IsUTF8CharType<UTFCharTypeLeft> && IsUTF16CharType<UTFCharTypeRight>
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
 requires IsUTF8CharType<UTFCharTypeLeft> && IsUTF32CharType<UTFCharTypeRight>
-[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
+[[nodiscard]] auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
 {
   auto *reinterpretedData = reinterpret_cast<const uint8_t *>(left.data());
   const auto reinterpretedDataSize = left.size();
@@ -157,7 +157,7 @@ requires IsUTF8CharType<UTFCharTypeLeft> && IsUTF32CharType<UTFCharTypeRight>
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
 requires IsUTF16CharType<UTFCharTypeLeft> && IsUTF8CharType<UTFCharTypeRight>
-[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
+[[nodiscard]] auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
 {
    const auto result = right <=> left;
    if (result == std::strong_ordering::equal)
@@ -168,7 +168,7 @@ requires IsUTF16CharType<UTFCharTypeLeft> && IsUTF8CharType<UTFCharTypeRight>
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
 requires IsUTF16CharType<UTFCharTypeLeft> && IsUTF16CharType<UTFCharTypeRight>
-[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
+[[nodiscard]] auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
 {
   auto *reinterpretedData = reinterpret_cast<const UChar *>(left.data());
   const auto reinterpretedDataSize = left.size();
@@ -214,7 +214,7 @@ requires IsUTF16CharType<UTFCharTypeLeft> && IsUTF16CharType<UTFCharTypeRight>
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
 requires IsUTF16CharType<UTFCharTypeLeft> && IsUTF32CharType<UTFCharTypeRight>
-[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
+[[nodiscard]] auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
 {
   auto *reinterpretedData = reinterpret_cast<const UChar *>(left.data());
   const auto reinterpretedDataSize = left.size();
@@ -258,7 +258,7 @@ requires IsUTF16CharType<UTFCharTypeLeft> && IsUTF32CharType<UTFCharTypeRight>
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
 requires IsUTF32CharType<UTFCharTypeLeft> && IsUTF8CharType<UTFCharTypeRight>
-[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
+[[nodiscard]] auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
 {
    const auto result = right <=> left;
    if (result == std::strong_ordering::equal)
@@ -269,7 +269,7 @@ requires IsUTF32CharType<UTFCharTypeLeft> && IsUTF8CharType<UTFCharTypeRight>
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
 requires IsUTF32CharType<UTFCharTypeLeft> && IsUTF16CharType<UTFCharTypeRight>
-[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
+[[nodiscard]] auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
 {
    const auto result = right <=> left;
    if (result == std::strong_ordering::equal)
@@ -280,7 +280,7 @@ requires IsUTF32CharType<UTFCharTypeLeft> && IsUTF16CharType<UTFCharTypeRight>
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
 requires IsUTF32CharType<UTFCharTypeLeft> && IsUTF32CharType<UTFCharTypeRight>
-[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
+[[nodiscard]] auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> right)
 {
   size_t inputOffset = 0;
   size_t dataOffset = 0;
@@ -322,28 +322,28 @@ requires IsUTF32CharType<UTFCharTypeLeft> && IsUTF32CharType<UTFCharTypeRight>
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>, typename UTFAllocatorLeft = std::allocator<UTFCharTypeLeft>, typename UTFAllocatorRight = std::allocator<UTFCharTypeRight>>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-[[nodiscard]] inline auto operator<=>(const StringWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft, UTFAllocatorLeft> &left, const StringWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight, UTFAllocatorRight> &right)
+[[nodiscard]] auto operator<=>(const StringWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft, UTFAllocatorLeft> &left, const StringWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight, UTFAllocatorRight> &right)
 {
   return StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft>{ left } <=> StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight>{ right };
 }
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>, typename UTFAllocatorLeft = std::allocator<UTFCharTypeLeft>>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-[[nodiscard]] inline auto operator<=>(const StringWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft, UTFAllocatorLeft> &left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> &right)
+[[nodiscard]] auto operator<=>(const StringWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft, UTFAllocatorLeft> &left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> &right)
 {
   return StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft>{ left } <=> right;
 }
 
 template <typename UTFCharTypeLeft, typename UTFCharTypeRight, bool CaseSensitiveLeft = true, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>, typename UTFAllocatorRight = std::allocator<UTFCharTypeRight>>
 requires IsUTFCharType<UTFCharTypeLeft> && IsUTFCharType<UTFCharTypeRight>
-[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> &left, const StringWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight, UTFAllocatorRight> &right)
+[[nodiscard]] auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> &left, const StringWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight, UTFAllocatorRight> &right)
 {
   return left <=> StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight>{ right };
 }
 
 template <typename TypeLeft, typename UTFCharTypeRight, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>>
 requires StringViewConstructible<TypeLeft> && IsUTFCharType<UTFCharTypeRight>
-[[nodiscard]] inline auto operator<=>(const TypeLeft &left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> &right)
+[[nodiscard]] auto operator<=>(const TypeLeft &left, const StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight> &right)
 {
   if constexpr (StringView8Constructible<TypeLeft>)
     return StringView8{ left } <=> right;
@@ -355,7 +355,7 @@ requires StringViewConstructible<TypeLeft> && IsUTFCharType<UTFCharTypeRight>
 
 template <typename UTFCharTypeLeft, typename TypeRight, bool CaseSensitiveLeft = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>>
 requires IsUTFCharType<UTFCharTypeLeft> && StringViewConstructible<TypeRight>
-[[nodiscard]] inline auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> &left, const TypeRight &right)
+[[nodiscard]] auto operator<=>(const StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft> &left, const TypeRight &right)
 {
   if constexpr (StringView8Constructible<TypeRight>)
     return left <=> StringView8{ right };
@@ -367,21 +367,21 @@ requires IsUTFCharType<UTFCharTypeLeft> && StringViewConstructible<TypeRight>
 
 template <typename TypeLeft, typename UTFCharTypeRight, bool CaseSensitiveRight = true, typename UTFCharTypeTraitsRight = std::char_traits<UTFCharTypeRight>, typename UTFAllocatorRight = std::allocator<UTFCharTypeRight>>
 requires StringViewConstructible<TypeLeft> && IsUTFCharType<UTFCharTypeRight>
-[[nodiscard]] inline auto operator<=>(const TypeLeft &left, const StringWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight, UTFAllocatorRight> &right)
+[[nodiscard]] auto operator<=>(const TypeLeft &left, const StringWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight, UTFAllocatorRight> &right)
 {
   return left <=> StringViewWrapper<UTFCharTypeRight, CaseSensitiveRight, UTFCharTypeTraitsRight>{ right };
 }
 
 template <typename UTFCharTypeLeft, typename TypeRight, bool CaseSensitiveLeft = true, typename UTFCharTypeTraitsLeft = std::char_traits<UTFCharTypeLeft>, typename UTFAllocatorLeft = std::allocator<UTFCharTypeLeft>>
 requires IsUTFCharType<UTFCharTypeLeft> && StringViewConstructible<TypeRight>
-[[nodiscard]] inline auto operator<=>(const StringWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft, UTFAllocatorLeft> &left, const TypeRight &right)
+[[nodiscard]] auto operator<=>(const StringWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft, UTFAllocatorLeft> &left, const TypeRight &right)
 {
   return StringViewWrapper<UTFCharTypeLeft, CaseSensitiveLeft, UTFCharTypeTraitsLeft>{ left } <=> right;
 }
 
 template <typename TypeLeft, typename TypeRight>
 requires StringViewConstructible<TypeLeft> && StringViewConstructible<TypeRight>
-[[nodiscard]] inline auto operator<=>(const TypeLeft &left, const TypeRight &right)
+[[nodiscard]] auto operator<=>(const TypeLeft &left, const TypeRight &right)
 {
   if constexpr (StringView8Constructible<TypeLeft>)
   {
@@ -414,7 +414,7 @@ requires StringViewConstructible<TypeLeft> && StringViewConstructible<TypeRight>
 
 template <typename TypeLeft, typename TypeRight>
 requires StringViewConstructible<TypeLeft> && StringViewConstructible<TypeRight>
-[[nodiscard]] inline bool operator==(const TypeLeft &left, const TypeRight &right)
+[[nodiscard]] bool operator==(const TypeLeft &left, const TypeRight &right)
 {
   return (left <=> right) == std::strong_ordering::equal;
 }
@@ -443,7 +443,7 @@ struct StringViewHasher
         const auto *reinterpretedInput = reinterpret_cast<const uint8_t *>(utf.data());
         const auto reinterpretedInputSize = utf.size();
         size_t reinterpretedInputOffset = 0;
-        auto glyph = 0u;
+        auto glyph = 0ul;
         while (reinterpretedInputOffset < reinterpretedInputSize)
         {
           U8_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyph);
@@ -461,7 +461,7 @@ struct StringViewHasher
         const auto *reinterpretedInput = reinterpret_cast<const UChar *>(utf.data());
         const auto reinterpretedInputSize = utf.size();
         size_t reinterpretedInputOffset = 0;
-        auto glyph = 0u;
+        auto glyph = 0ul;
         while (reinterpretedInputOffset < reinterpretedInputSize)
         {
           U16_NEXT(reinterpretedInput, reinterpretedInputOffset, reinterpretedInputSize, glyph);

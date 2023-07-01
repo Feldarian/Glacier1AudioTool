@@ -3,9 +3,6 @@
 // Copyright © 2015-2023 Feldarian Softworks. All rights reserved.
 // SPDX-License-Identifier: EUPL-1.2
 //
-// TODO - optimize conversions, as right now, we force keys to StringView8CI when we can now use generic <=> comparator
-//      - look in code for other examples like this (there are quite a few), we often do unnecessary UTF conversions
-//
 
 #pragma once
 
@@ -34,8 +31,8 @@ public:
     {
       assert(value.is_string());
 
-      String8CI keyUTF{ key.str() };
-      String8 valueUTF{ **value.as_string() };
+      String8CI keyUTF{key.str()};
+      String8 valueUTF{**value.as_string()};
 
       GlyphRangesBuilder::Get().AddText(keyUTF);
       GlyphRangesBuilder::Get().AddText(valueUTF);
@@ -53,6 +50,28 @@ public:
       return Empty;
 
     return localizationIt->second;
+  }
+
+  template <typename UTFCharType, bool CaseSensitive = false, typename UTFCharTraits = std::char_traits<UTFCharType>>
+  const String8 &Localize(const StringViewWrapper<UTFCharType, CaseSensitive, UTFCharTraits> key) const
+  {
+    const auto localizationIt = localizationMap.find(key);
+    if (localizationIt == localizationMap.end())
+      return Empty;
+
+    return localizationIt->second;
+  }
+
+  template <typename... Args>
+    requires StringViewConstructible<Args...>
+  const String8 &Localize(const Args &...args) const
+  {
+    if constexpr (StringView8Constructible<Args...>)
+      return Localize(StringView8CI(args...));
+    else if constexpr (StringView16Constructible<Args...>)
+      return Localize(StringView16CI(args...));
+    else if constexpr (StringView32Constructible<Args...>)
+      return Localize(StringView32CI(args...));
   }
 
 private:
@@ -98,7 +117,8 @@ public:
 
     std::lock_guard lock(dataMutex);
 
-    const auto [localizationInstanceIt, localizationInstanceEmplaced] = localizationInstancesMap.try_emplace(languageName, LocalizationInstance{});
+    const auto [localizationInstanceIt, localizationInstanceEmplaced] =
+        localizationInstancesMap.try_emplace(languageName, LocalizationInstance{});
     const auto localizationLoaded = localizationInstanceIt->second.Load(localizationTable);
 
     if (localizationInstanceEmplaced)
@@ -167,41 +187,23 @@ public:
     return localizationLanguage.empty() ? GetDefaultLanguage() : localizationLanguage;
   }
 
-  template <typename UTFCharType, bool CaseSensitive = false, typename UTFCharTypeTraits = std::char_traits<UTFCharType>>
-  requires IsUTF8CharType<UTFCharType>
-  const String8 &Localize(const StringViewWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits> &key) const
+  template <typename... Args>
+    requires StringViewConstructible<Args...>
+  const String8 &Localize(const Args &...args) const
   {
     std::shared_lock lock(dataMutex);
 
-    const auto &localized = localizationInstance ? localizationInstance->Localize(key) : LocalizationInstance::Empty;
+    const auto &localized =
+        localizationInstance ? localizationInstance->Localize(args...) : LocalizationInstance::Empty;
     if (!localized.empty())
       return localized;
 
-    return defaultLocalizationInstance ? defaultLocalizationInstance->Localize(key) : LocalizationInstance::Empty;
-  }
-
-  template <typename UTFCharType, bool CaseSensitive = false, typename UTFCharTypeTraits = std::char_traits<UTFCharType>>
-  requires (!IsUTF8CharType<UTFCharType>)
-  const String8 &Localize(const StringViewWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits> &key) const
-  {
-    return Localize(String8CI{ key });
-  }
-
-  template <typename Type>
-  requires StringViewConstructible<Type>
-  const String8 &Localize(const Type &key) const
-  {
-    if constexpr (StringView8Constructible<Type>)
-      return Localize(StringView8CI(key));
-    else if constexpr (StringView16Constructible<Type>)
-      return Localize(StringView16CI(key));
-    else if constexpr (StringView32Constructible<Type>)
-      return Localize(StringView32CI(key));
+    return defaultLocalizationInstance ? defaultLocalizationInstance->Localize(args...) : LocalizationInstance::Empty;
   }
 
   template <typename Type, typename... FormatArgs>
-  requires StringViewConstructible<Type>
-  String8 &LocalizeFormatTo(String8& buffer, const Type &key, FormatArgs &&...args) const
+    requires StringViewConstructible<Type>
+  String8 &LocalizeFormatTo(String8 &buffer, const Type &key, FormatArgs &&...args) const
   {
     std::shared_lock lock(dataMutex);
 
@@ -213,7 +215,8 @@ public:
 
     try
     {
-      std::vformat_to(std::back_inserter(buffer.native()), localizedFormat.native(), std::make_format_args(std::forward<FormatArgs>(args)...));
+      std::vformat_to(std::back_inserter(buffer.native()), localizedFormat.native(),
+                      std::make_format_args(std::forward<FormatArgs>(args)...));
     }
     catch ([[maybe_unused]] std::format_error error)
     {
@@ -224,12 +227,12 @@ public:
   }
 
   template <typename Type, typename... FormatArgs>
-  requires StringViewConstructible<Type>
+    requires StringViewConstructible<Type>
   String8 LocalizeFormat(const Type &key, FormatArgs &&...args) const
   {
     String8 result;
     LocalizeFormatTo(result, key, std::forward<FormatArgs>(args)...);
-    return std::move(result);
+    return result;
   }
 
 private:
@@ -242,4 +245,4 @@ private:
   mutable std::shared_mutex dataMutex;
 };
 
-}
+} // namespace UTF
