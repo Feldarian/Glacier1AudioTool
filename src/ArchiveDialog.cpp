@@ -16,13 +16,13 @@ bool ArchiveDirectory::Clear(const bool retVal)
   return retVal;
 }
 
-ArchiveDirectory& ArchiveDirectory::GetDirectory(const StringView8CI path, OrderedSet<String8CI>& archivePaths)
+ArchiveDirectory& ArchiveDirectory::GetDirectory(const StringView8CI searchPath, OrderedSet<String8CI>& archivePaths)
 {
-  auto pathStems = GetPathStems(path);
-  return GetDirectory(pathStems, path, archivePaths);
+  auto pathStems = GetPathStems(searchPath);
+  return GetDirectory(pathStems, searchPath, archivePaths);
 }
 
-ArchiveDirectory& ArchiveDirectory::GetDirectory(std::vector<StringView8CI> &pathStems, StringView8CI path, OrderedSet<String8CI>& archivePaths)
+ArchiveDirectory& ArchiveDirectory::GetDirectory(std::vector<StringView8CI> &pathStems, StringView8CI searchPath, OrderedSet<String8CI>& archivePaths)
 {
   assert(!pathStems.empty());
 
@@ -32,10 +32,10 @@ ArchiveDirectory& ArchiveDirectory::GetDirectory(std::vector<StringView8CI> &pat
     if (directoryIt != directories.cend())
     {
       pathStems.pop_back();
-      return directoryIt->second.GetDirectory(pathStems, path, archivePaths);
+      return directoryIt->second.GetDirectory(pathStems, searchPath, archivePaths);
     }
 
-    auto newPathStems = GetPathStems(*archivePaths.emplace(path).first);
+    auto newPathStems = GetPathStems(*archivePaths.emplace(searchPath).first);
     while (newPathStems.size() > pathStems.size())
       newPathStems.pop_back();
 
@@ -43,27 +43,27 @@ ArchiveDirectory& ArchiveDirectory::GetDirectory(std::vector<StringView8CI> &pat
 
     auto& directory = directories[pathStems.back()];
     pathStems.pop_back();
-    return directory.GetDirectory(pathStems, path, archivePaths);
+    return directory.GetDirectory(pathStems, searchPath, archivePaths);
   }
 
   const auto directoryIt = directories.find(pathStems.front());
   if (directoryIt != directories.cend())
     return directoryIt->second;
 
-  path = *archivePaths.emplace(path).first;
-  const auto newPathStems = GetPathStems(path);
+  searchPath = *archivePaths.emplace(searchPath).first;
+  const auto newPathStems = GetPathStems(searchPath);
   auto& directory = directories[newPathStems.front()];
-  directory.path = path;
+  directory.path = searchPath;
   return directory;
 }
 
-ArchiveFile& ArchiveDirectory::GetFile(const StringView8CI path, OrderedSet<String8CI>& archivePaths)
+ArchiveFile& ArchiveDirectory::GetFile(const StringView8CI searchPath, OrderedSet<String8CI>& archivePaths)
 {
-  auto pathStems = GetPathStems(path);
-  return GetFile(pathStems, path, archivePaths);
+  auto pathStems = GetPathStems(searchPath);
+  return GetFile(pathStems, searchPath, archivePaths);
 }
 
-ArchiveFile& ArchiveDirectory::GetFile(std::vector<StringView8CI>& pathStems, StringView8CI path, OrderedSet<String8CI>& archivePaths)
+ArchiveFile& ArchiveDirectory::GetFile(std::vector<StringView8CI>& pathStems, StringView8CI searchPath, OrderedSet<String8CI>& archivePaths)
 {
   assert(!pathStems.empty());
 
@@ -73,10 +73,10 @@ ArchiveFile& ArchiveDirectory::GetFile(std::vector<StringView8CI>& pathStems, St
     if (directoryIt != directories.cend())
     {
       pathStems.pop_back();
-      return directoryIt->second.GetFile(pathStems, path, archivePaths);
+      return directoryIt->second.GetFile(pathStems, searchPath, archivePaths);
     }
 
-    auto newPathStems = GetPathStems(*archivePaths.emplace(path).first);
+    auto newPathStems = GetPathStems(*archivePaths.emplace(searchPath).first);
     while (newPathStems.size() > pathStems.size())
       newPathStems.pop_back();
 
@@ -84,17 +84,17 @@ ArchiveFile& ArchiveDirectory::GetFile(std::vector<StringView8CI>& pathStems, St
 
     auto& directory = directories[pathStems.back()];
     pathStems.pop_back();
-    return directory.GetFile(pathStems, path, archivePaths);
+    return directory.GetFile(pathStems, searchPath, archivePaths);
   }
 
   const auto fileIt = files.find(pathStems.front());
   if (fileIt != files.cend())
     return fileIt->second;
 
-  path = *archivePaths.emplace(path).first;
-  const auto newPathStems = GetPathStems(path);
+  searchPath = *archivePaths.emplace(searchPath).first;
+  const auto newPathStems = GetPathStems(searchPath);
   auto& file = files[newPathStems.front()];
-  file.path = path;
+  file.path = searchPath;
   return file;
 }
 
@@ -422,14 +422,14 @@ bool ArchiveDialog::IsInProgress() const
   return progressTask.valid();
 }
 
-ArchiveDirectory& ArchiveDialog::GetDirectory(StringView8CI path)
+ArchiveDirectory& ArchiveDialog::GetDirectory(const StringView8CI searchPath)
 {
-  return archiveRoot.GetDirectory(path, archivePaths);
+  return archiveRoot.GetDirectory(searchPath, archivePaths);
 }
 
-ArchiveFile& ArchiveDialog::GetFile(StringView8CI path)
+ArchiveFile& ArchiveDialog::GetFile(const StringView8CI searchPath)
 {
-  return archiveRoot.GetFile(path, archivePaths);
+  return archiveRoot.GetFile(searchPath, archivePaths);
 }
 
 const OrderedSet<String8CI> & ArchiveDialog::GetPaths() const
@@ -501,7 +501,7 @@ void ArchiveDialog::DrawBaseDialog(const StringView8CI dialogName, const StringV
   progressActive = IsInProgress();
   if (!archivePath.empty() && !wasProgressActive && progressActive)
   {
-    wasProgressActive |= progressActive;
+    wasProgressActive = true;
     ImGui::BeginDisabled();
   }
 
@@ -513,7 +513,7 @@ void ArchiveDialog::DrawBaseDialog(const StringView8CI dialogName, const StringV
   progressActive = IsInProgress();
   if (!archivePath.empty() && !wasProgressActive && progressActive)
   {
-    wasProgressActive |= progressActive;
+    wasProgressActive = true;
     ImGui::BeginDisabled();
   }
 
@@ -525,7 +525,7 @@ void ArchiveDialog::DrawBaseDialog(const StringView8CI dialogName, const StringV
   progressActive = IsInProgress();
   if (!archivePath.empty() && !wasProgressActive && progressActive)
   {
-    wasProgressActive |= progressActive;
+    wasProgressActive = true;
     ImGui::BeginDisabled();
   }
 
@@ -537,7 +537,7 @@ void ArchiveDialog::DrawBaseDialog(const StringView8CI dialogName, const StringV
   progressActive = IsInProgress();
   if (!archivePath.empty() && !wasProgressActive && progressActive)
   {
-    wasProgressActive |= progressActive;
+    wasProgressActive = true;
     ImGui::BeginDisabled();
   }
 

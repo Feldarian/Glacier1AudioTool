@@ -12,10 +12,10 @@ class Hitman4Dialog;
 
 struct Hitman4WHDHeader
 {
-  uint32_t fileSizeWithoutHeader;
-  uint32_t fileSizeWithHeader;
-  uint32_t unk8; // always 3
-  uint32_t unkC; // always 4
+  uint32_t fileSizeWithoutHeader = 0;
+  uint32_t fileSizeWithHeader = 0;
+  uint32_t unk8 = 3; // always 3
+  uint32_t unkC = 4; // always 4
 };
 
 inline constexpr std::array<uint32_t, 4> terminateBytes{0, 0, 0, 0};
@@ -36,7 +36,7 @@ union Hitman4WHDRecord
     uint32_t samplesCount;
     uint32_t blockAlign; // something weird for OGG!
     uint32_t fmtExtra; // 0xCDCDCDCD for PCMs, 2041 for ADPCM, 0x004F3E93 for OGG...
-    uint32_t nullBytes[4] = {0};
+    uint32_t nullBytes[4];
 
     HitmanSoundRecord ToHitmanSoundRecord() const;
     void FromHitmanSoundRecord(const HitmanSoundRecord& soundRecord);
@@ -57,7 +57,7 @@ union Hitman4WHDRecord
     uint32_t samplesCount;
     uint32_t blockAlign; // something weird for OGG!
     uint32_t fmtExtra; // 0xCDCDCDCD for PCMs, 2041 for ADPCM, 0x004F3E93 for OGG...
-    uint32_t nullBytes[4] = {0};
+    uint32_t nullBytes[4];
 
     HitmanSoundRecord ToHitmanSoundRecord() const;
     void FromHitmanSoundRecord(const HitmanSoundRecord& soundRecord);
@@ -79,7 +79,7 @@ union Hitman4WHDRecord
     uint32_t unk18;
     uint32_t fmtExtra; // 0xCDCDCDCD for PCMs, 2041 for ADPCM, 0x004F3E93 for OGG...
     uint32_t unk2C;
-    uint32_t nullBytes[3] = {0};
+    uint32_t nullBytes[3];
 
     HitmanSoundRecord ToHitmanSoundRecord() const;
     void FromHitmanSoundRecord(const HitmanSoundRecord& soundRecord);
@@ -95,16 +95,16 @@ union Hitman4WHDRecord
 union Hitman4WAVHeader
 {
   struct Hitman4WAVHeaderWHD {
-    uint32_t unk0 = 0; // always 0
+    uint32_t unk0; // always 0
     uint32_t fileSizeWithHeader;
-    uint32_t unk8 = 3; // always 3
-    uint32_t unkC = 4; // always 4
+    uint32_t unk8; // always 3
+    uint32_t unkC; // always 4
   } whd;
 
   struct Hitman4WAVHeaderStreams {
     char id[0x10];
     uint32_t stringTableEndOffset;
-    uint32_t padding[0x100 - 0x14];
+    uint32_t unk14[0x100 - 0x14];
   } streams;
 };
 

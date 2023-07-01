@@ -69,16 +69,14 @@ bool Hitman23WAVFile::Load(const StringView8CI loadPath, const OrderedMap<String
       continue;
 
     auto offsetToWAVFileDataIt = offsetToWAVFileDataMap.find(whdRecord->dataOffset);
-    if (offsetToWAVFileDataIt == offsetToWAVFileDataMap.end())
-      offsetToWAVFileDataMap.insert({whdRecord->dataOffset, {whdRecord->dataSize, fileMap.at(whdRecordPath)}});
-    else
+    if (offsetToWAVFileDataIt != offsetToWAVFileDataMap.end())
     {
       resampledMap[resampledOffset] = whdRecord->dataOffset;
       whdRecord->dataOffset = resampledOffset;
       resampledOffset += whdRecord->dataSize;
-
-      offsetToWAVFileDataMap.insert({whdRecord->dataOffset, {whdRecord->dataSize, fileMap.at(whdRecordPath)}});
     }
+
+    offsetToWAVFileDataMap.insert({whdRecord->dataOffset, {whdRecord->dataSize, fileMap.at(whdRecordPath)}});
 
     ++foundItems;
   }
@@ -330,12 +328,12 @@ bool Hitman23Dialog::LoadImpl(const StringView8CI loadPathView, const Options &o
     if (!whdFile.Load(*this, whdPath))
       return Clear(false);
 
-    for (const auto& whdRecordMapKV : whdFile.recordMap)
+    for (const auto& [filePath, whdRecord] : whdFile.recordMap)
     {
-      const auto res = allWHDRecords.insert(whdRecordMapKV);
+      [[maybe_unused]] const auto res = allWHDRecords.try_emplace(filePath, whdRecord);
 
       // TODO - do we want to handle this in some way? duplicates pointing to streams should not be an issue unless offsets are different...
-      assert(res.second || (res.first->second->dataInStreams && res.first->second->dataInStreams == whdRecordMapKV.second->dataInStreams && res.first->second->dataOffset == whdRecordMapKV.second->dataOffset));
+      assert(res.second || (res.first->second->dataInStreams && res.first->second->dataInStreams == whdRecord->dataInStreams && res.first->second->dataOffset == whdRecord->dataOffset));
     }
 
     if (!wavFiles.emplace_back().Load(ChangeExtension(whdFile.path, ".wav"), whdFile.recordMap, fileMap, true))

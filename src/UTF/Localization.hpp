@@ -218,7 +218,7 @@ public:
       std::vformat_to(std::back_inserter(buffer.native()), localizedFormat.native(),
                       std::make_format_args(std::forward<FormatArgs>(args)...));
     }
-    catch ([[maybe_unused]] std::format_error error)
+    catch (std::format_error &)
     {
       buffer.clear();
     }

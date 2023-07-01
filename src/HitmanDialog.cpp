@@ -85,7 +85,7 @@ bool HitmanFile::Import(char inputBytes[], const size_t inputBytesCount, const O
       castedDataSize = sndFileData.size() / sizeof(int16_t);
       castedData = reinterpret_cast<int16_t *>(sndFileData.data());
 
-      for (size_t i = castedDataSize / 2 - 1; i < castedDataSize / 2; --i)
+      for (int64_t i = (castedDataSize / 2) - 1; i >= 0; --i)
       {
         castedData[i * 2] = castedData[i];
         castedData[i * 2 + 1] = castedData[i];
@@ -153,6 +153,7 @@ bool HitmanFile::Import(char inputBytes[], const size_t inputBytesCount, const O
         break;
       }
     }
+    [[fallthrough]];
     case 4096: {
       if (options.common.transcodeToOriginalFormat)
       {
@@ -160,6 +161,7 @@ bool HitmanFile::Import(char inputBytes[], const size_t inputBytesCount, const O
         break;
       }
     }
+    [[fallthrough]];
     case 1: {
       nativeFile = SndfileHandle(g_VirtSndFileIO, &nativeFileData, SFM_WRITE, SF_FORMAT_WAV | SF_FORMAT_PCM_16, channels, sampleRate);
       break;
@@ -343,7 +345,7 @@ bool HitmanFile::Export(std::vector<char> &outputBytes) const
   if (archiveRecord.formatTag == 1)
   {
     RIFFHeaderPCM riffHeader;
-    riffHeader.riffSize += archiveRecord.dataSize;
+    riffHeader.riffSize = archiveRecord.dataSize;
     riffHeader.fmtFormat = archiveRecord.formatTag;
     riffHeader.fmtChannels = archiveRecord.channels;
     riffHeader.fmtSampleRate = archiveRecord.sampleRate;
@@ -358,7 +360,7 @@ bool HitmanFile::Export(std::vector<char> &outputBytes) const
   else if (archiveRecord.formatTag == 17)
   {
     RIFFHeaderADPCM riffHeader;
-    riffHeader.riffSize += archiveRecord.dataSize;
+    riffHeader.riffSize = archiveRecord.dataSize;
     riffHeader.fmtFormat = archiveRecord.formatTag;
     riffHeader.fmtChannels = archiveRecord.channels;
     riffHeader.fmtSampleRate = archiveRecord.sampleRate;

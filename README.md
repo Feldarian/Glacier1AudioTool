@@ -1,6 +1,6 @@
 # Hitman Audio Tool
 
-### Features
+## Features
  * Full support of import and export of the Hitman: Codename 47 *.idx/*.bin pairs existing entries
      * Support for adding new ones is not planned for now
  * Full supports of import and export of the Hitman 2: Silent Assassin and Hitman 3: Silent Assassin *.whd/*.wav pairs + streams.wav existing entries
@@ -17,7 +17,7 @@
      * New option would then appear in the Options tab under Language
      * If newly added language is missing glyphs in fonts used by the tool, you may add additional font defining them into `data/fonts` folder (note that fonts are currently being read in alphabetical order) 
      
-### Future
+## Future
  * Definitely some more cleanup/refactor of the source code
      * Code is clean enough to be readable and usable I would say, but it lacks comments and there is still a lot of duplication all around
      * Some parts are also glued together from my previous projects, so there is inconsistent styling and some other stuff...
@@ -28,3 +28,8 @@
  * Version 1.0.0 tagged code contains Hitman: Blood Money WIP code which seems to work for exports
      * This code is currently locked under debug builds, so you have to build the tool yourself if you want to try this feature out for now
      * Will be made as part of regular release when I figure out enough to be able to reliably import the files back and save the archives
+
+## Used Open-Source License Tools
+ * [PVS-Studio](https://pvs-studio.com/en/pvs-studio/?utm_source=website&utm_medium=github&utm_campaign=open_source) - static analyzer for C, C++, C#, and Java code.
+ * [ReSharper C++](https://www.jetbrains.com/community/opensource/#support) - provides multiple features for increasing productivity when working with C++ code.
+ * [SmartGit](https://www.syntevo.com/register-non-commercial/) - cross-platform Git GUI client.

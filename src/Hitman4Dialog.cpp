@@ -206,16 +206,14 @@ bool Hitman4WAVFile::Load(const StringView8CI loadPath, const OrderedMap<StringV
       continue;
 
     auto offsetToWAVFileDataIt = offsetToWAVFileDataMap.find(whdRecord->streams.dataOffset);
-    if (offsetToWAVFileDataIt == offsetToWAVFileDataMap.end())
-      offsetToWAVFileDataMap.insert({whdRecord->streams.dataOffset, {whdRecord, fileMap.at(whdRecordPath)}});
-    else
+    if (offsetToWAVFileDataIt != offsetToWAVFileDataMap.end())
     {
       resampledMap[resampledOffset] = whdRecord->streams.dataOffset;
       whdRecord->streams.dataOffset = resampledOffset;
       resampledOffset += whdRecord->streams.dataSize;
-
-      offsetToWAVFileDataMap.insert({whdRecord->streams.dataOffset, {whdRecord, fileMap.at(whdRecordPath)}});
     }
+
+    offsetToWAVFileDataMap.insert({whdRecord->streams.dataOffset, {whdRecord, fileMap.at(whdRecordPath)}});
 
     ++foundItems;
   }
@@ -494,12 +492,12 @@ bool Hitman4Dialog::LoadImpl(const StringView8CI loadPath, const Options &option
     if (!whdFile.Load(*this, whdPath))
       return Clear(false);
 
-    for (const auto& whdRecordMapKV : whdFile.recordMap)
+    for (const auto& [filePath, whdRecord] : whdFile.recordMap)
     {
-      const auto res = allWHDRecords.insert(whdRecordMapKV);
+      [[maybe_unused]] const auto res = allWHDRecords.try_emplace(filePath, whdRecord);
 
       // TODO - do we want to handle this in some way? duplicates pointing to streams should not be an issue unless offsets are different...
-      assert(res.second || (res.first->second->mission.dataInStreams && res.first->second->mission.dataInStreams == whdRecordMapKV.second->mission.dataInStreams && res.first->second->mission.dataOffset == whdRecordMapKV.second->mission.dataOffset));
+      assert(res.second || (res.first->second->mission.dataInStreams && res.first->second->mission.dataInStreams == whdRecord->mission.dataInStreams && res.first->second->mission.dataOffset == whdRecord->mission.dataOffset));
     }
 
     if (!wavFiles.emplace_back().Load(ChangeExtension(whdFile.path, ".wav"), whdFile.recordMap, fileMap, true))

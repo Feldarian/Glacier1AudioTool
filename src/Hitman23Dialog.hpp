@@ -12,27 +12,27 @@ class Hitman23Dialog;
 
 struct Hitman23WHDHeader
 {
-  uint32_t fileSizeWithoutHeader;
-  uint32_t fileSizeWithHeader;
-  uint32_t unk8; // always 3
-  uint32_t unkC; // always 4
+  uint32_t fileSizeWithoutHeader = 0;
+  uint32_t fileSizeWithHeader = 0;
+  uint32_t unk8 = 3; // always 3
+  uint32_t unkC = 4; // always 4
 };
 
 struct Hitman23WHDRecord
 {
   uint32_t type = 6; // always 6
-  uint32_t filePathOffset;
-  uint16_t formatTag;
-  uint16_t dataInStreams; // either 0 or 32768
-  uint32_t sampleRate;
-  uint32_t bitsPerSample;
-  uint32_t dataSizeUncompressed; // uncompressed data size, equal dataSize when formatTag == 1
-  uint32_t dataSize;
-  uint32_t channels;
-  uint32_t dataOffset;
-  uint32_t samplesCount; // always half of dataSizeUncompressed
-  uint32_t blockAlign;
-  uint32_t fmtExtra;  // always 1 when formatTag == 1
+  uint32_t filePathOffset = 0;
+  uint16_t formatTag = 0;
+  uint16_t dataInStreams = 0; // either 0 or 32768
+  uint32_t sampleRate = 0;
+  uint32_t bitsPerSample = 0;
+  uint32_t dataSizeUncompressed = 0; // uncompressed data size, equal dataSize when formatTag == 1
+  uint32_t dataSize = 0;
+  uint32_t channels = 0;
+  uint32_t dataOffset = 0;
+  uint32_t samplesCount = 0; // always half of dataSizeUncompressed
+  uint32_t blockAlign = 0;
+  uint32_t fmtExtra = 0;  // always 1 when formatTag == 1
 
   HitmanSoundRecord ToHitmanSoundRecord() const;
   void FromHitmanSoundRecord(const HitmanSoundRecord& soundRecord);
@@ -41,7 +41,7 @@ struct Hitman23WHDRecord
 struct Hitman23WAVHeader
 {
   uint32_t unk0 = 0; // always 0
-  uint32_t fileSizeWithHeader;
+  uint32_t fileSizeWithHeader = 0;
   uint32_t unk8 = 3; // always 3
   uint32_t unkC = 4; // always 4
 };
@@ -49,7 +49,7 @@ struct Hitman23WAVHeader
 struct Hitman2WAVHeader
 {
   uint32_t unk0 = 0; // always 0
-  uint32_t fileSizeWithHeader;
+  uint32_t fileSizeWithHeader = 0;
   uint32_t unk8 = 3; // always 3
   uint32_t unkC = 4; // always 4
 };
@@ -57,7 +57,7 @@ struct Hitman2WAVHeader
 struct Hitman3WAVHeader
 {
   uint32_t unk0 = 0; // always 0
-  uint32_t fileSizeWithHeader;
+  uint32_t fileSizeWithHeader = 0;
   uint32_t unk8 = 3; // always 3
   uint32_t unkC = 4; // always 4
   uint32_t unk10 = 5; // always 5
