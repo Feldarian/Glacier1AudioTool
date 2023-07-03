@@ -3,3 +3,33 @@
 // Copyright © 2015-2023 Feldarian Softworks. All rights reserved.
 // SPDX-License-Identifier: EUPL-1.2
 //
+
+#pragma once
+
+#define G1AT_VERSION_STRING "${VERSION}"
+#define G1AT_VERSION_MAJOR ${VERSION_MAJOR}
+#define G1AT_VERSION_MINOR ${VERSION_MINOR}
+#define G1AT_VERSION_PATCH ${VERSION_ALTER}
+
+#define G1AT_VERSION_STRING_GIT "${GIT_TAG_LONG}"
+
+#define G1AT_NAME "${G1AT_NAME}"
+#define G1AT_DESCRIPTION "${G1AT_DESCRIPTION}"
+#define G1AT_HOMEPAGE "${G1AT_HOMEPAGE}"
+
+#define G1AT_DEBUG_BUILD (${DEBUG})
+#define G1AT_RELEASE_BUILD (!(G1AT_DEBUG_BUILD))
+
+#if !defined(_DEBUG) && G1AT_DEBUG_BUILD
+#define _DEBUG 1
+#endif
+
+#if !defined(NDEBUG) && G1AT_RELEASE_BUILD
+#define NDEBUG 1
+#endif
+
+#ifdef G1AT_DEBUG_BUILD
+  #define G1AT_TITLE G1AT_NAME " (" G1AT_VERSION_STRING_GIT ")"
+#else
+  #define G1AT_TITLE G1AT_NAME " (" G1AT_VERSION_STRING ")"
+#endif

@@ -95,11 +95,13 @@ package("libsamplerate")
 package_end()
 add_requires("libsamplerate 0.2.2", { configs = { shared = true } })
 
-target("HitmanAudioTool")
+target("Glacier1AudioTool")
+  set_version("1.1.0")
+  
   set_rundir("$(projectdir)")
   add_defines("IMGUI_USER_CONFIG=\""..imguiUserConfig.."\"")
 
-  --add_defines("HAT_BUILD_TESTS")
+  --add_defines("G1AT_BUILD_TESTS")
 
   set_kind("binary")
   
@@ -110,10 +112,14 @@ target("HitmanAudioTool")
   add_headerfiles("src/**.hpp")
   add_files("src/**.cpp")
   
+  set_configvar("G1AT_NAME", "Glacier 1 Audio Tool")
+  set_configvar("G1AT_DESCRIPTION", "Tool able to read, write, import and export selected Glacier 1 sound-related formats.")
+  set_configvar("G1AT_HOMEPAGE", "https://github.com/WSSDude/Glacier1AudioTool")
+
   set_configdir("$(buildir)/src/Config")
   add_configfiles("src/Config.h.in")
-
-  add_headerfiles("$(buildir)/src/Config")
+  add_includedirs("$(buildir)/src/Config/")
+  add_headerfiles("$(buildir)/src/Config/**.h")
   
   set_pcxxheader("src/Precompiled.hpp")
   

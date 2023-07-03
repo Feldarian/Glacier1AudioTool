@@ -6,6 +6,8 @@
 
 #include "Precompiled.hpp"
 
+#include "Config.hpp"
+
 #include "Hitman1Dialog.hpp"
 #include "Hitman23Dialog.hpp"
 #include "Hitman4Dialog.hpp"
@@ -137,7 +139,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
   constexpr auto window_flags =
       static_cast<SDL_WindowFlags>(SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI);
   SDL_Window *window =
-      SDL_CreateWindow("Hitman Audio Tool", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, window_flags);
+      SDL_CreateWindow(G1AT_TITLE, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 640, 480, window_flags);
   const auto gl_context = SDL_GL_CreateContext(window);
   SDL_GL_MakeCurrent(window, gl_context);
   SDL_GL_SetSwapInterval(1);
@@ -249,7 +251,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
     ImGui::SetNextWindowPos({}, ImGuiCond_Always);
     ImGui::SetNextWindowSize({static_cast<float>(windowWidth), static_cast<float>(windowHeight)}, ImGuiCond_Always);
-    ImGui::Begin("Hitman Audio Tool", nullptr,
+    ImGui::Begin(G1AT_NAME, nullptr,
                  ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
 
     if (ImGui::BeginTabBar("##ToolsTab"))

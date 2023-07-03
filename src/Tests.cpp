@@ -6,7 +6,7 @@
 
 #include "Precompiled.hpp"
 
-#ifdef HAT_BUILD_TESTS
+#ifdef G1AT_BUILD_TESTS
 
 namespace
 {
