@@ -25,10 +25,9 @@ struct STR_Header {
 struct STR_Footer {
 };
 
-// LIP chunk which may be at the start of some sound files data, it is aligned on 0x100 boundary
+// LIP chunk which may be at the start of some sound files data, it is always in a block of 0x1000 ending with bunch of zeroes, unknown purpose
 struct STR_LIPChunk
 {
    uint32_t id; // compares to first 4 chars from "LIP "
-   uint32_t dataSize;
-   // follows dataSize, note that structure is aligned on 0x100 (same as header)
+   char unk4[0x1000 - 0x4]; // unknown contents, ends with 0, always a block of this size if it is present
 };

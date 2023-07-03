@@ -39,7 +39,7 @@ union WHD_Record
     uint32_t dataOffset;
     uint32_t samplesCount;
     uint32_t blockAlign; // something weird for OGG!
-    uint32_t fmtExtra; // 0xCDCDCDCD for PCMs, 2041 for ADPCM, 0x004F3E93 for OGG...
+    uint32_t fmtExtra; // 0xCDCDCDCD for PCMs, 0x07F9 for ADPCM, 0x004F3E93 for OGG...
     uint32_t nullBytes[4];
   };
 
@@ -57,7 +57,7 @@ union WHD_Record
     uint32_t dataOffset;
     uint32_t samplesCount;
     uint32_t blockAlign; // something weird for OGG!
-    uint32_t fmtExtra; // 0xCDCDCDCD for PCMs, 2041 for ADPCM, 0x004F3E93 for OGG...
+    uint32_t fmtExtra; // 0xCDCDCDCD for PCMs, 0x07F9 for ADPCM, 0x004F3E93 for OGG...
     uint32_t nullBytes[4];
   };
 
@@ -75,7 +75,7 @@ union WHD_Record
     uint32_t dataOffset; // may start with "LIP " (0x2050494C) chunk, ignore lip->dataSize bytes aligned on 0x100 boundary
     uint32_t samplesCount;
     uint32_t unk18;
-    uint32_t fmtExtra; // 0xCDCDCDCD for PCMs, 2041 for ADPCM, 0x004F3E93 for OGG...
+    uint32_t fmtExtra; // 0xCDCDCDCD for PCMs, 0x07F9 for ADPCM, 0x004F3E93 for OGG...
     uint32_t unk2C;
     uint32_t nullBytes[3];
   };
