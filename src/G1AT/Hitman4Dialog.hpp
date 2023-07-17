@@ -42,7 +42,7 @@ union Hitman4WHDRecord
     void FromHitmanSoundRecord(const HitmanSoundRecord& soundRecord);
   } scene;
 
-  struct Hitman4WHDRecordSceneAliased
+  struct Hitman4WHDRecordStreamsAliased
   {
     uint32_t nullByte; // always 0
     uint32_t filePathOffset;
@@ -56,12 +56,12 @@ union Hitman4WHDRecord
     uint32_t dataOffset; // may start with "LIP " (0x2050494C) chunk, ignore 0x1000 bytes
     uint32_t samplesCount;
     uint32_t blockAlign; // something weird for OGG!
-    uint32_t fmtExtra; // 0xCDCDCDCD for PCMs, 2041 for ADPCM, 0x004F3E93 for OGG...
+    uint32_t samplesPerBlock; // 0xCDCDCDCD for PCMs, 2041 for ADPCM, 0x004F3E93 for OGG...
     uint32_t nullBytes[4];
 
     HitmanSoundRecord ToHitmanSoundRecord() const;
     void FromHitmanSoundRecord(const HitmanSoundRecord& soundRecord);
-  } sceneAliased;
+  } streamsAliased;
 
   struct Hitman4WHDRecordStreams
   {
@@ -77,7 +77,7 @@ union Hitman4WHDRecord
     uint32_t dataOffset; // may start with "LIP " (0x2050494C) chunk, ignore 0x1000 bytes
     uint32_t samplesCount;
     uint32_t unk18;
-    uint32_t fmtExtra; // 0xCDCDCDCD for PCMs, 2041 for ADPCM, 0x004F3E93 for OGG...
+    uint32_t samplesPerBlock; // 0xCDCDCDCD for PCMs, 2041 for ADPCM, 0x004F3E93 for OGG...
     uint32_t unk2C;
     uint32_t nullBytes[3];
 
@@ -85,8 +85,8 @@ union Hitman4WHDRecord
     void FromHitmanSoundRecord(const HitmanSoundRecord& soundRecord);
   } streams;
 
-  static_assert(sizeof(scene) == sizeof(sceneAliased));
-  static_assert(sizeof(sceneAliased) == sizeof(streams));
+  static_assert(sizeof(scene) == sizeof(streamsAliased));
+  static_assert(sizeof(streamsAliased) == sizeof(streams));
 
   HitmanSoundRecord ToHitmanSoundRecord() const;
   void FromHitmanSoundRecord(const HitmanSoundRecord& soundRecord);

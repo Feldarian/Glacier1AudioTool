@@ -29,6 +29,13 @@ HitmanSoundRecord Hitman4WHDRecord::Hitman4WHDRecordScene::ToHitmanSoundRecord()
   assert(resBlockAlign == 2 * channels || formatTag == 17);
   assert(resBlockAlign != 1024 || formatTag == 17);
 
+  assert(nullBytes[0] == 0);
+  assert(nullBytes[1] == 0);
+  assert(nullBytes[2] == 0);
+  assert(nullBytes[3] == 0);
+
+  assert(dataInStreams == 0);
+
   return {
     0,
     dataSizeUncompressed,
@@ -57,16 +64,18 @@ void Hitman4WHDRecord::Hitman4WHDRecordScene::FromHitmanSoundRecord(const Hitman
   samplesPerBlock = formatTag == 4096 ? 0x004F3E93 : (formatTag == 1 ? 0xCDCDCDCD : soundRecord.samplesPerBlock);
 }
 
-HitmanSoundRecord Hitman4WHDRecord::Hitman4WHDRecordSceneAliased::ToHitmanSoundRecord() const
+HitmanSoundRecord Hitman4WHDRecord::Hitman4WHDRecordStreamsAliased::ToHitmanSoundRecord() const
 {
   assert(nullByte == 0);
 
   const auto resBitsPerSample = static_cast<uint16_t>(formatTag == 4096 ? 16 : bitsPerSample);
   const auto resChannels = static_cast<uint16_t>(channels);
   const auto resBlockAlign = static_cast<uint16_t>(formatTag == 4096 ? 2 * channels : blockAlign);
-  const auto resFmtExtra = static_cast<uint16_t>(formatTag == 17 ? fmtExtra : 1);
+  const auto resFmtExtra = static_cast<uint16_t>(formatTag == 17 ? samplesPerBlock : 1);
 
   assert(resBlockAlign != 1024 || formatTag == 17);
+
+  assert(dataInStreams == 0x80 || dataInStreams == 0x8280 || dataInStreams == 0x0180);
 
   return {
     0,
@@ -81,7 +90,7 @@ HitmanSoundRecord Hitman4WHDRecord::Hitman4WHDRecordSceneAliased::ToHitmanSoundR
   };
 }
 
-void Hitman4WHDRecord::Hitman4WHDRecordSceneAliased::FromHitmanSoundRecord(const HitmanSoundRecord &soundRecord)
+void Hitman4WHDRecord::Hitman4WHDRecordStreamsAliased::FromHitmanSoundRecord(const HitmanSoundRecord &soundRecord)
 {
   assert(formatTag != 4096 || formatTag == soundRecord.formatTag);
 
@@ -93,7 +102,7 @@ void Hitman4WHDRecord::Hitman4WHDRecordSceneAliased::FromHitmanSoundRecord(const
   channels = soundRecord.channels;
   samplesCount = soundRecord.dataSizeUncompressed / sizeof(int16_t);
   blockAlign = formatTag == 4096 ? blockAlign : soundRecord.blockAlign;
-  fmtExtra = formatTag == 4096 ? 0x004F3E93 : (formatTag == 1 ? 0xCDCDCDCD : soundRecord.samplesPerBlock);
+  samplesPerBlock = formatTag == 4096 ? 0x004F3E93 : (formatTag == 1 ? 0xCDCDCDCD : soundRecord.samplesPerBlock);
 }
 
 HitmanSoundRecord Hitman4WHDRecord::Hitman4WHDRecordStreams::ToHitmanSoundRecord() const
@@ -103,10 +112,16 @@ HitmanSoundRecord Hitman4WHDRecord::Hitman4WHDRecordStreams::ToHitmanSoundRecord
   const auto resBitsPerSample = static_cast<uint16_t>(formatTag == 4096 ? 16 : bitsPerSample);
   const auto resChannels = static_cast<uint16_t>(channels);
   const auto resBlockAlign = static_cast<uint16_t>(formatTag == 4096 || formatTag == 1 ? 2 * channels : 1024);
-  const auto resFmtExtra = static_cast<uint16_t>(formatTag == 17 ? fmtExtra : 1);
+  const auto resFmtExtra = static_cast<uint16_t>(formatTag == 17 ? samplesPerBlock : 1);
 
   assert(resBlockAlign == 2 * channels || formatTag == 17);
   assert(resBlockAlign != 1024 || formatTag == 17);
+
+  assert(nullBytes[0] == 0);
+  assert(nullBytes[1] == 0);
+  assert(nullBytes[2] == 0);
+
+  assert(dataInStreams == 0x80);
 
   return {
     0,
@@ -132,7 +147,7 @@ void Hitman4WHDRecord::Hitman4WHDRecordStreams::FromHitmanSoundRecord(const Hitm
   dataSize = soundRecord.dataSize;
   channels = soundRecord.channels;
   samplesCount = soundRecord.dataSizeUncompressed / sizeof(int16_t);
-  fmtExtra = formatTag == 4096 ? 0x004F3E93 : (formatTag == 1 ? 0xCDCDCDCD : soundRecord.samplesPerBlock);
+  samplesPerBlock = formatTag == 4096 ? 0x004F3E93 : (formatTag == 1 ? 0xCDCDCDCD : soundRecord.samplesPerBlock);
 }
 
 HitmanSoundRecord Hitman4WHDRecord::ToHitmanSoundRecord() const
@@ -145,8 +160,8 @@ HitmanSoundRecord Hitman4WHDRecord::ToHitmanSoundRecord() const
 
   assert(scene.formatTag != 17 || scene.blockAlign == 1024);
 
-  assert(streams.formatTag != 17 || streams.fmtExtra == 2041);
-  assert(streams.formatTag != 4096 || streams.fmtExtra == 0x004F3E93);
+  assert(streams.formatTag != 17 || streams.samplesPerBlock == 2041);
+  assert(streams.formatTag != 4096 || streams.samplesPerBlock == 0x004F3E93);
 
   assert(streams.nullBytes[0] == 0);
 
@@ -155,7 +170,7 @@ HitmanSoundRecord Hitman4WHDRecord::ToHitmanSoundRecord() const
     case 0x004F4850:
       return streams.ToHitmanSoundRecord();
     case 0:
-      return sceneAliased.ToHitmanSoundRecord();
+      return streamsAliased.ToHitmanSoundRecord();
     default:
       return scene.ToHitmanSoundRecord();
   }
@@ -168,7 +183,7 @@ void Hitman4WHDRecord::FromHitmanSoundRecord(const HitmanSoundRecord &soundRecor
     case 0x004F4850:
       return streams.FromHitmanSoundRecord(soundRecord);
     case 0:
-      return sceneAliased.FromHitmanSoundRecord(soundRecord);
+      return streamsAliased.FromHitmanSoundRecord(soundRecord);
     default:
       return scene.FromHitmanSoundRecord(soundRecord);
   }
@@ -634,7 +649,7 @@ bool Hitman4WHDFile::Load(Hitman4Dialog& archiveDialog, const StringView8CI &loa
         nullBytesCheckPassed &= nullByte == 0;
       if (!nullBytesCheckPassed && whdRecord->streams.id != 0x004F4850)
       {
-        if (whdRecord->sceneAliased.nullByte != 0)
+        if (whdRecord->streamsAliased.nullByte != 0)
         {
           whdPtr = reinterpret_cast<char *>(whdRecord);
           break;
