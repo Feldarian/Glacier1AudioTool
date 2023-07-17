@@ -51,7 +51,8 @@
 // never end up with non-zero value and WAV data block without LIP segment. If this happens, something is broken in your parser. Not respecting
 // alignments may lead to broken data exports.
 //
-// Below is best current process for parsing the STR file.
+// Below is best current process for parsing the STR file. Algorithm was verified with ton of assertions, bunch of which are still left in G1AT
+// for debug builds. Also, great care was taken to make sure algorithm doesn't go out of bounds anywhere, no exceptions to this rule.
 //
 // How to parse:
 // - read in STR_Header and validate known fields

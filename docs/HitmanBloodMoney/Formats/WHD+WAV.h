@@ -15,11 +15,13 @@
 // aliased entry. Scene WAV files do not contain any sort of header information and need information from WHD to be 
 // usable.
 //
+// Whole file is aligned on 16 bytes. This applies to both, WHD and WAV scene files.
+//
 // The file does not has any known direct pointers into at the time of writting. Best method may not be best after more
 // of SND file is reverse engineered. For now, below is very stable algorithm without sideeffects you can use to parse
-// WHD files. Algorithm was verified with ton of assertions, bunch of which are still left in G1AT for debug builds.
-//
-// Whole file is aligned on 16 bytes. This applies to both, WHD and WAV scene files.
+// scene WHD+WAV pairs. Algorithm was verified with ton of assertions, bunch of which are still left in G1AT for debug 
+// builds. Also, great care was taken to make sure algorithm doesn't go out of bounds anywhere (only exception is aliased
+// stream entry, which was done for simplification and as this was proven to work without sideeffects).
 //
 // How to parse:
 // - read in WHD_Header and validate known fields
