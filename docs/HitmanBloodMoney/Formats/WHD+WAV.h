@@ -19,8 +19,10 @@
 // of SND file is reverse engineered. For now, below is very stable algorithm without sideeffects you can use to parse
 // WHD files. Algorithm was verified with ton of assertions, bunch of which are still left in G1AT for debug builds.
 //
+// Whole file is aligned on 16 bytes. This applies to both, WHD and WAV scene files.
+//
 // How to parse:
-// - read in WHD_Header
+// - read in WHD_Header and validate known fields
 // - while not WHD_Header.fileSizeWithHeader offset reached
 //   - go to the end of a string, including single byte for null terminator
 //   - make sure you ended up on aligned address on 16 byte boundary and if not, add enough bytes to offset to be aligned
@@ -50,6 +52,7 @@ struct WHD_Header
 
 union WHD_Record
 {
+  // record with this header has its data in scene's WAV file at the given data offset with given format
   struct WHD_RecordScene {
     uint32_t filePathLength;
     uint32_t filePathOffset;
@@ -67,6 +70,12 @@ union WHD_Record
     uint32_t nullBytes[4]; // all are always 0 without exception
   };
 
+  // record with this header has its data in stream STR file somewhere at the given data offset with given format
+  // it needs to be parsed specially, as it may contain LIP data before actual data, and it contains 2 datas concated
+  // together, aligned on 0x0100
+  // data of this type should never have other format than IMA ADPCM or PCM S16
+  // records of this type need to know full data block size in STR file and calculate offsets to real data from end based on data size
+  // dont forget the mentioned alignment between data segments!
   // realistically, this structure is 16 bytes less or is of structure 2x this minus 16 bytes for each! for ease of use and parsing though, we can pretend it has same size and ignore padding bytes, it is always safe
   struct WHD_RecordStreamsAliased
   {
@@ -86,6 +95,11 @@ union WHD_Record
     uint32_t nullBytes[4]; // these may not be null, if they are not null, there is some other aliased entry behind, there is always block of 16 bytes zeroed after last entry
   };
 
+  // record with this header has its data in stream STR file somewhere at the given data offset with given format
+  // it needs to be parsed specially in STR, as it may contain LIP data before actual data, aligned on 0x0100
+  // records of this type need to know full data block size in STR file and calculate offsets to real data from end based on data size
+  // dont forget the mentioned alignment between data segments!
+  // data of this type should never have other format than IMA ADPCM or PCM S16
   struct WHD_RecordStreams
   {
     uint32_t id; // always "PHO\0" (0x004F4850)
@@ -105,7 +119,7 @@ union WHD_Record
     uint32_t nullBytes[3]; // all are always 0 without exception
   };
 
-  // sizes of all different record types must match!
+  // sizes of all different record types must match! (unless mentioned different variant of WHD_RecordStreamsAliased is used)
   static_assert(sizeof(WHD_RecordScene) == sizeof(WHD_RecordStreamsAliased));
   static_assert(sizeof(WHD_RecordScene) == sizeof(WHD_RecordStreams));
 };
