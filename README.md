@@ -38,8 +38,8 @@ Format | Open | Save | Export | Import
  * Ability to show modified entries in archives thanks to original records caching.
      * Automatically ignore unchanged original files from original archives when trying to import.
      * Records caching feature can be disabled, same as the option which ignores unchanged files on import. Beware that disabling records caching also causes unchanged files to get imported.
-     * Currently pre-packaged with __Steam__ data and default __English__ language.
-       * When you have different version, just remove `data/records` folder and let it regenerate records on first archive reload.
+     * Cache gets initialized for the first time on archive open.
+       * It can be reset for each tool under options when needed.
  * Currently 2 supported languages - __English__ and __Czech__
      * New localizations can be added by copying `data/localization/English.toml`, translating the entries and placing the copied file back into `data/localization`
      * For example, you could create `Deutsch.toml` which would contain translations to __German__ language and place it in the mentioned folder.

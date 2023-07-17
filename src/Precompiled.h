@@ -6,18 +6,17 @@
 
 #pragma once
 
+#define SDL_MAIN_HANDLED 1
+
 #include <SDL.h>
 #include <SDL_syswm.h>
-
-#include <samplerate.h>
-#include <sndfile.h>
 #include <xxhash.h>
 
-#include <commdlg.h>
-#include <shlobj.h>
-
+#include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <icu.h>
+
+#include <commdlg.h>
+#include <shlobj.h>

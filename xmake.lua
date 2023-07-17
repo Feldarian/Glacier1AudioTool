@@ -1,11 +1,12 @@
-set_xmakever("2.7.2")
+set_xmakever("2.8.1")
+
+includes("vendor/FeldarianBaseLibrary")
 
 set_allowedplats("windows")
 set_arch("x64")
 
 set_languages("cxx20")
 
-add_rules("mode.debug", "mode.releasedbg", "mode.release")
 add_rules("plugin.vsxmake.autoupdate")
 add_rules("c.unity_build")
 add_rules("c++.unity_build")
@@ -13,8 +14,9 @@ add_rules("c++.unity_build")
 add_defines("UNICODE=1", "_UNICODE=1")
 
 if (is_plat("windows")) then
-  add_cxflags("/bigobj", "/MP", "/utf-8")
-  add_defines("_CRT_SECURE_NO_WARNINGS=1", "WIN32_LEAN_AND_MEAN=1", "NOMINMAX=1", "WINVER=_WIN32_WINNT_WIN10", "_WIN32_WINNT=_WIN32_WINNT_WIN10", "NTDDI=NTDDI_WIN10_19H1", "ENABLE_SNDFILE_WINDOWS_PROTOTYPES=1")
+  add_cxflags("/bigobj", "/utf-8", {tools = {"clang_cl", "cl"}})
+  add_cxflags("/MP", {tools = {"cl"}})
+  add_defines("_CRT_SECURE_NO_WARNINGS=1", "WIN32_LEAN_AND_MEAN=1", "NOMINMAX=1", "WINVER=_WIN32_WINNT_WIN10", "_WIN32_WINNT=_WIN32_WINNT_WIN10", "NTDDI=NTDDI_WIN10_19H1")
 end
 
 local vsRuntime = "MD"
@@ -25,6 +27,10 @@ if is_mode("debug") then
   set_optimize("none")
   set_warnings("all")
   set_policy("build.optimization.lto", false)
+
+  --add_cxflags("/fsanitize=address")
+  --add_mxflags("/fsanitize=address")
+  --add_ldflags("/fsanitize=address")
   
   vsRuntime = vsRuntime.."d"
 elseif is_mode("releasedbg") then
@@ -33,6 +39,10 @@ elseif is_mode("releasedbg") then
   set_optimize("fastest")
   set_warnings("all")
   set_policy("build.optimization.lto", true)
+  
+  --add_cxflags("/fsanitize=address")
+  --add_mxflags("/fsanitize=address")
+  --add_ldflags("/fsanitize=address")
 
   vsRuntime = vsRuntime.."d"
 elseif is_mode("release") then
@@ -40,28 +50,26 @@ elseif is_mode("release") then
   set_symbols("hidden")
   set_strip("all")
   set_optimize("fastest")
-  set_warnings("all", "error")
+  set_warnings("all")--, "error")
   set_policy("build.optimization.lto", true)
 end
 
 set_runtimes(vsRuntime);
-set_toolchains("clang-cl", "msvc", {vs = "2022"})
 
-add_cxflags("-Wno-unused-command-line-argument", "-Wno-pragma-system-header-outside-header") -- this line should be enabled only when using clang-cl
+add_cxflags("-Wno-microsoft-include", "-Wno-unused-command-line-argument", "-Wno-pragma-system-header-outside-header", {tools = {"clang_cl", "clang"}})
 
-add_defines("IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1", "GL_GLEXT_PROTOTYPES=1", "TOML_EXCEPTIONS=0")
+add_defines("IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1")
 
 add_requireconfs("*", { configs = { debug = is_mode("debug"), lto = not is_mode("debug"), shared = false, vs_runtime = vsRuntime } })
 
 add_requires("scnlib 1.1.2", { configs = { header_only = false } })
-add_requires("libsdl 2.28.0", { configs = { shared = true, use_sdlmain = true } })
-add_requires("libsndfile 1.2.0", { configs = { shared = true } })
-add_requires("xxhash v0.8.1")
---add_requires("toml++ 3.3.0", { configs = { header_only = true } }) -- 3.3.0 misses important patch for us, wait for newer version which contains fix from master or make a fork...
-add_requires("toml++ master", { configs = { header_only = true } })
+add_requires("libsdl 2.28.1", { configs = { shared = true, use_sdlmain = false } })
+add_requires("spdlog v1.12.0", { configs = { header_only = true, std_format = true, noexcept = true } })
+add_requires("catch2 v3.4.0")
+add_requires("tracy v0.9.1")
 
 local imguiUserConfig = path.absolute("src/ImGuiConfig.hpp");
-add_requires("imgui v1.89.6-docking", { configs = { wchar32 = true, freetype = true, user_config = imguiUserConfig } })
+add_requires("imgui v1.89.7-docking", { configs = { wchar32 = true, freetype = true, user_config = imguiUserConfig } })
 
 function CopyDataToDirecotry(targetDir)
   os.rm(targetDir .. "/data")
@@ -69,62 +77,91 @@ function CopyDataToDirecotry(targetDir)
   os.cp("data/*", targetDir .. "/data")
 end
 
-package("libsamplerate")
-  set_kind("library", {headeronly = true})
-  set_homepage("http://libsndfile.github.io/libsamplerate/")
-  set_description("An audio Sample Rate Conversion library")
-  set_license("BSD-2-Clause")
+target("imgui-backends")
+  set_version("1.89.7")
+  set_kind("static")
 
-  add_urls("https://github.com/libsndfile/libsamplerate/archive/$(version).tar.gz",
-           "https://github.com/libsndfile/libsamplerate.git")
+  add_includedirs("vendor/imgui-backends/include", {public = true})
 
-  add_versions("0.2.2", "16e881487f184250deb4fcb60432d7556ab12cb58caea71ef23960aec6c0405a")
+  add_headerfiles("vendor/imgui-backends/include/**.h")
+  add_files("vendor/imgui-backends/src/**.cpp")
 
-  add_deps("cmake")
-
-  on_install("windows", "linux", "macosx", "iphoneos", "mingw", "android", function (package)
-    local configs = {}
-    table.insert(configs, "-DBUILD_PROGRAMS=OFF")
-    table.insert(configs, "-DBUILD_EXAMPLES=OFF")
-    table.insert(configs, "-DBUILD_TESTING=OFF")
-    table.insert(configs, "-DCMAKE_BUILD_TYPE=" .. (package:debug() and "Debug" or "Release"))
-    table.insert(configs, "-DBUILD_SHARED_LIBS=" .. (package:config("shared") and "ON" or "OFF"))
-
-    import("package.tools.cmake").install(package, configs)
-  end)
-package_end()
-add_requires("libsamplerate 0.2.2", { configs = { shared = true } })
+  add_packages("imgui", "libsdl")
+target_end()
 
 target("Glacier1AudioTool")
   set_version("1.1.0")
+  set_kind("binary")
   
   set_rundir("$(projectdir)")
   add_defines("IMGUI_USER_CONFIG=\""..imguiUserConfig.."\"")
 
   --add_defines("G1AT_BUILD_TESTS")
+  --add_defines("G1AT_ENABLE_PROFILING")
 
-  set_kind("binary")
+  add_deps("FeldarianBaseLibrary", "imgui-backends", { private = true })
   
   add_files("manifests/**.manifest")
 
-  add_headerfiles("src/**.h")
+  add_includedirs("src")
+
+  add_headerfiles("src/*.h")
+  --add_files("src/*.c")
+  add_headerfiles("src/*.hpp")
+  --add_files("src/*.cpp")
+
+  --add_headerfiles("src/App/**.h")
+  --add_files("src/App/**.c")
+  add_headerfiles("src/App/**.hpp")
+  add_files("src/App/**.cpp")
   
-  add_headerfiles("src/**.hpp")
-  add_files("src/**.cpp")
+  --add_headerfiles("src/Config/**.h")
+  --add_files("src/Config/**.c")
+  add_headerfiles("src/Config/**.hpp")
+  --add_files("src/Config/**.cpp")
   
+  --add_headerfiles("src/Core/**.h")
+  --add_files("src/Core/**.c")
+  add_headerfiles("src/Core/**.hpp")
+  add_files("src/Core/**.cpp")
+  
+  --add_headerfiles("src/G1AT/**.h")
+  --add_files("src/G1AT/**.c")
+  add_headerfiles("src/G1AT/**.hpp")
+  add_files("src/G1AT/**.cpp")
+
+  if (is_plat("windows")) then
+    --add_headerfiles("src/Platform/Windows/**.h")
+    --add_files("src/Platform/Windows/**.c")
+    add_headerfiles("src/Platform/Windows/**.hpp")
+    add_files("src/Platform/Windows/**.cpp")
+  elseif (is_plat("linux")) then
+    --add_headerfiles("src/Platform/Linux/**.h")
+    --add_files("src/Platform/Linux/**.c")
+    add_headerfiles("src/Platform/Linux/**.hpp")
+    add_files("src/Platform/Linux/**.cpp")
+  elseif (is_plat("macosx")) then
+    --add_headerfiles("src/Platform/Mac/**.h")
+    --add_files("src/Platform/Mac/**.c")
+    add_headerfiles("src/Platform/Mac/**.hpp")
+    add_files("src/Platform/Mac/**.cpp")
+  end
+  
+  set_configvar("G1AT_COMPANY_NAMESPACE", "Feldarian")
+  set_configvar("G1AT_COMPANY_NAME", "Feldarian Softworks")
   set_configvar("G1AT_NAME", "Glacier 1 Audio Tool")
   set_configvar("G1AT_DESCRIPTION", "Tool able to read, write, import and export selected Glacier 1 sound-related formats.")
   set_configvar("G1AT_HOMEPAGE", "https://github.com/WSSDude/Glacier1AudioTool")
 
-  set_configdir("$(buildir)/src/Config")
-  add_configfiles("src/Config.h.in")
-  add_includedirs("$(buildir)/src/Config/")
-  add_headerfiles("$(buildir)/src/Config/**.h")
+  set_configdir("$(buildir)/generated/Config")
+  add_configfiles("src/Config/Config.h.in")
+  add_includedirs("$(buildir)/generated")
+  add_headerfiles("$(buildir)/generated/Config/**.h")
   
   set_pcxxheader("src/Precompiled.hpp")
   
-  add_packages("scnlib", "libsdl", "libsndfile", "libsamplerate", "imgui", "xxhash", "toml++")
-  add_syslinks("comdlg32", "opengl32", "shell32", "icuuc")
+  add_syslinks("comdlg32", "opengl32", "shell32")
+  add_packages("scnlib", "libsdl", "imgui", "spdlog", "xxhash", "toml++", "icu4c")
   
   before_build(function (target)
     os.rm(target:targetdir() .. "/data")
