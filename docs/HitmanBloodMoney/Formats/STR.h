@@ -99,29 +99,28 @@ struct STR_Header
   uint32_t unk28[0x100 - 0x28] = {};
 };
 
-// unknown difference between ADPCM1 and ADPCM2 for now
 enum STR_EntryHeaderFormat
 {
   PCM_S16 = 0x02,
+  ADPCM = 0x03,
   VORBIS = 0x04,
-  ADPCM1 = 0x03,
-  ADPCM2 = 0x11,
+  ALIASED_MASTER = 0x11
 }
 
 // BEWARE this is really 3 different headers, as there is no padding... didn't know how to name things so left it like this for now..
 struct STR_EntryHeader
 {
-  // PCM_S16, VORBIS, ADPCM1 and ADPCM2 have following bytes
+  // PCM_S16, ADPCM, VORBIS and ALIASED_MASTER have following bytes
   uint32_t headerFormat; // always one of enum STR_EntryHeaderFormat options
   uint32_t samplesCount; // samples count
   uint32_t channels; // number of channels
   uint32_t sampleRate; // sample rate
   uint32_t bitsPerSample; // bits per sample
 
-  // all PCM_S16, ADPCM1 and ADPCM2 have following bytes on top
+  // all PCM_S16, ADPCM and ALIASED_MASTER have following bytes on top
   uint32_t blockAlign; // block alignment
 
-  // all ADPCM1 and ADPCM2 have following bytes on top
+  // all ADPCM have following bytes on top
   uint32_t samplesPerBlock; // samples per block
 }
 
