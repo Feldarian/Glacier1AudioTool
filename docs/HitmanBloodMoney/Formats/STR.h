@@ -29,23 +29,24 @@
 // name table and records table... Alignment is only valid for part of the file, but it must be respected for that part of the file!
 //
 // Any WAV data block may be encoded in LIP segments which have variable length and header of size 0xF00 ('LIP ' magic). Record contains
-// field for LIP encoding use which you may check without need to compare magic of each data block. For aliased entries, you will have to
+// field which can be checked if it uses LIP encoding without need to compare magic of each data block. For aliased entries, you will have to
 // look into referenced entry to see if LIP encoding is used. There may be multiple LIP segments in the data block, but only first one
-// has magic in first four bytes. Detection method for LIP segments currently relies on the fact that archive is aligned and that we can
-// calculate exact size of each data block. We also know that each LIP segment starts at some fixed offset (relative to given data offset)
-// which must be aligned on 0x1000. We start by subtracting true data size from LIP encoded entry and then mask result with ~0xFFull which 
-// gives us size of all additional data included by LIP encoding. We can then infer number of LIP segments by dividing this number with 
-// header size (note that in case 0xF00 is not aligned the same way as WAV data blocks are, you have to use the block alignment instead!)
-// When we know number of expected LIP segments, we may try to search for pattern filled with zeroes which has half the size of header 0x780.
-// First match of the pattern after 0x1000 should be the interesting point. You should then align yourself on 0x100 to the right and continue
-// adding and checking next 16 bytes until some of the bytes is not zero. Verify you found correct offset and if not, correct yourself (you 
-// shouldn't be on an offset which is not divisible by 0x100 and when you subtract either header (or block alignment size, depending on the case),
-// the offset you end up on should be the variadic size of the LIP segment encoding for this WAV data).
+// has magic in first four bytes. Due to varialble data length, we have to find out the right size LIP segment first before parsing. It 
+// seems to appear roughly every ~4 seconds, but naive formula of `average byte rate * 4` just roughly yields where the end of LIP segment is.
+// Size is for all LIP segments (excluding last one) aligned on 0x1000.
 //
-// Last LIP segment is never aligned in some special way other than appending zeroes to fit into 0x100 alignment requirement, but LIP doesn't
-// seem to make any special restrictions in this regard. 
+// Current detection method for LIP segments relies on the fact that archive is aligned, we know roughly where the offset should be and that
+// we can calculate exact size of each data block. There is also additional observation to be made that nearly all LIP segments seem to have
+// around half of their data filled with zeroes. We can also notice that when we subtract real data size aligned on 0x100 from whole data block
+// size, we get amount of bytes belonging to LIP segments. We can then calculate from this size amount of LIP segments in the data block. There
+// may be only one, which does not require us to do any magic - we just have to skip past the header and read real data size bytes, ignoring any
+// alignment paddings. If there are more segments, we can proceed with calculation of segment size (as it is not equal whole block size).
 //
-// Aliased entries always have STR_EntryHeader of header type 0x02. 
+// As mentioned before, we rougly know when each of LIP segments appears in the audio file (it is roughly equivalent to 4 seconds, leaving
+// last block unaligned most of the time with smaller size). We should try to pattern match buffer of size 0x780 filled with zeroes, masking
+// each found offset with ~0xFFFull which will left-align on 0x1000 and taking closest offset to the one we predicted. We then read in minimum
+// of data block bytes left to read and this found LIP segment offset, skip aligned LIP header size and copy each part of the segment into its
+// own buffer. In the end, we are left with complete LIP data and complete WAV data.
 //
 // Block of WAV data is organized in such a way that it has all simple entries at the beginning and all aliased entries at the end.
 // There is no clear block of LIP data, it seems to be mixed randomly inbetween the entries so no reliable distinction in the block.
@@ -61,7 +62,7 @@
 // bunch of which are still left in G1AT for debug builds. Also, great care was taken to make sure algorithm doesn't go out of bounds anywhere, 
 // no exceptions to this rule.
 //
-// How to parse:
+// How to parse (TODO - already outdated, needs an update!):
 // - read in STR_Header and validate known fields
 // - jump to the STR_Header.offsetToEntryTable offset
 // - make some variable holding a set of all unique data offsets 
@@ -98,20 +99,29 @@ struct STR_Header
   uint32_t unk28[0x100 - 0x28] = {};
 };
 
+// unknown difference between ADPCM1 and ADPCM2 for now
+enum STR_EntryHeaderFormat
+{
+  PCM_S16 = 0x02,
+  VORBIS = 0x04,
+  ADPCM1 = 0x03,
+  ADPCM2 = 0x11,
+}
+
 // BEWARE this is really 3 different headers, as there is no padding... didn't know how to name things so left it like this for now..
 struct STR_EntryHeader
 {
-  // all 0x02, 0x03, 0x04 and 0x11 entries have following bytes
-  uint32_t headerType; // always one of 0x02, 0x03, 0x04, 0x11
+  // PCM_S16, VORBIS, ADPCM1 and ADPCM2 have following bytes
+  uint32_t headerFormat; // always one of enum STR_EntryHeaderFormat options
   uint32_t samplesCount; // samples count
   uint32_t channels; // number of channels
   uint32_t sampleRate; // sample rate
   uint32_t bitsPerSample; // bits per sample
 
-  // all 0x02, 0x03 and 0x11 entries have following bytes on top
+  // all PCM_S16, ADPCM1 and ADPCM2 have following bytes on top
   uint32_t blockAlign; // block alignment
 
-  // all 0x03 and 0x11 entries have following bytes on top
+  // all ADPCM1 and ADPCM2 have following bytes on top
   uint32_t samplesPerBlock; // samples per block
 }
 
@@ -121,22 +131,31 @@ struct STR_Entry
   uint64_t dataOffset; // offset to beginning of data, BEWARE OF ALIASED RECORDS!
   uint64_t dataSize; // data size
   uint64_t headerOffset; // offset to some table which seems to contain headers
-  uint32_t sizeOfHeader; // size of header
-  uint32_t unk24; // unknown number, doesnt seem to be an offset, maybe some size?
+  uint32_t sizeOfHeader; // size of STR_EntryHeader (unused fields are left out)
+  uint32_t unk24; // unknown number
   uint64_t fileNameLength; // length of filename in string table
   uint64_t fileNameOffset; // offset to filename in string table
   uint32_t hasLIP; // 0x04 when LIP data is present for current entry, 0x00 otherwise
-  uint32_t unk3C; // was 0x30 in sample where LIP data was present, 0x0 in other
+  uint32_t unk3C; // unknown number
   uint64_t aliasedEntryOrderOrReference; // if 0, entry is not aliased, otherwise it denotes entry order in aliased data block or reference to one
 };
 
-// LIP segment which may be used to store sound data, it has variadic size which is unknown how it can be retrieved at the moment.
-// First segment always starts with 4 byte magic 'LIP '. There is always block of 0xF00 extra data at the beginning of each segment,
-// followed by block of data. Last segment is not aligned, only on 0x100 as is the rest of the data-related blocks. 
-struct STR_LIPSegment
+// exact contents of LIP segment header are unknown, but first segment header always has 4 byte magic "LIP "
+// size is 0xF00, header is aligned on min(0x100, data alignment)
+struct STR_LIPSegmentHeader
 {
    uint32_t id; // compares to first 4 chars from "LIP " for first segment
    char unk4[0x0F00 - 0x04]; // unknown contents, but there are a lot of visible patterns...
+};
+
+// LIP segment which may be used to store sound data, it has variadic size which is unknown how it can be retrieved at the moment.
+// First segment always has 4 byte magic 'LIP ' in its header. There is always segment header, then possibly padding (depends on if 
+// header is aligned the same way data is), then variable number of blocks of data. All segments apart from last one are aligned on 
+// 0x100 or data alignment, whatever is bigger. 
+struct STR_LIPSegment
+{
+   STR_LIPSegmentHeader header;
    // NOTE - there may be additional block of 0x0100 or similar due to block alignment of data, which when bigger, forces some additional padding bytes inbetween the data
+   // char alignmentPadding[/*0x100*/];
    char data[]; // data of variadic size, always aligned the same way as is block alignment
 };
