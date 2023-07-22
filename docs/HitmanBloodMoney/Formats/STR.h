@@ -11,12 +11,11 @@
 // with any information I had about each field written next to it.
 //
 // It represents audio streams data, shared between multiple scenes.
-// Streams can be read on its own, it contains all of the required data. Only problem is that I had not found reliable way to
-// discard aliased stream entries without data gathered from all WHD files, as unused data in STR can be discarded by no presence.
-// in WHD (without WHD referencing the record, record is unused).
+// Streams can be read on its own, it contains all of the required data. It should actually be read before any scenes
+// when someone wants to do anything audio-related to have best support.
 //
 // There are some extra data that are not related to aliased entries. These should be valid for export, but had not tested it yet.
-// They may also contain LIP data segments before actual data so beware.
+// They may also contain LIP data segments instead of regular data dumps so beware.
 //
 // Data in file can be separated into following sections, some have clear indices some can be implicitly infered:
 // - header
@@ -29,30 +28,38 @@
 // Alignment breaks after block of WAV data, as block of WAV headers is not aligned this way, same seems to be the case for file
 // name table and records table... Alignment is only valid for part of the file, but it must be respected for that part of the file!
 //
-// Any WAV data block may be prepended with LIP segment ('LIP ' magic). This segment has unknown size and exact purpose, extraction of
-// these entries is therefore currently "best effort" only. It is always prepended before the actual data.
+// Any WAV data block may be encoded in LIP segments which have variable length and header of size 0xF00 ('LIP ' magic). Record contains
+// field for LIP encoding use which you may check without need to compare magic of each data block. For aliased entries, you will have to
+// look into referenced entry to see if LIP encoding is used. There may be multiple LIP segments in the data block, but only first one
+// has magic in first four bytes. Detection method for LIP segments currently relies on the fact that archive is aligned and that we can
+// calculate exact size of each data block. We also know that each LIP segment starts at some fixed offset (relative to given data offset)
+// which must be aligned on 0x1000. We start by subtracting true data size from LIP encoded entry and then mask result with ~0xFFull which 
+// gives us size of all additional data included by LIP encoding. We can then infer number of LIP segments by dividing this number with 
+// header size (note that in case 0xF00 is not aligned the same way as WAV data blocks are, you have to use the block alignment instead!)
+// When we know number of expected LIP segments, we may try to search for pattern filled with zeroes which has half the size of header 0x780.
+// First match of the pattern after 0x1000 should be the interesting point. You should then align yourself on 0x100 to the right and continue
+// adding and checking next 16 bytes until some of the bytes is not zero. Verify you found correct offset and if not, correct yourself (you 
+// shouldn't be on an offset which is not divisible by 0x100 and when you subtract either header (or block alignment size, depending on the case),
+// the offset you end up on should be the variadic size of the LIP segment encoding for this WAV data).
+//
+// Last LIP segment is never aligned in some special way other than appending zeroes to fit into 0x100 alignment requirement, but LIP doesn't
+// seem to make any special restrictions in this regard. 
+//
+// Aliased entries always have STR_EntryHeader of header type 0x02. 
 //
 // Block of WAV data is organized in such a way that it has all simple entries at the beginning and all aliased entries at the end.
 // There is no clear block of LIP data, it seems to be mixed randomly inbetween the entries so no reliable distinction in the block.
 // Aliased entries point to same data offset, there are always exactly three such pointers (2 defined in WHD, 1 is only defined in STR). 
-// There cannot be other number of "duplicates" than 1 (none) or 3 (aiased entry, 1 dummy and 2 data-wise). Unknown exact purpose of third
-// entry nor how to detect this seemingly bogus entry without comparing with WHD datas. Size of it though seems to be always equal size of
-// of the other two chunks, but that seems to be some coincidense or it may be deliberate... Fact is though that the 2 datas are not
-// of the same exact type, sample rates may differ for example.
+// There cannot be other number of "duplicates" than 1 (none) or 3 (aiased entry, 1 for selection and 2 templates). Third entry we mentioned
+// is STR file only is the true data definition. It defines reference to aliased entry being used (same field as for aliased entry order). 
+// If LIP data is present, reference record has appropriate flag set. Note that reference record should not really be used for other things,
+// as its parameters are not exactly the same always and correct ones are located directly in the entry. 
 //
-// Due to all this, recomennded way to get to the actual data is to precalculate all individual WAV data block sizes and subtract data sizes
-// of all entries to specific data offset mapped in WHD (and not just in STR due to mentioned "bogus" entries). After each subtraction, make
-// sure you ended up on 0x0100 boundary and if not, subtract more bytes until you are. After reaching the boundary, subtract again, until
-// there is nothing to subtract. Order of entries subtractions is dictated by STR_EntryHeader.blockAlignOrUnknown (all entries have 
-// STR_EntryHeader.headerType 0x02 or 0x11 so they have this uint32_t field). This field dictates order of these two datas (NOTE: this seems
-// to be 0x02 for some "bogus" entries, which aliases valid "index"... possible that "bogus" entry could be detected by size, as they will be
-// inevitably bigger than the valid entry with same size). Logically, subtract items from biggest index to the smallest. You should be left 
-// with either offset 0 or some non-zero number aligned on 0x0100. This is the expected LIP segment size. If 0, it is not present. You should 
-// never end up with non-zero value and WAV data block without LIP segment. If this happens, something is broken in your parser. Not respecting
-// alignments may lead to broken data exports.
-//
-// Below is best current process for parsing the STR file. Algorithm was verified with ton of assertions, bunch of which are still left in G1AT
-// for debug builds. Also, great care was taken to make sure algorithm doesn't go out of bounds anywhere, no exceptions to this rule.
+// Due to all this, recomennded way to get to the actual data is to precalculate all individual WAV data block sizes and resolve aliased records. 
+// 
+// Below is best current process for parsing the STR file (TODO - already outdated, needs an update!). Algorithm was verified with ton of assertions, 
+// bunch of which are still left in G1AT for debug builds. Also, great care was taken to make sure algorithm doesn't go out of bounds anywhere, 
+// no exceptions to this rule.
 //
 // How to parse:
 // - read in STR_Header and validate known fields
@@ -73,7 +80,7 @@
 //   parsing algorithm and knowledge written before it)
 //
 // Note that format information of data, along with data sizes, offsets, names, etc. are all same as in equivalent WHD record. So there is no need
-// to reference WHDs for this info, they are mostly required for reliably detecting and ignoring "bogus" entries.
+// to reference WHDs for any sort of information.
 //
 
 #pragma once
@@ -96,21 +103,21 @@ struct STR_EntryHeader
 {
   // all 0x02, 0x03, 0x04 and 0x11 entries have following bytes
   uint32_t headerType; // always one of 0x02, 0x03, 0x04, 0x11
-  uint32_t unk4; // possibly data size
+  uint32_t samplesCount; // samples count
   uint32_t channels; // number of channels
   uint32_t sampleRate; // sample rate
   uint32_t bitsPerSample; // bits per sample
 
   // all 0x02, 0x03 and 0x11 entries have following bytes on top
-  uint32_t blockAlignOrUnknown; // block alignment for 0x03, unknown for rest
+  uint32_t blockAlign; // block alignment
 
-  // all 0x03 entries have following bytes on top
+  // all 0x03 and 0x11 entries have following bytes on top
   uint32_t samplesPerBlock; // samples per block
 }
 
 struct STR_Entry 
 {
-  uint64_t unk0; // some number, maybe id? doesnt seem to be too out of hand...
+  uint64_t id; // probably some ID, is less than total entries count, does not match its index
   uint64_t dataOffset; // offset to beginning of data, BEWARE OF ALIASED RECORDS!
   uint64_t dataSize; // data size
   uint64_t headerOffset; // offset to some table which seems to contain headers
@@ -118,14 +125,18 @@ struct STR_Entry
   uint32_t unk24; // unknown number, doesnt seem to be an offset, maybe some size?
   uint64_t fileNameLength; // length of filename in string table
   uint64_t fileNameOffset; // offset to filename in string table
-  uint32_t unk38; // was 0x4 in sample where LIP data was present, 0x0 in other
+  uint32_t hasLIP; // 0x04 when LIP data is present for current entry, 0x00 otherwise
   uint32_t unk3C; // was 0x30 in sample where LIP data was present, 0x0 in other
-  uint64_t unk40; // is not 0 always but in quite a few places was
+  uint64_t aliasedEntryOrderOrReference; // if 0, entry is not aliased, otherwise it denotes entry order in aliased data block or reference to one
 };
 
-// LIP chunk which may be at the start of some sound files data, unknown purpose and unknown how to properly detect size for now...
-struct STR_LIPChunk
+// LIP segment which may be used to store sound data, it has variadic size which is unknown how it can be retrieved at the moment.
+// First segment always starts with 4 byte magic 'LIP '. There is always block of 0xF00 extra data at the beginning of each segment,
+// followed by block of data. Last segment is not aligned, only on 0x100 as is the rest of the data-related blocks. 
+struct STR_LIPSegment
 {
-   uint32_t id; // compares to first 4 chars from "LIP "
-   char unk4[]; // unknown contents, unknown size
+   uint32_t id; // compares to first 4 chars from "LIP " for first segment
+   char unk4[0x0F00 - 0x04]; // unknown contents, but there are a lot of visible patterns...
+   // NOTE - there may be additional block of 0x0100 or similar due to block alignment of data, which when bigger, forces some additional padding bytes inbetween the data
+   char data[]; // data of variadic size, always aligned the same way as is block alignment
 };
