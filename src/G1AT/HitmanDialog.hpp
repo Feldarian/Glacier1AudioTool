@@ -44,7 +44,7 @@ public:
   bool LoadOriginalData(const Options &options = Options::Get());
   int32_t ReloadOriginalData(bool reset = false, const Options &options = Options::Get());
 
-  bool ImportSingleHitmanFile(HitmanFile &hitmanFile, std::vector<char> &data, bool allowConversions, const Options &options);
+  bool ImportSingleHitmanFile(HitmanFile &hitmanFile, const std::span<const char> &data, bool allowConversions, const Options &options);
   bool ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringView8CI &importFilePath, const Options &options);
 
   bool ExportSingleHitmanFile(const HitmanFile &hitmanFile, std::vector<char> &data, bool doConversion, const Options &options) const;

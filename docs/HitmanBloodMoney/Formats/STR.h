@@ -143,7 +143,7 @@ struct STR_Entry
 // size is 0xF00, header is aligned on min(0x100, data alignment)
 struct STR_LIPSegmentHeader
 {
-   uint32_t id; // compares to first 4 chars from "LIP " for first segment
+   uint32_t id; // compares to first 4 chars from "LIP " (0x2050494C) for first segment
    char unk4[0x0F00 - 0x04]; // unknown contents, but there are a lot of visible patterns...
 };
 

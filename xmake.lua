@@ -19,6 +19,8 @@ if (is_plat("windows")) then
   add_defines("_CRT_SECURE_NO_WARNINGS=1", "WIN32_LEAN_AND_MEAN=1", "NOMINMAX=1", "WINVER=_WIN32_WINNT_WIN10", "_WIN32_WINNT=_WIN32_WINNT_WIN10", "NTDDI=NTDDI_WIN10_19H1")
 end
 
+add_cxflags("/wd4200", {tools = {"cl"}})
+
 local vsRuntime = "MD"
 
 if is_mode("debug") then
@@ -50,7 +52,7 @@ elseif is_mode("release") then
   set_symbols("hidden")
   set_strip("all")
   set_optimize("fastest")
-  set_warnings("all")--, "error")
+  set_warnings("all", "error")
   set_policy("build.optimization.lto", true)
 end
 
@@ -90,7 +92,7 @@ target("imgui-backends")
 target_end()
 
 target("Glacier1AudioTool")
-  set_version("1.1.0")
+  set_version("1.2.0")
   set_kind("binary")
   
   set_rundir("$(projectdir)")

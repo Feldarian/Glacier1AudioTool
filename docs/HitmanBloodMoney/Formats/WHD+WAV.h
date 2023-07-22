@@ -101,7 +101,7 @@ struct WHD_Record_StreamsAliased_SubRecord
 struct WHD_Record_StreamsAliased
 {
   WHD_Record_StreamsAliased_SubRecord subRecords[2];
-  //uint32_t pad34[3];  // in WHD, has additional padding bytes filled with zeroes without exceptions
+  //uint32_t pad68[2];  // in WHD, has additional padding bytes filled with zeroes without exceptions
 };
 
 // record with this header has its data in stream STR file somewhere at the given data offset with given format

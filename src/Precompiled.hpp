@@ -35,6 +35,7 @@ inline LocalizationManager g_LocalizationManager{g_GlyphRangesBuilder};
 #include <bitset>
 #include <chrono>
 #include <compare>
+#include <execution>
 #include <filesystem>
 #include <format>
 #include <fstream>

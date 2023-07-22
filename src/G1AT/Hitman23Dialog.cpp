@@ -3,12 +3,12 @@
 // Copyright © 2015-2023 Feldarian Softworks. All rights reserved.
 // SPDX-License-Identifier: EUPL-1.2
 //
-// TODO - make sure that dialogs shared between multiple games do not check bytes of files directly (contents different == bytes different)
-//
 
 #include <Precompiled.hpp>
 
 #include "Hitman23Dialog.hpp"
+
+#include <Config/Config.hpp>
 
 #include "Utils.hpp"
 
@@ -126,12 +126,6 @@ bool Hitman23WAVFile::Load(const std::vector<char> &wavData, const OrderedMap<St
     std::memcpy(newData.data(), wavData.data() + trueOffset, wavFileData.size);
     recordMap.try_emplace(offset, Hitman23WAVRecord{newData, offset});
     currOffset = offset + wavFileData.size;
-
-    wavFileData.file.archiveRecord = SoundDataSoundRecord(wavFileData.file.archiveRecord, wavFileData.file.data);
-
-    assert(wavFileData.file.archiveRecord.dataXXH3 != 0);
-    if (wavFileData.file.archiveRecord.dataXXH3 == 0)
-      return Clear(false);
   }
 
   if (currOffset < wavData.size())
@@ -143,6 +137,22 @@ bool Hitman23WAVFile::Load(const std::vector<char> &wavData, const OrderedMap<St
     std::memcpy(newData.data(), wavData.data() + currOffset, wavData.size() - currOffset);
     recordMap.try_emplace(currOffset, Hitman23WAVRecord{newData, currOffset});
   }
+
+  const auto wavFileDataView = offsetToWAVFileDataMap | std::views::values;
+
+  std::atomic_bool importFailed = false;
+  std::for_each(std::execution::par, wavFileDataView.begin(), wavFileDataView.end(), [this, &importFailed](auto& wavFileData)
+  {
+    if (importFailed.load(std::memory_order_relaxed))
+      return;
+
+    auto& hitmanFile = wavFileData.file;
+    hitmanFile.archiveRecord = SoundDataSoundRecord(hitmanFile.archiveRecord, hitmanFile.data);
+    importFailed.store(importFailed.load(std::memory_order_relaxed) || hitmanFile.archiveRecord.dataXXH3 == 0);
+  });
+
+  if (importFailed)
+    return Clear(false);
 
   if (isMissionWAV && !recordMap.empty())
     header = reinterpret_cast<Hitman23WAVHeader *>(recordMap.at(0).data.data());
@@ -360,11 +370,10 @@ bool Hitman23Dialog::LoadImpl(const StringView8CI &loadPathView, const Options &
   if (!streamsWAV.Load(streamsWAVData, allWHDRecords, fileMap, false))
     return Clear(false);
 
-  auto dataPath = GetProgramPath().path();
+  auto dataPath = String8CI(SDL_GetPrefPath(G1AT_COMPANY_NAMESPACE, G1AT_NAME)).path();
   if (dataPath.empty())
     return Clear(false);
 
-  dataPath /= L"data";
   dataPath /= L"records";
   dataPath /= L"h23_";
 

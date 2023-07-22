@@ -90,6 +90,7 @@ protected:
   int32_t DrawBaseDialog();
 
   String8CI path;
+  String8CI nextPath;
 
   std::recursive_mutex progressMessageMutex;
   String8 progressMessage;

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: EUPL-1.2
 //
 // TODO - there are checks whether there is some data in header (dataSize != 0), but there are missing checks whether requested format matches! wrong header and data may be supplied!
+// TODO - support more different WAV data directly
 //
 
 #include <Feldarian/PCMS16/PCMS16.hpp>
@@ -223,11 +224,21 @@ bool ADPCMDecodeData(const std::span<const char>& in, std::vector<int16_t> &out,
       this_block_pcm_samples = num_samples;
     }
 
-    assert(inOffset + block_size <= in.size());
+    if (inOffset + block_size > in.size())
+    {
+      out.resize(outOffsetInput);
+      return false;
+    }
+
     std::ranges::fill(adpcmBlock, 0);
     std::memcpy(adpcmBlock.data(), in.data() + inOffset, block_size);
 
-    assert(outOffset + this_block_pcm_samples * num_channels <= out.size());
+    if (outOffset + this_block_pcm_samples * num_channels > out.size())
+    {
+      out.resize(outOffsetInput);
+      return false;
+    }
+
     std::ranges::fill(pcmBlock, 0);
 
     if (adpcm_decode_block(pcmBlock.data(), adpcmBlock.data(), block_size, num_channels) != this_block_adpcm_samples)
@@ -278,7 +289,12 @@ bool ADPCMEncodeData(const std::span<const int16_t>& in, std::vector<char> &out,
       this_block_pcm_samples = num_samples;
     }
 
-    assert(inOffset + this_block_pcm_samples * num_channels <= in.size());
+    if (inOffset + this_block_pcm_samples * num_channels > in.size())
+    {
+      out.resize(outOffsetInput);
+      return false;
+    }
+
     std::ranges::fill(pcmBlock, 0);
     std::memcpy(pcmBlock.data(), in.data() + inOffset, this_block_pcm_samples * num_channels * sizeof(int16_t));
 
@@ -315,7 +331,12 @@ bool ADPCMEncodeData(const std::span<const int16_t>& in, std::vector<char> &out,
       adpcm_cnxt = adpcm_create_context (num_channels, lookahead, noise_shaping, average_deltas);
     }
 
-    assert(outOffset + block_size <= out.size());
+    if (outOffset + block_size > out.size())
+    {
+      out.resize(outOffsetInput);
+      return false;
+    }
+
     std::ranges::fill(adpcmBlock, 0);
 
     size_t num_bytes;
@@ -505,92 +526,178 @@ bool PCMS16ToADPCM_LibSNDFile(const PCMS16_Header &header, const std::span<const
   return true;
 }
 
-int32_t PCMS16ChangeSampleRate(PCMS16_Header &header, const std::span<int16_t> &data, uint32_t newSampleRate)
+std::vector<int16_t> PCMS16ChangeBlockAlignment(PCMS16_Header &header, const std::span<int16_t> &data, uint16_t newBlockAlignment)
 {
-  assert(header.fmtSampleRate != newSampleRate);
-  //if (header.fmtSampleRate == newSampleRate)
-  //  return 0;
+  if (header.fmtBlockAlign == newBlockAlignment)
+  {
+    assert(false);
+    return {};
+  }
+
+  if (newBlockAlignment < header.fmtChannels * sizeof(int16_t))
+  {
+    assert(false);
+    return {};
+  }
+
+  const auto samplesPerBlock = header.fmtBlockAlign / sizeof(int16_t);
+  const auto numberOfBlocks = header.dataSize / header.fmtBlockAlign;
+
+  const auto newSamplesPerBlock = newBlockAlignment / sizeof(int16_t);
+  const auto newDataSize = numberOfBlocks * newBlockAlignment;
+
+  assert(data.size() * sizeof(int16_t) == header.dataSize);
+
+  std::vector<int16_t> newSamples(numberOfBlocks * newSamplesPerBlock, 0);
+
+  for (size_t i = 0; i < numberOfBlocks; ++i)
+  {
+    const auto blockBeginIndex = i * header.fmtBlockAlign / sizeof(int16_t);
+    const auto newBlockBeginIndex = i * newBlockAlignment / sizeof(int16_t);
+
+    std::memcpy(newSamples.data() + newBlockBeginIndex, data.data() + blockBeginIndex, header.fmtChannels * sizeof(int16_t));
+  }
+
+  header.fmtAvgBytesRate = header.fmtSampleRate * newBlockAlignment;
+  header.fmtBlockAlign = newBlockAlignment;
+  header.dataSize = newDataSize;
+  header.riffSize = newDataSize + 0x24;
+
+  return newSamples;
+}
+
+std::vector<int16_t> PCMS16ChangeSampleRate(PCMS16_Header &header, const std::span<int16_t> &data, uint32_t newSampleRate)
+{
+  if (header.fmtSampleRate == newSampleRate)
+  {
+    assert(false);
+    return {};
+  }
 
   SRC_DATA convData;
   convData.src_ratio = static_cast<double>(newSampleRate) / header.fmtSampleRate;
 
-  const auto inDataSize = header.dataSize / sizeof(int16_t);
-  if (data.size() < static_cast<size_t>(convData.src_ratio * inDataSize))
-    return -1;
+  const auto samplesPerBlock = header.fmtBlockAlign / sizeof(int16_t);
+  const auto numberOfBlocks = header.dataSize / header.fmtBlockAlign;
+  const auto numberOfRealSamples = numberOfBlocks * header.fmtChannels;
 
-  // UINT16_MAX is just an extra buffer space in case calculation is wrong, but src_ratio * in_size should be
-  // enough
-  std::vector<float> convDataCache(inDataSize + data.size());
-  src_short_to_float_array(data.data(), convDataCache.data(), static_cast<int32_t>(inDataSize));
+  const auto newNumberOfBlocks = static_cast<size_t>(convData.src_ratio * numberOfBlocks);
+  const auto newDataSize = newNumberOfBlocks * header.fmtBlockAlign;
+  const auto newNumberOfRealSamples = newNumberOfBlocks * header.fmtChannels;
+
+  std::vector<float> convDataCache(numberOfRealSamples + newNumberOfRealSamples);
+
+  if (header.fmtBlockAlign == header.fmtChannels * sizeof(int16_t))
+    src_short_to_float_array(data.data(), convDataCache.data(), static_cast<int32_t>(numberOfRealSamples));
+  else
+  {
+    size_t convDataOffset = 0;
+    for (size_t i = 0; i < numberOfBlocks; ++i)
+    {
+      src_short_to_float_array(data.data() + i * header.fmtBlockAlign / sizeof(int16_t), convDataCache.data() + convDataOffset, static_cast<int32_t>(samplesPerBlock));
+      convDataOffset += samplesPerBlock;
+    }
+  }
 
   convData.data_in = convDataCache.data();
-  convData.input_frames = static_cast<int32_t>(inDataSize / header.fmtChannels);
-  convData.data_out = convDataCache.data() + inDataSize;
-  convData.output_frames = static_cast<int32_t>(data.size() / header.fmtChannels);
+  convData.input_frames = static_cast<long>(numberOfBlocks);
+  convData.data_out = convDataCache.data() + numberOfRealSamples;
+  convData.output_frames = static_cast<long>(newNumberOfBlocks);
 
   const auto retVal = src_simple(&convData, SRC_SINC_BEST_QUALITY, header.fmtChannels);
-  if (retVal != 0 || convData.input_frames != convData.input_frames_used)
-    return -1;
+  if (retVal != 0 || convData.input_frames != convData.input_frames_used || convData.output_frames != convData.output_frames_gen)
+  {
+    assert(false);
+    return {};
+  }
 
   header.fmtSampleRate = newSampleRate;
   header.fmtAvgBytesRate = newSampleRate * header.fmtBlockAlign;
-  header.dataSize = convData.output_frames_gen * header.fmtBlockAlign;
+  header.dataSize = static_cast<uint32_t>(newDataSize);
   header.riffSize = header.dataSize + 0x24;
 
-  src_float_to_short_array(convData.data_out, data.data(), static_cast<int32_t>(data.size()));
+  std::vector<int16_t> newSamples(newDataSize / sizeof(int16_t), 0);
 
-  return 1;
+  if (header.fmtBlockAlign == header.fmtChannels * sizeof(int16_t))
+    src_float_to_short_array(convData.data_out, newSamples.data(), static_cast<int32_t>(newNumberOfRealSamples));
+  else
+  {
+    size_t convDataOffset = 0;
+    for (size_t i = 0; i < numberOfBlocks; ++i)
+    {
+      src_float_to_short_array(convData.data_out + convDataOffset, newSamples.data() + i * header.fmtBlockAlign / sizeof(int16_t), static_cast<int32_t>(newNumberOfRealSamples));
+      convDataOffset += samplesPerBlock;
+    }
+  }
+
+  return newSamples;
 }
 
-int32_t PCMS16ChangeChannelCount(PCMS16_Header &header, const std::span<int16_t> &data, uint16_t newChannelCount)
+std::vector<int16_t> PCMS16ChangeChannelCount(PCMS16_Header &header, const std::span<int16_t> &data, uint16_t newChannelCount)
 {
-  assert(header.fmtChannels != newChannelCount);
-  //if (header.fmtChannels == newChannelCount)
-  //  return 0;
+  if (header.fmtChannels == newChannelCount)
+  {
+    assert(false);
+    return {};
+  }
+
+  const auto samplesPerBlock = header.fmtBlockAlign / sizeof(int16_t);
+  const auto numberOfBlocks = header.dataSize / header.fmtBlockAlign;
+
+  const auto newBlockAlign = header.fmtBlockAlign != header.fmtChannels * sizeof(int16_t) ? header.fmtBlockAlign : static_cast<uint16_t>(newChannelCount * sizeof(int16_t));
+  const auto newSamplesPerBlock = newBlockAlign / sizeof(int16_t);
+  const auto newDataSize = numberOfBlocks * newBlockAlign;
+
+  assert(data.size() * sizeof(int16_t) == header.dataSize);
+
+  std::vector<int16_t> newSamples(numberOfBlocks * newSamplesPerBlock, 0);
 
   if (header.fmtChannels < newChannelCount)
   {
     assert(header.fmtChannels == 1);
     assert(newChannelCount == 2);
 
-    for (auto i = static_cast<int64_t>(header.dataSize / 2) - 1; i >= 0; --i)
+    for (size_t i = 0; i < numberOfBlocks; ++i)
     {
-      data[i * 2] = data[i];
-      data[i * 2 + 1] = data[i];
+      const auto blockBeginIndex = i * header.fmtBlockAlign / sizeof(int16_t);
+      const auto newBlockBeginIndex = i * newBlockAlign / sizeof(int16_t);
+
+      newSamples[newBlockBeginIndex] = data[blockBeginIndex];
+      newSamples[newBlockBeginIndex + 1] = data[blockBeginIndex];
     }
 
     header.fmtChannels *= 2;
-    header.fmtAvgBytesRate *= 2;
-    header.fmtBlockAlign *= 2;
-    header.dataSize *= 2;
-    header.riffSize = header.dataSize + 0x24;
-
-    return 1;
   }
-
-  assert(header.fmtChannels == 2);
-  assert(newChannelCount == 1);
-
-  for (size_t i = 0; i < (header.dataSize / 2); ++i)
+  else // if (header.fmtChannels > newChannelCount)
   {
-    data[i] = static_cast<int16_t>((static_cast<int32_t>(data[i * 2]) +
-                                            static_cast<int32_t>(data[i * 2 + 1])) / 2);
+    assert(header.fmtChannels == 2);
+    assert(newChannelCount == 1);
+
+    for (size_t i = 0; i < numberOfBlocks; ++i)
+    {
+      const auto blockBeginIndex = i * header.fmtBlockAlign / sizeof(int16_t);
+      const auto newBlockBeginIndex = i * newBlockAlign / sizeof(int16_t);
+
+      newSamples[newBlockBeginIndex] = static_cast<int16_t>((static_cast<int32_t>(data[blockBeginIndex]) +
+                                              static_cast<int32_t>(data[blockBeginIndex + 1])) / 2) ;
+    }
+
+    header.fmtChannels /= 2;
   }
 
-  header.fmtChannels /= 2;
-  header.fmtAvgBytesRate /= 2;
-  header.fmtBlockAlign /= 2;
-  header.dataSize /= 2;
-  header.riffSize = header.dataSize + 0x24;
+  header.fmtAvgBytesRate = header.fmtSampleRate * newBlockAlign;
+  header.fmtBlockAlign = newBlockAlign;
+  header.dataSize = newDataSize;
+  header.riffSize = newDataSize + 0x24;
 
-  return 1;
+  return newSamples;
 }
 
 }
 
 PCMS16_Header PCMS16Header(const SoundRecord &record)
 {
-  if (record.formatTag == 0x01)
+  if (record.formatTag == 0x01 && record.bitsPerSample == 16)
   {
     PCMS16_Header header;
 
@@ -645,6 +752,9 @@ PCMS16_Header PCMS16Header(const std::span<const int16_t> &in)
     return {};
 
   if (header.fmtBitsPerSample != 16)
+    return {};
+
+  if (header.fmtBlockAlign % sizeof(int16_t))
     return {};
 
   if (std::memcmp(header.dataId, "data", 4) != 0)
@@ -706,7 +816,7 @@ ADPCM_Header ADPCMHeader(const SoundRecord &in, int blocksizePow2)
 {
   const auto samplesCount = static_cast<uint32_t>(in.dataSizeUncompressed / (in.channels * sizeof(int16_t)));
 
-  if (in.formatTag == 0x11)
+  if (in.formatTag == 0x11 && in.bitsPerSample == 4)
   {
     ADPCM_Header header;
 
@@ -1129,21 +1239,45 @@ std::span<const char> SoundDataDataView(const std::span<const char> &in)
   return SoundDataDataView(SoundDataHeader(in), in);
 }
 
+int32_t PCMS16ChangeBlockAlignment(PCMS16_Header &header, std::vector<char> &data, uint16_t newBlockAlignment)
+{
+  if (header.fmtBlockAlign == newBlockAlignment)
+    return 0;
+
+  auto result = PCMS16ChangeBlockAlignment(header, ToSpan<int16_t>(std::span<char>{data}), newBlockAlignment);
+  if (result.empty())
+    return -1;
+
+  data.resize(result.size() * sizeof(int16_t));
+  std::memcpy(data.data(), result.data(), result.size());
+  return 1;
+}
+
+int32_t PCMS16ChangeBlockAlignment(PCMS16_Header &header, std::vector<int16_t> &data, uint16_t newBlockAlignment)
+{
+  if (header.fmtBlockAlign == newBlockAlignment)
+    return 0;
+
+  auto result = PCMS16ChangeBlockAlignment(header, std::span<int16_t>{data}, newBlockAlignment);
+  if (result.empty())
+    return -1;
+
+  data = std::move(result);
+  return 1;
+}
+
 int32_t PCMS16ChangeSampleRate(PCMS16_Header &header, std::vector<char> &data, uint32_t newSampleRate)
 {
   if (header.fmtSampleRate == newSampleRate)
     return 0;
 
-  const auto outputDataInputIndex = data.size();
-  const auto conversionRatio = static_cast<double>(newSampleRate) / header.fmtSampleRate;
+  auto result = PCMS16ChangeSampleRate(header, ToSpan<int16_t>(std::span<char>{data}), newSampleRate);
+  if (result.empty())
+    return -1;
 
-  data.resize(std::max(data.size(), static_cast<size_t>(conversionRatio * data.size()) + UINT16_MAX * sizeof(int16_t)));
-
-  const auto result = PCMS16ChangeSampleRate(header, ToSpan<int16_t>(std::span<char>{data}), newSampleRate);
-
-  data.resize(header.dataSize);
-
-  return result;
+  data.resize(result.size() * sizeof(int16_t));
+  std::memcpy(data.data(), result.data(), result.size());
+  return 1;
 }
 
 int32_t PCMS16ChangeSampleRate(PCMS16_Header &header, std::vector<int16_t> &data, uint32_t newSampleRate)
@@ -1151,16 +1285,12 @@ int32_t PCMS16ChangeSampleRate(PCMS16_Header &header, std::vector<int16_t> &data
   if (header.fmtSampleRate == newSampleRate)
     return 0;
 
-  const auto outputDataInputIndex = data.size();
-  const auto conversionRatio = static_cast<double>(newSampleRate) / header.fmtSampleRate;
+  auto result = PCMS16ChangeSampleRate(header, std::span<int16_t>{data}, newSampleRate);
+  if (result.empty())
+    return -1;
 
-  data.resize(std::max(data.size(), static_cast<size_t>(conversionRatio * data.size()) + UINT16_MAX));
-
-  const auto result = PCMS16ChangeSampleRate(header, std::span<int16_t>{data}, newSampleRate);
-
-  data.resize(header.dataSize / sizeof(int16_t));
-
-  return result;
+  data = std::move(result);
+  return 1;
 }
 
 int32_t PCMS16ChangeChannelCount(PCMS16_Header &header, std::vector<char> &data, uint16_t newChannelCount)
@@ -1168,14 +1298,13 @@ int32_t PCMS16ChangeChannelCount(PCMS16_Header &header, std::vector<char> &data,
   if (header.fmtChannels == newChannelCount)
     return 0;
 
-  if (newChannelCount > header.fmtChannels)
-    data.resize(data.size() * 2);
+  auto result = PCMS16ChangeChannelCount(header, ToSpan<int16_t>(std::span<char>{data}), newChannelCount);
+  if (result.empty())
+    return -1;
 
-  const auto result = PCMS16ChangeChannelCount(header, ToSpan<int16_t>(std::span<char>{data}), newChannelCount);
-
-  data.resize(header.dataSize);
-
-  return result;
+  data.resize(result.size() * sizeof(int16_t));
+  std::memcpy(data.data(), result.data(), result.size());
+  return 1;
 }
 
 int32_t PCMS16ChangeChannelCount(PCMS16_Header &header, std::vector<int16_t> &data, uint16_t newChannelCount)
@@ -1183,14 +1312,12 @@ int32_t PCMS16ChangeChannelCount(PCMS16_Header &header, std::vector<int16_t> &da
   if (header.fmtChannels == newChannelCount)
     return 0;
 
-  if (newChannelCount > header.fmtChannels)
-    data.resize(data.size() * 2);
+  auto result = PCMS16ChangeChannelCount(header, std::span<int16_t>{data}, newChannelCount);
+  if (result.empty())
+    return -1;
 
-  const auto result = PCMS16ChangeChannelCount(header, std::span<int16_t>{data}, newChannelCount);
-
-  data.resize(header.dataSize / sizeof(int16_t));
-
-  return result;
+  data = std::move(result);
+  return 1;
 }
 
 bool PCMS16FromADPCM(const ADPCM_Header &header, const std::span<const char> &in, std::vector<int16_t> &out, int flags)

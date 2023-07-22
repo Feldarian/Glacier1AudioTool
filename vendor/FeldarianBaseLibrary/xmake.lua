@@ -59,7 +59,7 @@ add_cxflags("-Wno-microsoft-include", "-Wno-unused-command-line-argument", "-Wno
 add_requireconfs("*", { configs = { debug = is_mode("debug"), lto = not is_mode("debug"), shared = false, vs_runtime = vsRuntime } })
 
 add_requires("libsndfile 1.2.0", { configs = { shared = true } })
-add_requires("xxhash v0.8.1")
+add_requires("xxhash v0.8.2")
 add_requires("icu4c 73.2", { configs = { shared = true } })
 
 add_requires("toml++ 4a28c36c435d813ddbd39a9a48a79d8c862c547f", { configs = { header_only = true } }) -- 3.3.0 with extra patches

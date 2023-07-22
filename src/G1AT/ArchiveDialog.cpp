@@ -215,8 +215,9 @@ bool ArchiveDialog::Load(const StringView8CI &loadPath)
   progressMessage = g_LocalizationManager.Localize("ARCHIVE_DIALOG_LOAD_PROGRESS_READING_ARCHIVE");
   progressNext = 0;
   progressNextTotal = 1;
+  nextPath = loadPath;
 
-  progressTask = std::async(std::launch::async, [this, loadPath = String8CI(loadPath), options = Options::Get()] {
+  progressTask = std::async(std::launch::async, [this, options = Options::Get()] {
     switch (UnsavedChangesPopup())
     {
       case 1: {
@@ -234,14 +235,14 @@ bool ArchiveDialog::Load(const StringView8CI &loadPath)
       }
     }
 
-    if (LoadImpl(loadPath, options))
+    if (LoadImpl(nextPath, options))
     {
       // TODO - this is causing a lot of synchronizations at the end of loading
       //        best would be to do this on the main thread
       for (const auto& archivePath : archivePaths)
         g_GlyphRangesBuilder.AddText(archivePath);
 
-      path = loadPath;
+      path = nextPath;
     }
     else
       Clear();
@@ -276,7 +277,7 @@ bool ArchiveDialog::Import(const StringView8CI &importFolderPath)
     progressNextTotal = allImportFiles.size();
     progressNext = 0;
 
-    for (const auto &importFilePath : allImportFiles)
+    std::for_each(std::execution::par, allImportFiles.begin(), allImportFiles.end(), [this, importFolderPath, options](const auto& importFilePath)
     {
       {
         std::unique_lock progressMessageLock(progressMessageMutex);
@@ -285,7 +286,7 @@ bool ArchiveDialog::Import(const StringView8CI &importFolderPath)
       }
 
       ImportSingle(importFolderPath, importFilePath, options);
-    }
+    });
 
     std::unique_lock progressMessageLock(progressMessageMutex);
     progressMessage.clear();
@@ -294,16 +295,16 @@ bool ArchiveDialog::Import(const StringView8CI &importFolderPath)
   return true;
 }
 
-bool ArchiveDialog::Export(const StringView8CI &exportFolderPath)
+bool ArchiveDialog::Export(const StringView8CI &exportFolderPathView)
 {
-  if (exportFolderPath.empty())
+  if (exportFolderPathView.empty())
     return false;
 
   progressMessage = g_LocalizationManager.Localize("ARCHIVE_DIALOG_EXPORT_PROGRESS_EXPORTING_DATA");
   progressNext = 0;
   progressNextTotal = 1;
 
-  progressTask = std::async(std::launch::async, [this, exportFolderPath = String8CI(exportFolderPath), options = Options::Get()] {
+  progressTask = std::async(std::launch::async, [this, exportFolderPath = String8CI(exportFolderPathView), options = Options::Get()] {
     if (archivePaths.empty())
     {
       std::unique_lock progressMessageLock(progressMessageMutex);
@@ -315,7 +316,7 @@ bool ArchiveDialog::Export(const StringView8CI &exportFolderPath)
     progressNextTotal = archivePaths.size();
     progressNext = 0;
 
-    for (const auto &exportFilePath : archivePaths)
+    std::for_each(std::execution::par, archivePaths.begin(), archivePaths.end(), [this, exportFolderPath, options](const auto& exportFilePath)
     {
       {
         std::unique_lock progressMessageLock(progressMessageMutex);
@@ -324,7 +325,7 @@ bool ArchiveDialog::Export(const StringView8CI &exportFolderPath)
       }
 
       ExportSingle(exportFolderPath, exportFilePath, options);
-    }
+    });
 
     std::unique_lock progressMessageLock(progressMessageMutex);
     progressMessage.clear();
@@ -344,7 +345,9 @@ bool ArchiveDialog::Save(const StringView8CI &savePath, bool async)
   progressNext = 0;
   progressNextTotal = 1;
 
-  progressTask = std::async(std::launch::async, [this, savePath = String8CI(savePath), options = Options::Get()] {
+  nextPath = savePath;
+
+  progressTask = std::async(std::launch::async, [this, options = Options::Get()] {
     if (archivePaths.empty())
     {
       std::unique_lock progressMessageLock(progressMessageMutex);
@@ -353,8 +356,8 @@ bool ArchiveDialog::Save(const StringView8CI &savePath, bool async)
       return;
     }
 
-    if (SaveImpl(savePath, options))
-      path = savePath;
+    if (SaveImpl(nextPath, options))
+      path = nextPath;
 
     std::unique_lock progressMessageLock(progressMessageMutex);
     progressMessage.clear();
@@ -395,7 +398,7 @@ int32_t ArchiveDialog::UnsavedChangesPopup() const
 
 StringView8CI ArchiveDialog::GetPath() const
 {
-  return path;
+  return IsInProgress() ? nextPath : path;
 }
 
 bool ArchiveDialog::IsAllowed() const

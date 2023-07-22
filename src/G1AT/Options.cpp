@@ -7,7 +7,7 @@
 
 #include "Options.hpp"
 
-#include "Utils.hpp"
+#include <Config/Config.hpp>
 
 void CommonSettings::Load(const toml::table &aInputRoot)
 {
@@ -146,7 +146,7 @@ void Hitman4Settings::DrawDialog()
 
 void Options::Load()
 {
-  auto optionsPath = GetProgramPath().path();
+  auto optionsPath = String8CI(SDL_GetPrefPath(G1AT_COMPANY_NAMESPACE, G1AT_NAME)).path();
   if (optionsPath.empty())
     return;
 
@@ -162,7 +162,7 @@ void Options::Load()
 
 void Options::Save() const
 {
-  auto optionsPath = GetProgramPath().path();
+  auto optionsPath = String8CI(SDL_GetPrefPath(G1AT_COMPANY_NAMESPACE, G1AT_NAME)).path();
   if (optionsPath.empty())
     return;
 

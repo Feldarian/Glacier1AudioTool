@@ -6,33 +6,31 @@
 // TODO - GOG and Steam version have a hash conflict! Either they truly have streams file the exact same or I don't know... But it reports everything as changed!
 //      - workaround for now - remove "h4_" prefixed files from "data/records" before opening GOG archive...
 //
-// TODO - aliased entries look different in STR - do they look different in scene WAV? can they be present there?
-//
 
 #include <Precompiled.hpp>
 
 #include "Hitman4Dialog.hpp"
 
-#include "Utils.hpp"
-
 #include <Config/Config.hpp>
 
-HitmanSoundRecord Hitman4WHDRecord::Hitman4WHDRecordScene::ToHitmanSoundRecord() const
+#include "Utils.hpp"
+
+HitmanSoundRecord Hitman4WHDRecordScene::ToHitmanSoundRecord() const
 {
   assert(filePathLength > 0 && filePathLength < 0x004F4850);
 
-  const auto resBitsPerSample = static_cast<uint16_t>(formatTag == 4096 ? 16 : bitsPerSample);
+  const auto resBitsPerSample = static_cast<uint16_t>(formatTag == 4096 || bitsPerSample == 0 ? 16 : bitsPerSample);
   const auto resChannels = static_cast<uint16_t>(channels);
-  const auto resBlockAlign = static_cast<uint16_t>(formatTag == 4096 ? 2 * channels : blockAlign);
+  const auto resBlockAlign = static_cast<uint16_t>(formatTag == 4096 || blockAlign == 0 ? 2 * channels : blockAlign);
   const auto resFmtExtra = static_cast<uint16_t>(formatTag == 17 ? samplesPerBlock : 1);
 
-  assert(resBlockAlign == 2 * channels || formatTag == 17);
-  assert(resBlockAlign != 1024 || formatTag == 17);
+  //assert(resBlockAlign == 2 * channels || formatTag == 17);
+  //assert(resBlockAlign != 1024 || formatTag == 17);
 
-  assert(nullBytes[0] == 0);
-  assert(nullBytes[1] == 0);
-  assert(nullBytes[2] == 0);
-  assert(nullBytes[3] == 0);
+  assert(pad30[0] == 0);
+  assert(pad30[1] == 0);
+  assert(pad30[2] == 0);
+  assert(pad30[3] == 0);
 
   assert(dataInStreams == 0);
 
@@ -49,7 +47,7 @@ HitmanSoundRecord Hitman4WHDRecord::Hitman4WHDRecordScene::ToHitmanSoundRecord()
   };
 }
 
-void Hitman4WHDRecord::Hitman4WHDRecordScene::FromHitmanSoundRecord(const HitmanSoundRecord &soundRecord)
+void Hitman4WHDRecordScene::FromHitmanSoundRecord(const HitmanSoundRecord &soundRecord)
 {
   assert(formatTag != 4096 || formatTag == soundRecord.formatTag);
 
@@ -64,129 +62,31 @@ void Hitman4WHDRecord::Hitman4WHDRecordScene::FromHitmanSoundRecord(const Hitman
   samplesPerBlock = formatTag == 4096 ? 0x004F3E93 : (formatTag == 1 ? 0xCDCDCDCD : soundRecord.samplesPerBlock);
 }
 
-HitmanSoundRecord Hitman4WHDRecord::Hitman4WHDRecordStreamsAliased::ToHitmanSoundRecord() const
+HitmanSoundRecord Hitman4STRRecordHeader::ToHitmanSoundRecord() const
 {
-  assert(nullByte == 0);
-
-  const auto resBitsPerSample = static_cast<uint16_t>(formatTag == 4096 ? 16 : bitsPerSample);
-  const auto resChannels = static_cast<uint16_t>(channels);
-  const auto resBlockAlign = static_cast<uint16_t>(formatTag == 4096 ? 2 * channels : blockAlign);
-  const auto resFmtExtra = static_cast<uint16_t>(formatTag == 17 ? samplesPerBlock : 1);
-
-  assert(resBlockAlign != 1024 || formatTag == 17);
-
-  assert(dataInStreams == 0x80 || dataInStreams == 0x8280 || dataInStreams == 0x0180);
-
   return {
     0,
-    dataSizeUncompressed,
-    dataSize,
+    static_cast<uint32_t>(samplesCount * sizeof(int16_t)),
+    0, // must be filled externally, cannot deduce from this header alone...
     sampleRate,
-    formatTag,
-    resBitsPerSample,
-    resChannels,
-    resBlockAlign,
-    resFmtExtra
+    static_cast<uint16_t>(magic == 0x02 || magic == 0x11 ? 0x01 : (magic == 0x04 ? 0x1000 : (magic == 0x03 ? 0x11 : 0x00))),
+    static_cast<uint16_t>(bitsPerSample ? bitsPerSample : 16),
+    static_cast<uint16_t>(channels),
+    static_cast<uint16_t>(blockAlign ? blockAlign : channels * ((bitsPerSample ? bitsPerSample : 16) / 8)),
+    static_cast<uint16_t>(samplesPerBlock ? samplesPerBlock : channels)
   };
 }
 
-void Hitman4WHDRecord::Hitman4WHDRecordStreamsAliased::FromHitmanSoundRecord(const HitmanSoundRecord &soundRecord)
+void Hitman4STRRecordHeader::FromHitmanSoundRecord(const HitmanSoundRecord &soundRecord)
 {
-  assert(formatTag != 4096 || formatTag == soundRecord.formatTag);
-
-  formatTag = soundRecord.formatTag;
+  // TODO - 0x03 should not be hardcoded in magic!
+  magic = soundRecord.formatTag == 0x01 ? 0x02 : (soundRecord.formatTag == 0x1000 ? 0x04 : (soundRecord.formatTag == 0x11 ? 0x03 : 0x00));
+  samplesCount = soundRecord.dataSizeUncompressed / sizeof(int16_t);
+  channels = soundRecord.channels;
   sampleRate = soundRecord.sampleRate;
-  bitsPerSample = formatTag == 4096 ? 0 : soundRecord.bitsPerSample;
-  dataSizeUncompressed = soundRecord.dataSizeUncompressed;
-  dataSize = soundRecord.dataSize;
-  channels = soundRecord.channels;
-  samplesCount = soundRecord.dataSizeUncompressed / sizeof(int16_t);
-  blockAlign = formatTag == 4096 ? blockAlign : soundRecord.blockAlign;
-  samplesPerBlock = formatTag == 4096 ? 0x004F3E93 : (formatTag == 1 ? 0xCDCDCDCD : soundRecord.samplesPerBlock);
-}
-
-HitmanSoundRecord Hitman4WHDRecord::Hitman4WHDRecordStreams::ToHitmanSoundRecord() const
-{
-  assert(id == 0x004F4850);
-
-  const auto resBitsPerSample = static_cast<uint16_t>(formatTag == 4096 ? 16 : bitsPerSample);
-  const auto resChannels = static_cast<uint16_t>(channels);
-  const auto resBlockAlign = static_cast<uint16_t>(formatTag == 4096 || formatTag == 1 ? 2 * channels : 1024);
-  const auto resFmtExtra = static_cast<uint16_t>(formatTag == 17 ? samplesPerBlock : 1);
-
-  assert(resBlockAlign == 2 * channels || formatTag == 17);
-  assert(resBlockAlign != 1024 || formatTag == 17);
-
-  assert(nullBytes[0] == 0);
-  assert(nullBytes[1] == 0);
-  assert(nullBytes[2] == 0);
-
-  assert(dataInStreams == 0x80);
-
-  return {
-    0,
-    dataSizeUncompressed,
-    dataSize,
-    unkC,
-    formatTag,
-    resBitsPerSample,
-    resChannels,
-    resBlockAlign,
-    resFmtExtra
-  };
-}
-
-void Hitman4WHDRecord::Hitman4WHDRecordStreams::FromHitmanSoundRecord(const HitmanSoundRecord &soundRecord)
-{
-  assert(formatTag == soundRecord.formatTag);
-
-  formatTag = soundRecord.formatTag;
-  unk2C = soundRecord.sampleRate;
-  bitsPerSample = formatTag == 4096 ? 0 : soundRecord.bitsPerSample;
-  dataSizeUncompressed = soundRecord.dataSizeUncompressed;
-  dataSize = soundRecord.dataSize;
-  channels = soundRecord.channels;
-  samplesCount = soundRecord.dataSizeUncompressed / sizeof(int16_t);
-  samplesPerBlock = formatTag == 4096 ? 0x004F3E93 : (formatTag == 1 ? 0xCDCDCDCD : soundRecord.samplesPerBlock);
-}
-
-HitmanSoundRecord Hitman4WHDRecord::ToHitmanSoundRecord() const
-{
-  assert((streams.id == 0x004F4850) == (streams.dataInStreams == 128));
-
-  assert(streams.formatTag != 1 || streams.bitsPerSample == 16);
-  assert(streams.formatTag != 17 || streams.bitsPerSample == 4);
-  assert(streams.formatTag != 4096 || streams.bitsPerSample == 0);
-
-  assert(scene.formatTag != 17 || scene.blockAlign == 1024);
-
-  assert(streams.formatTag != 17 || streams.samplesPerBlock == 2041);
-  assert(streams.formatTag != 4096 || streams.samplesPerBlock == 0x004F3E93);
-
-  assert(streams.nullBytes[0] == 0);
-
-  switch (streams.id)
-  {
-    case 0x004F4850:
-      return streams.ToHitmanSoundRecord();
-    case 0:
-      return streamsAliased.ToHitmanSoundRecord();
-    default:
-      return scene.ToHitmanSoundRecord();
-  }
-}
-
-void Hitman4WHDRecord::FromHitmanSoundRecord(const HitmanSoundRecord &soundRecord)
-{
-  switch (streams.id)
-  {
-    case 0x004F4850:
-      return streams.FromHitmanSoundRecord(soundRecord);
-    case 0:
-      return streamsAliased.FromHitmanSoundRecord(soundRecord);
-    default:
-      return scene.FromHitmanSoundRecord(soundRecord);
-  }
+  bitsPerSample = soundRecord.formatTag == 0x1000 ? 0 : soundRecord.bitsPerSample;
+  blockAlign = soundRecord.formatTag == 0x01 || soundRecord.formatTag == 0x11 ? soundRecord.blockAlign : 0;
+  samplesPerBlock = soundRecord.formatTag == 0x11 ? soundRecord.samplesPerBlock : 0;
 }
 
 bool Hitman4STRFile::Clear(const bool retVal)
@@ -197,7 +97,7 @@ bool Hitman4STRFile::Clear(const bool retVal)
   return retVal;
 }
 
-bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const std::vector<char> &wavData, const OrderedMap<StringView8CI, Hitman4WHDRecord *> &whdRecordsMap)
+bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const std::vector<char> &wavData)
 {
   Clear();
 
@@ -217,22 +117,18 @@ bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const std::vector<char> 
 
   wavDataTable.resize(header.entriesCount);
   lipDataTable.resize(header.entriesCount);
-  wavHeaderTableData.resize(header.entriesCount);
+  wavHeaderTable.resize(header.entriesCount);
   stringTable.resize(header.entriesCount);
 
   wavHeaderTableBeginOffset = header.offsetToEntryTable;
   stringTableBeginOffset = header.offsetToEntryTable;
 
-  OrderedMap<uint64_t, std::vector<uint32_t>> wavDataOffsets;
-
-  //OrderedSet<uint32_t> missingWHDRecord;
-
+  OrderedSet<uint64_t> dataOffsets;
   for (uint32_t i = 0; i < header.entriesCount; ++i)
   {
     const auto& strRecord = recordTable[i];
 
-    const auto [offsetsIt, ignored] = wavDataOffsets.try_emplace(strRecord.dataOffset, std::vector<uint32_t>{});
-    offsetsIt->second.emplace_back(i);
+    dataOffsets.insert(strRecord.dataOffset);
 
     if (wavData.size() - strRecord.headerOffset < strRecord.sizeOfHeader)
       return Clear(false);
@@ -244,22 +140,17 @@ bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const std::vector<char> 
     stringTableBeginOffset = std::min(stringTableBeginOffset, strRecord.fileNameOffset);
   }
 
-  if (wavDataOffsets.empty())
+  if (dataOffsets.empty())
     return Clear(false);
 
-  const auto [offsetsEndIt, emplaced] = wavDataOffsets.try_emplace(wavHeaderTableBeginOffset, std::vector<uint32_t>{});
-  if (!emplaced)
-    return Clear(false);
-
-  offsetsEndIt->second.emplace_back(header.entriesCount);
+  dataOffsets.insert(wavHeaderTableBeginOffset);
 
   for (uint32_t i = 0; i < header.entriesCount; ++i)
   {
     const auto& strRecord = recordTable[i];
 
-    auto& strWAVHeader = wavHeaderTableData[i];
-    strWAVHeader.resize(strRecord.sizeOfHeader);
-    std::memcpy(strWAVHeader.data(), wavData.data() + strRecord.headerOffset, strRecord.sizeOfHeader);
+    auto& strWAVHeader = wavHeaderTable[i];
+    std::memcpy(&strWAVHeader, wavData.data() + strRecord.headerOffset, strRecord.sizeOfHeader);
 
     auto& strFilename = stringTable[i];
     strFilename.resize(strRecord.fileNameLength);
@@ -267,175 +158,191 @@ bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const std::vector<char> 
 
     if (!fileNameToIndex.try_emplace(strFilename, i).second)
       return Clear(false);
-
-    if (!whdRecordsMap.contains(String8CI("Streams\\") += strFilename))
-    {
-      // TODO - add entrie into map when they are not present and they point to "valid" data
-      //const auto& archiveFile = archiveDialog.GetFile(String8CI("Streams\\") += strFilename);
-      //[[maybe_unused]] const auto [fileMapIt, fileMapEmplaced] = archiveDialog.fileMap.try_emplace(archiveFile.path, HitmanFile{archiveFile.path, whdRecord->ToHitmanSoundRecord()});
-      //assert(fileMapEmplaced);
-      //
-      //if (!missingWHDRecord.insert(i).second)
-      //  return Clear(false);
-
-      assert(wavDataOffsets.find(strRecord.dataOffset) != wavDataOffsets.end());
-      assert(++wavDataOffsets.find(strRecord.dataOffset) != wavDataOffsets.end());
-
-      auto& wavDataSet = wavDataOffsets.find(strRecord.dataOffset)->second;
-      const auto wavDataEndOffset = (++wavDataOffsets.find(strRecord.dataOffset))->first;
-      const auto wavDataSize = wavDataEndOffset - strRecord.dataOffset;
-
-      assert(wavData.size() >= wavDataEndOffset);
-      assert(wavDataSize % 0x0100 == 0);
-
-      auto& strWAVData = wavDataTable[i];
-
-      const auto hasLIP = std::memcmp(wavData.data() + strRecord.dataOffset, "LIP ", sizeof(uint32_t)) == 0;
-
-      auto strWAVDataOffset = wavDataSet.size() > 1 || hasLIP ? wavDataSize : 0;
-      if (strWAVDataOffset != 0)
-      {
-        if (wavDataSet.size() > 1)
-        {
-          for (auto wavDataSetItemIt = wavDataSet.begin(); wavDataSetItemIt != wavDataSet.end(); ++wavDataSetItemIt)
-          {
-            if (*wavDataSetItemIt == i)
-            {
-              wavDataSet.erase(wavDataSetItemIt);
-              break;
-            }
-          }
-        }
-
-        for (const auto recordIndex : wavDataSet | std::views::reverse)
-        {
-          const auto& setRecord = recordTable[recordIndex];
-          assert(strWAVDataOffset >= setRecord.dataSize);
-          strWAVDataOffset -= setRecord.dataSize;
-          strWAVDataOffset &= ~0xFFull;
-        }
-      }
-
-      strWAVData.resize(strRecord.dataSize);
-      std::memcpy(strWAVData.data(), wavData.data() + strRecord.dataOffset + strWAVDataOffset, strRecord.dataSize);
-
-      OptionalReference<std::vector<char>> lipDataOptRef;
-      if (hasLIP)
-      {
-        strWAVDataOffset = wavDataSize;
-        for (const auto recordIndex : wavDataSet | std::views::reverse)
-        {
-          const auto& setRecord = recordTable[recordIndex];
-          assert(strWAVDataOffset >= setRecord.dataSize);
-          strWAVDataOffset -= setRecord.dataSize;
-          strWAVDataOffset &= ~0xFFull;
-        }
-
-        assert(std::memcmp(wavData.data() + strRecord.dataOffset, "LIP ", sizeof(uint32_t)) == 0);
-
-        auto& lipData = lipDataTable[i];
-        lipData.resize(strWAVDataOffset);
-        std::memcpy(lipData.data(), wavData.data() + strRecord.dataOffset, strWAVDataOffset);
-        lipDataOptRef = lipData;
-      }
-
-      recordMap.try_emplace(static_cast<uint32_t>(strRecord.dataOffset), Hitman4WAVRecord{strWAVData, static_cast<uint32_t>(strRecord.dataOffset), lipDataOptRef});
-    }
   }
 
-  if (wavDataOffsets.empty())
-    return Clear(false);
+  OrderedMap<uint64_t, uint64_t> aliasedDataMap;
+  for (uint32_t i = 0; i < header.entriesCount; ++i)
+  {
+    const auto& strRecord = recordTable[i];
+    auto& strFilename = stringTable[i];
+
+    if (!strFilename.path().extension().empty())
+      continue;
+
+    const auto& [aliasedDataIt, emplaced] = aliasedDataMap.try_emplace(strRecord.dataOffset, i);
+    if (!emplaced)
+      return Clear(false);
+  }
+
+  for (uint32_t i = 0; i < header.entriesCount; ++i)
+  {
+    auto& strRecord = recordTable[i];
+    auto& strFilename = stringTable[i];
+
+    if (strFilename.path().extension().empty())
+      continue;
+
+    const auto aliasedDataIt = aliasedDataMap.find(strRecord.dataOffset);
+    if (aliasedDataIt == aliasedDataMap.end())
+      continue;
+
+    strRecord.dataOffset |= 1ull << 32;
+
+    auto& strRecordMain = recordTable[aliasedDataIt->second];
+    if (strRecordMain.aliasedEntryOrderOrReference != strRecord.aliasedEntryOrderOrReference)
+      continue;
+
+    assert(!strRecordMain.hasLIP);
+    strRecordMain.hasLIP = strRecord.hasLIP;
+  }
 
   recordMap.clear();
 
-  for (auto& [whdRecordPath, whdRecord] : whdRecordsMap)
+  std::vector<std::reference_wrapper<HitmanFile>> strFiles;
+  for (uint32_t i = 0; i < header.entriesCount; ++i)
   {
-    if (whdRecord->streams.dataInStreams == 0)
+    const auto& strRecord = recordTable[i];
+
+    if (strRecord.dataOffset & (1ull << 32))
       continue;
 
-    const auto fileIt = archiveDialog.fileMap.find(whdRecordPath);
-    if (fileIt == archiveDialog.fileMap.end())
+    auto& strWAVHeader = wavHeaderTable[i];
+    auto& strFilename = stringTable[i];
+    auto& strLIPData = lipDataTable[i];
+
+    auto strFilePath = strFilename.path();
+    if (strFilePath.extension().empty())
+      strFilePath += L".wav";
+
+    const auto strFilePathCI = String8CI("Streams\\") += strFilePath;
+
+    auto soundRecord = strWAVHeader.ToHitmanSoundRecord();
+    soundRecord.dataSize = static_cast<uint32_t>(strRecord.dataSize);
+    auto& file = archiveDialog.GetFile(strFilePathCI);
+    const auto [fileMapIt, fileMapEmplaced] = archiveDialog.fileMap.try_emplace(file.path, HitmanFile{file.path, soundRecord});
+    if (!fileMapEmplaced)
       return Clear(false);
 
-    auto& file = fileIt->second;
+    auto& hitmanFile = fileMapIt->second;
 
-    const auto strRecordIndexIt = fileNameToIndex.find(whdRecordPath.native().substr(8));
-    if (strRecordIndexIt == fileNameToIndex.end())
-      return Clear(false);
+    assert(dataOffsets.contains(strRecord.dataOffset));
+    assert(++dataOffsets.find(strRecord.dataOffset) != dataOffsets.end());
 
-    auto& strRecord = recordTable[strRecordIndexIt->second];
-
-    assert(wavDataOffsets.contains(strRecord.dataOffset));
-    assert(++wavDataOffsets.find(strRecord.dataOffset) != wavDataOffsets.end());
-
-    const auto& wavDataSet = wavDataOffsets.find(strRecord.dataOffset)->second;
-    const auto wavDataEndOffset = (++wavDataOffsets.find(strRecord.dataOffset))->first;
+    const auto wavDataEndOffset = *(++dataOffsets.find(strRecord.dataOffset));
     const auto wavDataSize = wavDataEndOffset - strRecord.dataOffset;
 
     assert(wavData.size() >= wavDataEndOffset);
     assert(wavDataSize % 0x0100 == 0);
 
-    auto& strWAVHeader = wavHeaderTableData[strRecordIndexIt->second];
-    const auto* strWAVHeaderCasted = reinterpret_cast<const Hitman4STRRecordHeader1*>(strWAVHeader.data());
-    assert(strWAVHeaderCasted->unk4 == whdRecord->streams.dataSize || strRecord.dataSize == whdRecord->streams.dataSize || strRecord.unk24 == whdRecord->streams.dataSize);
+    assert(strWAVHeader.magic != 0x02 || strRecord.sizeOfHeader == 24);
+    assert(strWAVHeader.magic != 0x03 || strRecord.sizeOfHeader == 0x1c);
+    assert(strWAVHeader.magic != 0x04 || strRecord.sizeOfHeader == 20);
+    assert(strWAVHeader.magic != 0x11 || strRecord.sizeOfHeader == 0x18);
+    assert(strRecord.id < header.entriesCount);
 
-    const auto hasLIP = std::memcmp(wavData.data() + strRecord.dataOffset, "LIP ", sizeof(uint32_t)) == 0;
+    hitmanFile.data.resize(strRecord.dataSize);
+    std::ranges::fill(hitmanFile.data, 0);
+    strFiles.emplace_back(hitmanFile);
 
-    auto strWAVDataOffset = whdRecord->streams.id == 0 || hasLIP ? wavDataSize : 0;
-    if (strWAVDataOffset != 0)
+    if (!strRecord.hasLIP)
     {
-      assert(hasLIP || wavDataSet.size() == 2);
-      for (const auto recordIndex : wavDataSet | std::views::reverse)
-      {
-        const auto& setRecord = recordTable[recordIndex];
-        assert(strWAVDataOffset >= setRecord.dataSize);
-        strWAVDataOffset -= setRecord.dataSize;
-        strWAVDataOffset &= ~0xFFull;
+      std::memcpy(hitmanFile.data.data(), wavData.data() + strRecord.dataOffset, strRecord.dataSize);
 
-        if (recordIndex == strRecordIndexIt->second)
+      [[maybe_unused]] const auto [recordMapIt, recordMapEmplaced] = recordMap.try_emplace(static_cast<uint32_t>(strRecord.dataOffset), Hitman4WAVRecord{hitmanFile.data, static_cast<uint32_t>(strRecord.dataOffset)});
+      if (!recordMapEmplaced)
+        return Clear(false);
+
+      continue;
+    }
+
+    assert(*reinterpret_cast<const uint32_t*>(wavData.data() + strRecord.dataOffset) == 0x2050494C);
+
+    const auto lipDataSize = (wavDataSize - strRecord.dataSize) & (~0xFFFull);
+    strLIPData.resize(lipDataSize);
+    std::ranges::fill(strLIPData, 0);
+
+    if (lipDataSize <= 0x1000)
+    {
+      std::memcpy(strLIPData.data(), wavData.data() + strRecord.dataOffset, lipDataSize);
+      std::memcpy(hitmanFile.data.data(), wavData.data() + strRecord.dataOffset + lipDataSize, strRecord.dataSize);
+
+      [[maybe_unused]] const auto [recordMapIt, recordMapEmplaced] = recordMap.try_emplace(static_cast<uint32_t>(strRecord.dataOffset), Hitman4WAVRecord{hitmanFile.data, static_cast<uint32_t>(strRecord.dataOffset), strLIPData});
+      if (!recordMapEmplaced)
+        return Clear(false);
+
+      continue;
+    }
+
+    uint64_t lipSegmentsCount = lipDataSize / 0x1000;
+    assert(lipSegmentsCount * 0x1000 == lipDataSize);
+
+    uint64_t lipSegmentSize = 0;
+    for (uint64_t lipIndex = 0x1000; lipIndex < wavDataSize; lipIndex += 0x1000)
+    {
+      static constexpr std::array<char, 0x0400> nullBlock = {};
+      if (std::memcmp(wavData.data() + strRecord.dataOffset + lipIndex + 0x0100 + (0x0F00 -nullBlock.size()), nullBlock.data(), nullBlock.size()) == 0)
+      {
+        lipSegmentSize = lipIndex;
+
+        uint64_t foundSegments = 2;
+        for (uint64_t lipSegmentOffset = lipSegmentSize * 2; lipSegmentOffset < wavDataSize; lipSegmentOffset += lipSegmentSize, ++foundSegments)
+        {
+          if (std::memcmp(wavData.data() + strRecord.dataOffset + lipSegmentOffset + 0x0100 + (0x0F00 - nullBlock.size()), nullBlock.data(), nullBlock.size()) != 0)
+          {
+            foundSegments = 0;
+            break;
+          }
+        }
+
+        if (foundSegments != lipSegmentsCount)
+          lipSegmentSize = 0;
+
+        if (lipSegmentSize)
           break;
       }
     }
 
-    assert(hasLIP || strWAVDataOffset == (strWAVDataOffset & (~0xFFull)));
-
-    file.data.resize(whdRecord->streams.dataSize);
-    std::memcpy(file.data.data(), wavData.data() + strRecord.dataOffset + strWAVDataOffset, whdRecord->streams.dataSize);
-
-    OptionalReference<std::vector<char>> lipDataOptRef;
-    if (hasLIP)
-    {
-      strWAVDataOffset = wavDataSize;
-      for (const auto recordIndex : wavDataSet | std::views::reverse)
-      {
-        const auto& setRecord = recordTable[recordIndex];
-        assert(strWAVDataOffset >= setRecord.dataSize);
-        strWAVDataOffset -= setRecord.dataSize;
-        strWAVDataOffset &= ~0xFFull;
-      }
-
-      assert(std::memcmp(wavData.data() + strRecord.dataOffset, "LIP ", sizeof(uint32_t)) == 0);
-
-      auto& lipData = lipDataTable[strRecordIndexIt->second];
-      lipData.resize(strWAVDataOffset);
-      std::memcpy(lipData.data(), wavData.data() + strRecord.dataOffset, strWAVDataOffset);
-      lipDataOptRef = lipData;
-    }
-
-    assert((whdRecord->streams.dataInStreams & 0xFF00) == 0 || ((whdRecord->streams.dataInStreams & 0xFF00) == 0x8200 || (whdRecord->streams.dataInStreams & 0xFF00) == 0x0100 && whdRecord->streams.formatTag == 0x01));
-
-    recordMap.try_emplace(whdRecord->streams.dataOffset, Hitman4WAVRecord{file.data, whdRecord->streams.dataOffset, lipDataOptRef});
-
-    const auto updatedArchiveRecord = SoundDataSoundRecord(file.archiveRecord, {file.data.data(), whdRecord->streams.dataSize});
-
-    if (updatedArchiveRecord.dataXXH3 == 0)
-    {
-      assert(hasLIP);
+    if (lipSegmentSize == 0)
       return Clear(false);
+
+    auto lipBytesLeft = lipDataSize;
+    auto wavBytesLeft = strRecord.dataSize;
+    uint64_t lipDataWriteOffset = 0;
+    uint64_t wavDataWriteOffset = 0;
+    const uint64_t dataDividerOffset = 0x1000;
+    assert(lipDataSize % dataDividerOffset == 0);
+    for (uint64_t lipSegmentOffset = 0; lipSegmentOffset < wavDataSize; lipSegmentOffset += lipSegmentSize)
+    {
+      const auto lipCopySize = std::min(lipBytesLeft, dataDividerOffset);
+      assert(lipCopySize == dataDividerOffset);
+      std::memcpy(strLIPData.data() + lipDataWriteOffset, wavData.data() + strRecord.dataOffset + lipSegmentOffset, lipCopySize);
+      lipDataWriteOffset += lipCopySize;
+      lipBytesLeft -= lipCopySize;
+
+      const auto wavCopySize = std::min(wavBytesLeft, lipSegmentSize - lipCopySize);
+      std::memcpy(hitmanFile.data.data() + wavDataWriteOffset, wavData.data() + strRecord.dataOffset + lipSegmentOffset + lipCopySize, wavCopySize);
+      wavDataWriteOffset += wavCopySize;
+      wavBytesLeft -= wavCopySize;
     }
 
-    file.archiveRecord = updatedArchiveRecord;
+    [[maybe_unused]] const auto [recordMapIt, recordMapEmplaced] = recordMap.try_emplace(static_cast<uint32_t>(strRecord.dataOffset), Hitman4WAVRecord{hitmanFile.data, static_cast<uint32_t>(strRecord.dataOffset), strLIPData});
+    if (!recordMapEmplaced)
+      return Clear(false);
   }
+
+  std::atomic_bool importFailed = false;
+  std::for_each(std::execution::par, strFiles.begin(), strFiles.end(), [this, &importFailed](auto& hitmanFileRef)
+  {
+    if (importFailed.load(std::memory_order_relaxed))
+      return;
+
+    auto& hitmanFile = hitmanFileRef.get();
+    hitmanFile.archiveRecord = SoundDataSoundRecord(hitmanFile.archiveRecord, {hitmanFile.data.data(), hitmanFile.data.size()});
+    importFailed.store(importFailed.load(std::memory_order_relaxed) || hitmanFile.archiveRecord.dataXXH3 == 0);
+  });
+
+  if (importFailed)
+    return Clear(false);
 
   if (recordMap.empty())
     return Clear(false);
@@ -443,9 +350,9 @@ bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const std::vector<char> 
   return true;
 }
 
-bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const StringView8CI &loadPath, const OrderedMap<StringView8CI, Hitman4WHDRecord *> &whdRecordsMap)
+bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const StringView8CI &loadPath)
 {
-  if (!Load(archiveDialog, ReadWholeBinaryFile(loadPath), whdRecordsMap))
+  if (!Load(archiveDialog, ReadWholeBinaryFile(loadPath)))
     return false;
 
   path = loadPath;
@@ -469,16 +376,14 @@ bool Hitman4WAVFile::Clear(const bool retVal)
   return retVal;
 }
 
-bool Hitman4WAVFile::Load(const std::vector<char> &wavData, const OrderedMap<StringView8CI, Hitman4WHDRecord *> &whdRecordsMap, OrderedMap<StringView8CI, HitmanFile>& fileMap)
+bool Hitman4WAVFile::Load(const std::vector<char> &wavData, const OrderedMap<StringView8CI, Hitman4WHDRecordScene *> &whdRecordsMap, OrderedMap<StringView8CI, HitmanFile>& fileMap)
 {
-  Clear();
-
   if (wavData.empty())
     return Clear(false);
 
   struct WAVFileData
   {
-    Hitman4WHDRecord *record = nullptr;
+    Hitman4WHDRecordScene *record = nullptr;
     HitmanFile& file;
   };
 
@@ -488,18 +393,21 @@ bool Hitman4WAVFile::Load(const std::vector<char> &wavData, const OrderedMap<Str
   OrderedMap<uint32_t, WAVFileData> offsetToWAVFileDataMap;
   for (auto& [whdRecordPath, whdRecord] : whdRecordsMap)
   {
-    if (whdRecord->streams.dataInStreams != 0)
-      continue;
-
-    auto offsetToWAVFileDataIt = offsetToWAVFileDataMap.find(whdRecord->streams.dataOffset);
-    if (offsetToWAVFileDataIt != offsetToWAVFileDataMap.end())
+    if (whdRecord->dataInStreams != 0)
     {
-      resampledMap[resampledOffset] = whdRecord->streams.dataOffset;
-      whdRecord->streams.dataOffset = resampledOffset;
-      resampledOffset += whdRecord->streams.dataSize;
+      assert(false);
+      continue;
     }
 
-    offsetToWAVFileDataMap.insert({whdRecord->streams.dataOffset, {whdRecord, fileMap.at(whdRecordPath)}});
+    auto offsetToWAVFileDataIt = offsetToWAVFileDataMap.find(whdRecord->dataOffset);
+    if (offsetToWAVFileDataIt != offsetToWAVFileDataMap.end())
+    {
+      resampledMap[resampledOffset] = whdRecord->dataOffset;
+      whdRecord->dataOffset = resampledOffset;
+      resampledOffset += whdRecord->dataSize;
+    }
+
+    offsetToWAVFileDataMap.insert({whdRecord->dataOffset, {whdRecord, fileMap.at(whdRecordPath)}});
 
     ++foundItems;
   }
@@ -540,21 +448,14 @@ bool Hitman4WAVFile::Load(const std::vector<char> &wavData, const OrderedMap<Str
     assert(currOffset <= offset);
 
     auto& newData = wavFileData.file.data;
-    newData.resize(wavFileData.record->streams.dataSize, 0);
+    newData.resize(wavFileData.record->dataSize, 0);
     newData.shrink_to_fit();
 
     auto trueOffset = offset >= wavData.size() ? resampledMap[offset] : offset;
-    if (std::memcmp(wavData.data() + trueOffset, "LIP ", sizeof(uint32_t)) == 0)
-      return false;
 
-    std::memcpy(newData.data(), wavData.data() + trueOffset, wavFileData.record->streams.dataSize);
-    currOffset = offset + wavFileData.record->streams.dataSize;
+    std::memcpy(newData.data(), wavData.data() + trueOffset, wavFileData.record->dataSize);
+    currOffset = offset + wavFileData.record->dataSize;
     recordMap.try_emplace(offset, Hitman4WAVRecord{newData, offset});
-
-    wavFileData.file.archiveRecord = SoundDataSoundRecord(wavFileData.file.archiveRecord, wavFileData.file.data);
-
-    if (wavFileData.file.archiveRecord.dataXXH3 == 0)
-      return Clear(false);
   }
 
   if (currOffset < wavData.size())
@@ -567,12 +468,28 @@ bool Hitman4WAVFile::Load(const std::vector<char> &wavData, const OrderedMap<Str
     recordMap.try_emplace(currOffset, Hitman4WAVRecord{newData, currOffset});
   }
 
+  const auto wavFileDataView = offsetToWAVFileDataMap | std::views::values;
+
+  std::atomic_bool importFailed = false;
+  std::for_each(std::execution::par, wavFileDataView.begin(), wavFileDataView.end(), [this, &importFailed](auto& wavFileData)
+  {
+    if (importFailed.load(std::memory_order_relaxed))
+      return;
+
+    auto& hitmanFile = wavFileData.file;
+    hitmanFile.archiveRecord = SoundDataSoundRecord(hitmanFile.archiveRecord, hitmanFile.data);
+    importFailed.store(importFailed.load(std::memory_order_relaxed) || hitmanFile.archiveRecord.dataXXH3 == 0);
+  });
+
+  if (importFailed)
+    return Clear(false);
+
   header = reinterpret_cast<Hitman4WAVHeader *>(recordMap.at(0).data.data());
 
   return true;
 }
 
-bool Hitman4WAVFile::Load(const StringView8CI &loadPath, const OrderedMap<StringView8CI, Hitman4WHDRecord *> &whdRecordsMap, OrderedMap<StringView8CI, HitmanFile>& fileMap)
+bool Hitman4WAVFile::Load(const StringView8CI &loadPath, const OrderedMap<StringView8CI, Hitman4WHDRecordScene *> &whdRecordsMap, OrderedMap<StringView8CI, HitmanFile>& fileMap)
 {
   if (!Load(ReadWholeBinaryFile(loadPath), whdRecordsMap, fileMap))
     return false;
@@ -631,57 +548,59 @@ bool Hitman4WHDFile::Load(Hitman4Dialog& archiveDialog, const StringView8CI &loa
   header = reinterpret_cast<Hitman4WHDHeader *>(whdPtr);
   whdPtr += sizeof(Hitman4WHDHeader);
 
-  while (*whdPtr)
+  while (memcmp(whdPtr, terminateBytes.data(), terminateBytes.size() * sizeof(uint32_t)) != 0)
   {
-    whdPtr += std::strlen(whdPtr) + 1; // + 0-15 bytes, so it is aligned on 16 bytes...
-    if (reinterpret_cast<uintptr_t>(whdPtr) % 16 != 0)
-      whdPtr += 16 - (reinterpret_cast<uintptr_t>(whdPtr) % 16);
-    while (memcmp(whdPtr, terminateBytes.data(), terminateBytes.size() * sizeof(uint32_t)) == 0)
-      whdPtr += 16;
+    Hitman4WHDRecordScene *whdRecord = nullptr;
 
-    uint32_t iterCount = 0;
-    do {
-      auto *whdRecord = reinterpret_cast<Hitman4WHDRecord *>(whdPtr);
-      whdPtr += sizeof(Hitman4WHDRecord);
+    do
+    {
+      whdPtr += std::strlen(whdPtr) + 1; // + 0-15 bytes, so it is aligned on 16 bytes...
+      assert(static_cast<size_t>(whdPtr - data.data()) <= data.size());
 
-      bool nullBytesCheckPassed = true;
-      for (const auto nullByte : whdRecord->scene.nullBytes)
-        nullBytesCheckPassed &= nullByte == 0;
-      if (!nullBytesCheckPassed && whdRecord->streams.id != 0x004F4850)
+      if (reinterpret_cast<uintptr_t>(whdPtr) % 16 != 0)
       {
-        if (whdRecord->streamsAliased.nullByte != 0)
-        {
-          whdPtr = reinterpret_cast<char *>(whdRecord);
-          break;
-        }
-        whdPtr -= 3 * sizeof(uint32_t);
+        whdPtr += 16 - (reinterpret_cast<uintptr_t>(whdPtr) % 16);
+        assert(static_cast<size_t>(whdPtr - data.data()) <= data.size());
       }
 
-      String8CI filePath(std::string_view(data.data() + whdRecord->scene.filePathOffset));
-      auto filePathNative = filePath.path();
+      while (memcmp(whdPtr, terminateBytes.data(), terminateBytes.size() * sizeof(uint32_t)) == 0)
+      {
+        whdPtr += 16;
+        assert(static_cast<size_t>(whdPtr - data.data()) <= data.size());
+      }
 
-      if (filePathNative.extension() != StringViewWCI(L".wav"))
-        return Clear(false);
+      whdRecord = reinterpret_cast<Hitman4WHDRecordScene *>(whdPtr);
+    } while (whdRecord->filePathLength >= data.size() && whdRecord->filePathLength != 0x004F4850);
 
-      if (whdRecord->streams.dataInStreams == 0)
-        filePath = relative(loadPathView.path(), archiveDialog.basePath.path()) / filePath.path();
-      else if (!filePath.native().starts_with("Streams"))
-        filePath = L"Streams" / filePathNative;
+    assert(whdRecord);
 
-      auto& file = archiveDialog.GetFile(filePath);
+    if (whdRecord->dataInStreams)
+    {
+      whdPtr += whdRecord->filePathLength ? sizeof(Hitman4WHDRecordStreams) : sizeof(Hitman4WHDRecordStreamsAliased);
+      assert(static_cast<size_t>(whdPtr - data.data()) <= data.size());
+      continue;
+    }
 
-      if (!recordMap.try_emplace(file.path, whdRecord).second)
-        return Clear(false);
+    whdPtr += sizeof(Hitman4WHDRecordScene);
+    assert(static_cast<size_t>(whdPtr - data.data()) <= data.size());
 
-      archiveDialog.whdRecordsMap[file.path].emplace_back(whdRecord);
-      [[maybe_unused]] const auto [fileMapIt, fileMapEmplaced] = archiveDialog.fileMap.try_emplace(file.path, HitmanFile{file.path, whdRecord->ToHitmanSoundRecord()});
-      assert(whdRecord->streams.dataInStreams || fileMapEmplaced);
+    String8CI filePath(std::string_view(data.data() + whdRecord->filePathOffset));
+    auto filePathNative = filePath.path();
 
-      ++iterCount;
-    } while (!reinterpret_cast<uint32_t *>(whdPtr)[0] && reinterpret_cast<uint32_t *>(whdPtr)[1] && std::distance(whdPtr, &data.back() + 1) != 16);
+    if (filePathNative.extension() != StringViewWCI(L".wav"))
+      return Clear(false);
 
-    if (iterCount > 1)
-      whdPtr += 2 * sizeof(uint32_t);
+    filePath = relative(loadPathView.path(), archiveDialog.basePath.path()) / filePath.path();
+
+    auto& file = archiveDialog.GetFile(filePath);
+
+    if (!recordMap.try_emplace(file.path, whdRecord).second)
+      return Clear(false);
+
+    archiveDialog.whdRecordsMap[file.path].emplace_back(whdRecord);
+    [[maybe_unused]] const auto [fileMapIt, fileMapEmplaced] = archiveDialog.fileMap.try_emplace(file.path, HitmanFile{file.path, whdRecord->ToHitmanSoundRecord()});
+    if (!fileMapEmplaced)
+      return Clear(false);
   }
 
   path = loadPathView;
@@ -691,28 +610,7 @@ bool Hitman4WHDFile::Load(Hitman4Dialog& archiveDialog, const StringView8CI &loa
 
 bool Hitman4WHDFile::Save(const Hitman4STRFile &streamsWAV, const Hitman4WAVFile &missionWAV, const StringView8CI &savePathView)
 {
-  for (auto *whdRecord : recordMap | std::views::values)
-  {
-    //const auto &wavRecordMap = whdRecord->streams.dataInStreams == 0 ? missionWAV.recordMap : streamsWAV.recordMap;
-    assert(whdRecord->streams.dataInStreams == 0);
-    const auto &wavRecordMap = missionWAV.recordMap;
-    const auto wavRecordIt = wavRecordMap.find(whdRecord->streams.dataOffset);
-    assert(wavRecordIt != wavRecordMap.end());
-    if (wavRecordIt != wavRecordMap.end())
-      whdRecord->streams.dataOffset = wavRecordIt->second.newOffset;
-  }
-
-  const auto oldSync = std::ios_base::sync_with_stdio(false);
-
-  std::ofstream whdData(savePathView.path(), std::ios::binary | std::ios::trunc);
-  whdData.write(data.data(), data.size());
-  whdData.close();
-
-  std::ios_base::sync_with_stdio(oldSync);
-
-  path = savePathView;
-
-  return true;
+  return false;
 }
 
 bool Hitman4Dialog::Clear(const bool retVal)
@@ -806,34 +704,24 @@ bool Hitman4Dialog::LoadImpl(const StringView8CI &loadPath, const Options &optio
 
   basePath = rootPath;
 
-  OrderedMap<StringView8CI, Hitman4WHDRecord *> allWHDRecords;
+  const auto streamsWAVData = ReadWholeBinaryFile(loadPath);
+  if (!streamsWAV.Load(*this, streamsWAVData))
+    return Clear(false);
+
   for (const auto &whdPath : allWHDFiles)
   {
     auto &whdFile = whdFiles.emplace_back();
     if (!whdFile.Load(*this, whdPath))
       return Clear(false);
 
-    for (const auto& [filePath, whdRecord] : whdFile.recordMap)
-    {
-      [[maybe_unused]] const auto res = allWHDRecords.try_emplace(filePath, whdRecord);
-
-      // TODO - do we want to handle this in some way? duplicates pointing to streams should not be an issue unless offsets are different...
-      assert(res.second || (res.first->second->scene.dataInStreams && res.first->second->scene.dataInStreams == whdRecord->scene.dataInStreams && res.first->second->scene.dataOffset == whdRecord->scene.dataOffset));
-    }
-
     if (!wavFiles.emplace_back().Load(String8CI(whdFile.path.path().replace_extension(L".wav")), whdFile.recordMap, fileMap))
       return Clear(false);
   }
 
-  const auto streamsWAVData = ReadWholeBinaryFile(loadPath);
-  if (!streamsWAV.Load(*this, streamsWAVData, allWHDRecords))
-    return Clear(false);
-
-  auto dataPath = GetProgramPath().path();
+  auto dataPath = String8CI(SDL_GetPrefPath(G1AT_COMPANY_NAMESPACE, G1AT_NAME)).path();
   if (dataPath.empty())
     return Clear(false);
 
-  dataPath /= L"data";
   dataPath /= L"records";
   dataPath /= L"h4_";
 

@@ -8,6 +8,8 @@
 
 #include "Hitman1Dialog.hpp"
 
+#include <Config/Config.hpp>
+
 #include "Utils.hpp"
 
 bool Hitman1Dialog::Clear(const bool retVal)
@@ -38,6 +40,13 @@ bool Hitman1Dialog::LoadImpl(const StringView8CI &loadPathView, const Options &o
   auto archiveIdxScan = scn::make_result(archiveIdx);
   size_t archiveBinOffset = 0;
 
+  struct Hitman1Record
+  {
+    HitmanFile& file;
+    std::span<const char> data;
+  };
+
+  std::vector<Hitman1Record> records;
   while (archiveIdxScan && archiveBinOffset < archiveBin.size())
   {
     std::string_view entryPath;
@@ -66,11 +75,7 @@ bool Hitman1Dialog::LoadImpl(const StringView8CI &loadPathView, const Options &o
       return Clear(false);
 
     indexToKey.emplace_back(file.path);
-
-    std::vector<char> fileData(dataSize, 0);
-    std::memcpy(fileData.data(), archiveBin.data() + archiveBinOffset, dataSize);
-    if (!ImportSingleHitmanFile(fileMapIt->second, fileData, false, options))
-      return Clear(false);
+    records.emplace_back(fileMapIt->second, std::span<const char>{archiveBin.data() + archiveBinOffset, dataSize});
 
     archiveBinOffset += dataSize;
   }
@@ -78,13 +83,24 @@ bool Hitman1Dialog::LoadImpl(const StringView8CI &loadPathView, const Options &o
   if (archiveBinOffset < archiveBin.size())
     return Clear(false);
 
+  std::atomic_bool importFailed = false;
+  std::for_each(std::execution::par, records.begin(), records.end(), [this, &importFailed, options](const auto& record)
+  {
+    if (importFailed.load(std::memory_order_relaxed))
+      return;
+
+    importFailed.store(importFailed.load(std::memory_order_relaxed) || !ImportSingleHitmanFile(record.file, record.data, false, options));
+  });
+
+  if (importFailed)
+    return Clear(false);
+
   std::ios_base::sync_with_stdio(oldSync);
 
-  auto dataPath = GetProgramPath().path();
+  auto dataPath = String8CI(SDL_GetPrefPath(G1AT_COMPANY_NAMESPACE, G1AT_NAME)).path();
   if (dataPath.empty())
     return Clear(false);
 
-  dataPath /= L"data";
   dataPath /= L"records";
   dataPath /= L"h1_";
 

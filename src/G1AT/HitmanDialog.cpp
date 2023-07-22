@@ -266,7 +266,7 @@ bool HitmanFile::Export(std::vector<char> &outputBytes, const Options& options) 
   }
 
   const auto normalSampleRate = *normalSampleRateIt;
-  if (normalSampleRate == archiveRecord.sampleRate)
+  if (archiveRecord.sampleRate == normalSampleRate&& archiveRecord.blockAlign == archiveRecord.channels * (archiveRecord.bitsPerSample / 8))
   {
     if (archiveRecord.formatTag == 0x01)
       return ExportNative(outputBytes, options);
@@ -278,6 +278,12 @@ bool HitmanFile::Export(std::vector<char> &outputBytes, const Options& options) 
   auto pcms16Header = PCMS16Header(archiveRecord);
   std::vector<int16_t> pcms16Decoded;
   if (!PCMS16FromSoundData(archiveRecord, data, pcms16Decoded, PCMS16_CONVERSION_FLAG_RAW_OUTPUT))
+  {
+    assert(false);
+    return false;
+  }
+
+  if (archiveRecord.formatTag == 0x01 && PCMS16ChangeBlockAlignment(pcms16Header, pcms16Decoded, archiveRecord.channels * (archiveRecord.bitsPerSample / 8)) < 0)
   {
     assert(false);
     return false;
@@ -422,7 +428,7 @@ bool HitmanDialog::LoadOriginalData(const Options &options)
   return true;
 }
 
-bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, std::vector<char> &data, const bool allowConversions, const Options &options)
+bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const std::span<const char> &data, const bool allowConversions, const Options &options)
 {
   if (allowConversions)
   {

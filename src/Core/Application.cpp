@@ -54,7 +54,7 @@ bool BuildFontAtlas()
   builder.BuildRanges(&imguiRanges);
 
   ImFontConfig config;
-  config.SizePixels = 18;
+  config.SizePixels = 18 * App::DPIHandler::get_scale();
   config.OversampleH = 3;
   config.OversampleV = 1;
   config.MergeMode = false;
