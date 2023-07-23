@@ -526,46 +526,6 @@ bool PCMS16ToADPCM_LibSNDFile(const PCMS16_Header &header, const std::span<const
   return true;
 }
 
-std::vector<int16_t> PCMS16ChangeBlockAlignment(PCMS16_Header &header, const std::span<int16_t> &data, uint16_t newBlockAlignment)
-{
-  if (header.fmtBlockAlign == newBlockAlignment)
-  {
-    assert(false);
-    return {};
-  }
-
-  if (newBlockAlignment < header.fmtChannels * sizeof(int16_t))
-  {
-    assert(false);
-    return {};
-  }
-
-  const auto samplesPerBlock = header.fmtBlockAlign / sizeof(int16_t);
-  const auto numberOfBlocks = header.dataSize / header.fmtBlockAlign;
-
-  const auto newSamplesPerBlock = newBlockAlignment / sizeof(int16_t);
-  const auto newDataSize = numberOfBlocks * newBlockAlignment;
-
-  assert(data.size() * sizeof(int16_t) == header.dataSize);
-
-  std::vector<int16_t> newSamples(numberOfBlocks * newSamplesPerBlock, 0);
-
-  for (size_t i = 0; i < numberOfBlocks; ++i)
-  {
-    const auto blockBeginIndex = i * header.fmtBlockAlign / sizeof(int16_t);
-    const auto newBlockBeginIndex = i * newBlockAlignment / sizeof(int16_t);
-
-    std::memcpy(newSamples.data() + newBlockBeginIndex, data.data() + blockBeginIndex, header.fmtChannels * sizeof(int16_t));
-  }
-
-  header.fmtAvgBytesRate = header.fmtSampleRate * newBlockAlignment;
-  header.fmtBlockAlign = newBlockAlignment;
-  header.dataSize = newDataSize;
-  header.riffSize = newDataSize + 0x24;
-
-  return newSamples;
-}
-
 std::vector<int16_t> PCMS16ChangeSampleRate(PCMS16_Header &header, const std::span<int16_t> &data, uint32_t newSampleRate)
 {
   if (header.fmtSampleRate == newSampleRate)
@@ -1237,33 +1197,6 @@ std::span<const char> SoundDataDataView(const SoundRecord &header, const std::sp
 std::span<const char> SoundDataDataView(const std::span<const char> &in)
 {
   return SoundDataDataView(SoundDataHeader(in), in);
-}
-
-int32_t PCMS16ChangeBlockAlignment(PCMS16_Header &header, std::vector<char> &data, uint16_t newBlockAlignment)
-{
-  if (header.fmtBlockAlign == newBlockAlignment)
-    return 0;
-
-  auto result = PCMS16ChangeBlockAlignment(header, ToSpan<int16_t>(std::span<char>{data}), newBlockAlignment);
-  if (result.empty())
-    return -1;
-
-  data.resize(result.size() * sizeof(int16_t));
-  std::memcpy(data.data(), result.data(), result.size());
-  return 1;
-}
-
-int32_t PCMS16ChangeBlockAlignment(PCMS16_Header &header, std::vector<int16_t> &data, uint16_t newBlockAlignment)
-{
-  if (header.fmtBlockAlign == newBlockAlignment)
-    return 0;
-
-  auto result = PCMS16ChangeBlockAlignment(header, std::span<int16_t>{data}, newBlockAlignment);
-  if (result.empty())
-    return -1;
-
-  data = std::move(result);
-  return 1;
 }
 
 int32_t PCMS16ChangeSampleRate(PCMS16_Header &header, std::vector<char> &data, uint32_t newSampleRate)

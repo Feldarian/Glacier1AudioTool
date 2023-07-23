@@ -283,12 +283,6 @@ bool HitmanFile::Export(std::vector<char> &outputBytes, const Options& options) 
     return false;
   }
 
-  if (archiveRecord.formatTag == 0x01 && PCMS16ChangeBlockAlignment(pcms16Header, pcms16Decoded, archiveRecord.channels * (archiveRecord.bitsPerSample / 8)) < 0)
-  {
-    assert(false);
-    return false;
-  }
-
   if (PCMS16ChangeSampleRate(pcms16Header, pcms16Decoded, normalSampleRate) < 0)
   {
     assert(false);

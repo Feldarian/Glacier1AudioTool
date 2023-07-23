@@ -114,9 +114,6 @@ SoundRecord SoundDataSoundRecord(const std::span<const char>& in);
 std::span<const char> SoundDataDataView(const SoundRecord& header, const std::span<const char>& in);
 std::span<const char> SoundDataDataView(const std::span<const char>& in);
 
-int32_t PCMS16ChangeBlockAlignment(PCMS16_Header& header, std::vector<char>& data, uint16_t newBlockAlignment);
-int32_t PCMS16ChangeBlockAlignment(PCMS16_Header& header, std::vector<int16_t>& data, uint16_t newBlockAlignment);
-
 int32_t PCMS16ChangeSampleRate(PCMS16_Header& header, std::vector<char>& data, uint32_t newSampleRate);
 int32_t PCMS16ChangeSampleRate(PCMS16_Header& header, std::vector<int16_t>& data, uint32_t newSampleRate);
 

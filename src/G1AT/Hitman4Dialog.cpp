@@ -5,6 +5,10 @@
 //
 // TODO - GOG and Steam version have a hash conflict! Either they truly have streams file the exact same or I don't know... But it reports everything as changed!
 //      - workaround for now - remove "h4_" prefixed files from "data/records" before opening GOG archive...
+// TODO - try to interleave aliased data
+//        * doubling sample rate seems to fix things, this may mean half of the frame is real sample and half is not
+//          * this may be confirmed purely technically by Audacity or something for example, just try to playback single channel... make sure though that you use NATIVE EXPORT! (samplerates will mess it up...)
+//        * it may also mean that there are truly 2 different audio files, they are just interlieved in some way
 //
 
 #include <Precompiled.hpp>
@@ -72,7 +76,7 @@ HitmanSoundRecord Hitman4STRRecordHeader::ToHitmanSoundRecord() const
     static_cast<uint16_t>(magic == 0x02 || magic == 0x11 ? 0x01 : (magic == 0x04 ? 0x1000 : (magic == 0x03 ? 0x11 : 0x00))),
     static_cast<uint16_t>(bitsPerSample ? bitsPerSample : 16),
     static_cast<uint16_t>(channels),
-    static_cast<uint16_t>(blockAlign ? blockAlign : channels * ((bitsPerSample ? bitsPerSample : 16) / 8)),
+    static_cast<uint16_t>(magic == 0x03 && blockAlign ? blockAlign : channels * ((bitsPerSample ? bitsPerSample : 16) / 8)),
     static_cast<uint16_t>(samplesPerBlock ? samplesPerBlock : channels)
   };
 }
