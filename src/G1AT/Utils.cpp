@@ -6,6 +6,7 @@
 
 #include <Precompiled.hpp>
 
+#include "Options.hpp"
 #include "Utils.hpp"
 
 std::vector<char> ReadWholeBinaryFile(const StringView8CI &acpPath)
@@ -223,19 +224,25 @@ String8CI MakeFileDialogFilter(const std::vector<std::pair<String8, String8CI>> 
   if (filters.empty())
     return {};
 
-  String8CI allFilters;
+  String8CI allFiltersFilter;
+  String8CI allFiltersDisplay;
   for (const auto& filter : filters | std::views::values)
   {
-    if (!allFilters.empty())
-      allFilters += ";";
+    if (!allFiltersFilter.empty())
+      allFiltersFilter += ";";
 
-    allFilters += filter;
+    allFiltersFilter += filter;
+
+    if (!allFiltersDisplay.empty())
+      allFiltersDisplay += "/";
+
+    allFiltersDisplay += filter;
   }
 
   String8CI result;
 
   if (filters.size() > 1)
-    result = std::format("{0} ({1})?{1}?", g_LocalizationManager.Localize("FILE_DIALOG_FILTER_ALL_SUPPORTED"), allFilters);
+    result = std::format("{0} ({1})?{2}?", g_LocalizationManager.Localize("FILE_DIALOG_FILTER_ALL_SUPPORTED"), allFiltersDisplay, allFiltersFilter);
 
   for (const auto& [identifier, filter] : filters)
     result += std::format("{0} ({1})?{1}?", g_LocalizationManager.Localize(identifier), filter);
