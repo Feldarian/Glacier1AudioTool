@@ -164,24 +164,34 @@ bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const std::vector<char> 
       return Clear(false);
   }
 
-  OrderedMap<uint64_t, uint64_t> aliasedDataMap;
+  struct StreamsAliasedRecord
+  {
+    uint32_t masterId = 0;
+    uint32_t firstReferenceId = 0;
+    uint32_t secondaryDataId = 0;
+  };
+
+  OrderedMap<uint64_t, StreamsAliasedRecord> aliasedDataMap;
   for (uint32_t i = 0; i < header.entriesCount; ++i)
   {
-    const auto& strRecord = recordTable[i];
+    auto& strRecord = recordTable[i];
     auto& strFilename = stringTable[i];
 
     if (!strFilename.path().extension().empty())
       continue;
 
-    const auto& [aliasedDataIt, emplaced] = aliasedDataMap.try_emplace(strRecord.dataOffset, i);
+    const auto& [aliasedDataIt, emplaced] = aliasedDataMap.try_emplace(strRecord.dataOffset, StreamsAliasedRecord{i});
     if (!emplaced)
       return Clear(false);
+
+    strRecord.dataSize = 0;
   }
 
   for (uint32_t i = 0; i < header.entriesCount; ++i)
   {
     auto& strRecord = recordTable[i];
     auto& strFilename = stringTable[i];
+    auto& strWAVHeader = wavHeaderTable[i];
 
     if (strFilename.path().extension().empty())
       continue;
@@ -190,14 +200,27 @@ bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const std::vector<char> 
     if (aliasedDataIt == aliasedDataMap.end())
       continue;
 
-    strRecord.dataOffset |= 1ull << 32;
+    auto& streamsAliasedRecord = aliasedDataIt->second;
+    auto& strRecordMaster = recordTable[streamsAliasedRecord.masterId];
 
-    auto& strRecordMain = recordTable[aliasedDataIt->second];
-    if (strRecordMain.aliasedEntryOrderOrReference != strRecord.aliasedEntryOrderOrReference)
-      continue;
+    if (strRecord.aliasedEntryOrderOrReference == 1)
+    {
+      assert(streamsAliasedRecord.firstReferenceId == 0);
+      streamsAliasedRecord.firstReferenceId = i;
+    }
+    else if (strRecord.aliasedEntryOrderOrReference == 2)
+    {
+      assert(streamsAliasedRecord.secondaryDataId == 0);
+      streamsAliasedRecord.secondaryDataId = i;
+    }
+    else
+    {
+      assert(false);
+      return Clear(false);
+    }
 
-    assert(!strRecordMain.hasLIP);
-    strRecordMain.hasLIP = strRecord.hasLIP;
+    strRecordMaster.hasLIP |= strRecord.hasLIP;
+    strRecordMaster.dataSize += strWAVHeader.samplesCount * sizeof(int16_t);
   }
 
   recordMap.clear();
@@ -205,18 +228,25 @@ bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const std::vector<char> 
   std::vector<std::reference_wrapper<HitmanFile>> strFiles;
   for (uint32_t i = 0; i < header.entriesCount; ++i)
   {
-    const auto& strRecord = recordTable[i];
-
-    if (strRecord.dataOffset & (1ull << 32))
-      continue;
-
-    auto& strWAVHeader = wavHeaderTable[i];
     auto& strFilename = stringTable[i];
     auto& strLIPData = lipDataTable[i];
 
+    auto strIndex = i;
+    auto strRecord = recordTable[strIndex];
+    const auto aliasedDataIt = aliasedDataMap.find(strRecord.dataOffset);
+    if (aliasedDataIt != aliasedDataMap.end())
+    {
+      if (aliasedDataIt->second.masterId == i)
+        continue;
+
+      strIndex = aliasedDataIt->second.masterId;
+      strRecord = recordTable[aliasedDataIt->second.masterId];
+    }
+
+    auto& strWAVHeader = wavHeaderTable[strIndex];
+
     auto strFilePath = strFilename.path();
-    if (strFilePath.extension().empty())
-      strFilePath += L".wav";
+    assert(!strFilePath.extension().empty());
 
     const auto strFilePathCI = String8CI("Streams\\") += strFilePath;
 
@@ -252,7 +282,48 @@ bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const std::vector<char> 
     {
       std::memcpy(hitmanFile.data.data(), wavData.data() + strRecord.dataOffset, strRecord.dataSize);
 
-      [[maybe_unused]] const auto [recordMapIt, recordMapEmplaced] = recordMap.try_emplace(static_cast<uint32_t>(strRecord.dataOffset), Hitman4WAVRecord{hitmanFile.data, static_cast<uint32_t>(strRecord.dataOffset)});
+      if (strIndex == i)
+      {
+        [[maybe_unused]] const auto [recordMapIt, recordMapEmplaced] = recordMap.try_emplace(strRecord.dataOffset, Hitman4WAVRecord{hitmanFile.data, static_cast<uint32_t>(strRecord.dataOffset)});
+        if (!recordMapEmplaced)
+          return Clear(false);
+
+        continue;
+      }
+
+      auto& strSub1Record = recordTable[aliasedDataIt->second.firstReferenceId];
+      auto& strSub1WAVHeader = wavHeaderTable[aliasedDataIt->second.firstReferenceId];
+      size_t strSub1DataIndex = 0;
+      auto& strSub2Record = recordTable[aliasedDataIt->second.secondaryDataId];
+      auto& strSub2WAVHeader = wavHeaderTable[aliasedDataIt->second.secondaryDataId];
+      size_t strSub2DataIndex = 0;
+
+      assert(strSub1WAVHeader.sampleRate >= strSub2WAVHeader.sampleRate);
+      assert(strSub1WAVHeader.channels >= strSub2WAVHeader.channels);
+      const auto samplesBlockSecondaryDataOffset = (strSub1WAVHeader.sampleRate / strSub2WAVHeader.sampleRate) * (strSub1WAVHeader.channels / strSub2WAVHeader.channels) * sizeof(int16_t);
+      const auto samplesBlockSecondaryDataSize = strSub2WAVHeader.channels * sizeof(int16_t);
+
+      auto& strThisSubRecord = (i == aliasedDataIt->second.firstReferenceId) ? strSub1Record : strSub2Record;
+      auto& strThisWAVHeader = (i == aliasedDataIt->second.firstReferenceId) ? strSub1WAVHeader : strSub2WAVHeader;
+      auto& strThisDataIndex = (i == aliasedDataIt->second.firstReferenceId) ? strSub1DataIndex : strSub2DataIndex;
+      auto& strThisSamplesBlockSize = (i == aliasedDataIt->second.firstReferenceId) ? samplesBlockSecondaryDataOffset : samplesBlockSecondaryDataSize;
+
+      if (i == aliasedDataIt->second.secondaryDataId)
+        strSub1DataIndex += samplesBlockSecondaryDataOffset;
+
+      assert(strSub1Record.dataSize + strSub2Record.dataSize <= strRecord.dataSize);
+      while (strThisDataIndex < strThisSubRecord.dataSize)
+      {
+        std::memmove(hitmanFile.data.data() + strThisDataIndex, hitmanFile.data.data() + strSub1DataIndex + strSub2DataIndex, std::min(strThisSubRecord.dataSize - strThisDataIndex, strThisSamplesBlockSize));
+        strSub1DataIndex = std::min(strSub1DataIndex + samplesBlockSecondaryDataOffset, strSub1Record.dataSize);
+        strSub2DataIndex = std::min(strSub2DataIndex + samplesBlockSecondaryDataSize, strSub2Record.dataSize);
+      }
+
+      hitmanFile.data.resize(strThisSubRecord.dataSize);
+      hitmanFile.archiveRecord = strThisWAVHeader.ToHitmanSoundRecord();
+      hitmanFile.archiveRecord.dataSize = static_cast<uint32_t>(strThisSubRecord.dataSize);
+
+      [[maybe_unused]] const auto [recordMapIt, recordMapEmplaced] = recordMap.try_emplace(strRecord.dataOffset | (strThisSubRecord.aliasedEntryOrderOrReference & 0xFF), Hitman4WAVRecord{hitmanFile.data, static_cast<uint32_t>(strRecord.dataOffset)});
       if (!recordMapEmplaced)
         return Clear(false);
 
@@ -261,6 +332,7 @@ bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const std::vector<char> 
 
     assert(*reinterpret_cast<const uint32_t*>(wavData.data() + strRecord.dataOffset) == 0x2050494C);
 
+    // TODO - LIP data should be copied only into entry which has it if strIndex != i
     const auto lipDataSize = (wavDataSize - strRecord.dataSize) & (~0xFFFull);
     strLIPData.resize(lipDataSize);
     std::ranges::fill(strLIPData, 0);
@@ -270,7 +342,51 @@ bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const std::vector<char> 
       std::memcpy(strLIPData.data(), wavData.data() + strRecord.dataOffset, lipDataSize);
       std::memcpy(hitmanFile.data.data(), wavData.data() + strRecord.dataOffset + lipDataSize, strRecord.dataSize);
 
-      [[maybe_unused]] const auto [recordMapIt, recordMapEmplaced] = recordMap.try_emplace(static_cast<uint32_t>(strRecord.dataOffset), Hitman4WAVRecord{hitmanFile.data, static_cast<uint32_t>(strRecord.dataOffset), strLIPData});
+      if (strIndex == i)
+      {
+        [[maybe_unused]] const auto [recordMapIt, recordMapEmplaced] = recordMap.try_emplace(strRecord.dataOffset, Hitman4WAVRecord{hitmanFile.data, static_cast<uint32_t>(strRecord.dataOffset)});
+        if (!recordMapEmplaced)
+          return Clear(false);
+
+        continue;
+      }
+
+      auto& strSub1Record = recordTable[aliasedDataIt->second.firstReferenceId];
+      auto& strSub1WAVHeader = wavHeaderTable[aliasedDataIt->second.firstReferenceId];
+      size_t strSub1DataIndex = 0;
+      auto& strSub2Record = recordTable[aliasedDataIt->second.secondaryDataId];
+      auto& strSub2WAVHeader = wavHeaderTable[aliasedDataIt->second.secondaryDataId];
+      size_t strSub2DataIndex = 0;
+
+      assert(strSub1WAVHeader.sampleRate >= strSub2WAVHeader.sampleRate);
+      assert(strSub1WAVHeader.channels >= strSub2WAVHeader.channels);
+      const auto samplesBlockSecondaryDataOffset = (strSub1WAVHeader.sampleRate / strSub2WAVHeader.sampleRate) * (strSub1WAVHeader.channels / strSub2WAVHeader.channels) * sizeof(int16_t);
+      const auto samplesBlockSecondaryDataSize = strSub2WAVHeader.channels * sizeof(int16_t);
+
+      auto& strThisSubRecord = (i == aliasedDataIt->second.firstReferenceId) ? strSub1Record : strSub2Record;
+      auto& strThisWAVHeader = (i == aliasedDataIt->second.firstReferenceId) ? strSub1WAVHeader : strSub2WAVHeader;
+      auto& strThisDataIndex = (i == aliasedDataIt->second.firstReferenceId) ? strSub1DataIndex : strSub2DataIndex;
+      auto& strThisSamplesBlockSize = (i == aliasedDataIt->second.firstReferenceId) ? samplesBlockSecondaryDataOffset : samplesBlockSecondaryDataSize;
+
+      if (i == aliasedDataIt->second.secondaryDataId)
+        strSub1DataIndex += samplesBlockSecondaryDataOffset;
+
+      assert(strSub1Record.dataSize + strSub2Record.dataSize <= strRecord.dataSize);
+      while (strThisDataIndex < strThisSubRecord.dataSize)
+      {
+        std::memmove(hitmanFile.data.data() + strThisDataIndex, hitmanFile.data.data() + strSub1DataIndex + strSub2DataIndex, std::min(strThisSubRecord.dataSize - strThisDataIndex, strThisSamplesBlockSize));
+        strSub1DataIndex = std::min(strSub1DataIndex + samplesBlockSecondaryDataOffset, strSub1Record.dataSize);
+        strSub2DataIndex = std::min(strSub2DataIndex + samplesBlockSecondaryDataSize, strSub2Record.dataSize);
+      }
+
+      hitmanFile.data.resize(strThisSubRecord.dataSize);
+      hitmanFile.archiveRecord = strThisWAVHeader.ToHitmanSoundRecord();
+      hitmanFile.archiveRecord.dataSize = static_cast<uint32_t>(strThisSubRecord.dataSize);
+
+      if (!strThisSubRecord.hasLIP)
+        strLIPData.clear();
+
+      [[maybe_unused]] const auto [recordMapIt, recordMapEmplaced] = recordMap.try_emplace(strRecord.dataOffset | (strThisSubRecord.aliasedEntryOrderOrReference & 0xFF), Hitman4WAVRecord{hitmanFile.data, static_cast<uint32_t>(strRecord.dataOffset)});
       if (!recordMapEmplaced)
         return Clear(false);
 
@@ -329,7 +445,51 @@ bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const std::vector<char> 
       wavBytesLeft -= wavCopySize;
     }
 
-    [[maybe_unused]] const auto [recordMapIt, recordMapEmplaced] = recordMap.try_emplace(static_cast<uint32_t>(strRecord.dataOffset), Hitman4WAVRecord{hitmanFile.data, static_cast<uint32_t>(strRecord.dataOffset), strLIPData});
+    if (strIndex == i)
+    {
+      [[maybe_unused]] const auto [recordMapIt, recordMapEmplaced] = recordMap.try_emplace(static_cast<uint32_t>(strRecord.dataOffset), Hitman4WAVRecord{hitmanFile.data, static_cast<uint32_t>(strRecord.dataOffset), strLIPData});
+      if (!recordMapEmplaced)
+        return Clear(false);
+
+      continue;
+    }
+
+    auto& strSub1Record = recordTable[aliasedDataIt->second.firstReferenceId];
+    auto& strSub1WAVHeader = wavHeaderTable[aliasedDataIt->second.firstReferenceId];
+    size_t strSub1DataIndex = 0;
+    auto& strSub2Record = recordTable[aliasedDataIt->second.secondaryDataId];
+    auto& strSub2WAVHeader = wavHeaderTable[aliasedDataIt->second.secondaryDataId];
+    size_t strSub2DataIndex = 0;
+
+    assert(strSub1WAVHeader.sampleRate >= strSub2WAVHeader.sampleRate);
+    assert(strSub1WAVHeader.channels >= strSub2WAVHeader.channels);
+    const auto samplesBlockSecondaryDataOffset = (strSub1WAVHeader.sampleRate / strSub2WAVHeader.sampleRate) * (strSub1WAVHeader.channels / strSub2WAVHeader.channels) * sizeof(int16_t);
+    const auto samplesBlockSecondaryDataSize = strSub2WAVHeader.channels * sizeof(int16_t);
+
+    auto& strThisSubRecord = (i == aliasedDataIt->second.firstReferenceId) ? strSub1Record : strSub2Record;
+    auto& strThisWAVHeader = (i == aliasedDataIt->second.firstReferenceId) ? strSub1WAVHeader : strSub2WAVHeader;
+    auto& strThisDataIndex = (i == aliasedDataIt->second.firstReferenceId) ? strSub1DataIndex : strSub2DataIndex;
+    auto& strThisSamplesBlockSize = (i == aliasedDataIt->second.firstReferenceId) ? samplesBlockSecondaryDataOffset : samplesBlockSecondaryDataSize;
+
+    if (i == aliasedDataIt->second.secondaryDataId)
+      strSub1DataIndex += samplesBlockSecondaryDataOffset;
+
+    assert(strSub1Record.dataSize + strSub2Record.dataSize <= strRecord.dataSize);
+    while (strThisDataIndex < strThisSubRecord.dataSize)
+    {
+      std::memmove(hitmanFile.data.data() + strThisDataIndex, hitmanFile.data.data() + strSub1DataIndex + strSub2DataIndex, std::min(strThisSubRecord.dataSize - strThisDataIndex, strThisSamplesBlockSize));
+      strSub1DataIndex = std::min(strSub1DataIndex + samplesBlockSecondaryDataOffset, strSub1Record.dataSize);
+      strSub2DataIndex = std::min(strSub2DataIndex + samplesBlockSecondaryDataSize, strSub2Record.dataSize);
+    }
+
+    hitmanFile.data.resize(strThisSubRecord.dataSize);
+    hitmanFile.archiveRecord = strThisWAVHeader.ToHitmanSoundRecord();
+    hitmanFile.archiveRecord.dataSize = static_cast<uint32_t>(strThisSubRecord.dataSize);
+
+    if (!strSub1Record.hasLIP)
+      strLIPData.clear();
+
+    [[maybe_unused]] const auto [recordMapIt, recordMapEmplaced] = recordMap.try_emplace(strRecord.dataOffset | (strThisSubRecord.aliasedEntryOrderOrReference & 0xFF), Hitman4WAVRecord{hitmanFile.data, static_cast<uint32_t>(strRecord.dataOffset)});
     if (!recordMapEmplaced)
       return Clear(false);
   }
@@ -341,8 +501,9 @@ bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const std::vector<char> 
       return;
 
     auto& hitmanFile = hitmanFileRef.get();
-    hitmanFile.archiveRecord = SoundDataSoundRecord(hitmanFile.archiveRecord, {hitmanFile.data.data(), hitmanFile.data.size()});
-    importFailed.store(importFailed.load(std::memory_order_relaxed) || hitmanFile.archiveRecord.dataXXH3 == 0);
+    auto updatedSoundRecord = SoundDataSoundRecord(hitmanFile.archiveRecord, {hitmanFile.data.data(), hitmanFile.data.size()});
+    importFailed.store(importFailed.load(std::memory_order_relaxed) || updatedSoundRecord.dataXXH3 == 0);
+    hitmanFile.archiveRecord = std::move(updatedSoundRecord);
   });
 
   if (importFailed)

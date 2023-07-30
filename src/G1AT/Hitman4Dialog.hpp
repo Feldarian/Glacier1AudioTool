@@ -193,7 +193,7 @@ struct Hitman4STRFile
 
   bool Save(const StringView8CI &savePath);
 
-  OrderedMap<uint32_t, Hitman4WAVRecord> recordMap;
+  OrderedMap<uint64_t, Hitman4WAVRecord> recordMap;
   std::list<std::vector<char>> extraData;
 
   Hitman4STRHeader                    header;
