@@ -8,8 +8,8 @@ set_arch("x64")
 set_languages("cxx20")
 
 add_rules("plugin.vsxmake.autoupdate")
-add_rules("c.unity_build")
-add_rules("c++.unity_build")
+--add_rules("c.unity_build")
+--add_rules("c++.unity_build")
 
 add_defines("UNICODE=1", "_UNICODE=1")
 
