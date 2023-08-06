@@ -414,7 +414,7 @@ bool PCMS16FromADPCM_ADPCMXQ(const ADPCM_Header &header, const std::span<const c
 
 bool PCMS16ToADPCM_ADPCMXQ(const PCMS16_Header &header, const std::span<const int16_t> &in, std::vector<char> &out, int flags, int blocksizePow2, int lookahead)
 {
-  if (!header.dataSize || in.size() < header.dataSize)
+  if (!header.dataSize || in.size() * sizeof(int16_t) < header.dataSize)
     return false;
 
   const auto num_samples = header.dataSize / header.fmtBlockAlign;
@@ -497,7 +497,7 @@ bool PCMS16FromADPCM_LibSNDFile(const ADPCM_Header &header, const std::span<cons
 
 bool PCMS16ToADPCM_LibSNDFile(const PCMS16_Header &header, const std::span<const int16_t> &in, std::vector<char> &out, int flags)
 {
-  if (!header.dataSize || in.size() < header.dataSize)
+  if (!header.dataSize || in.size() * sizeof(int16_t) < header.dataSize)
     return false;
 
   const auto outIndexInput = out.size();
@@ -700,7 +700,7 @@ PCMS16_Header PCMS16Header(const SoundRecord &record)
 
 PCMS16_Header PCMS16Header(const std::span<const int16_t> &in)
 {
-  if (in.size() < sizeof(PCMS16_Header))
+  if (in.size() * sizeof(int16_t) < sizeof(PCMS16_Header))
     return {};
 
   PCMS16_Header header;
@@ -736,7 +736,7 @@ PCMS16_Header PCMS16Header(const std::span<const int16_t> &in)
   if (header.dataSize % header.fmtBlockAlign)
     return {};
 
-  if (!header.dataSize || in.size() < sizeof(PCMS16_Header) + header.dataSize)
+  if (!header.dataSize || in.size() * sizeof(int16_t) < sizeof(PCMS16_Header) + header.dataSize)
     return {};
 
   return header;
@@ -774,10 +774,10 @@ SoundRecord PCMS16SoundRecord(const std::span<const int16_t> &in)
 
 std::span<const int16_t> PCMS16DataView(const PCMS16_Header &header, const std::span<const int16_t> &in)
 {
-  if (!header.dataSize || in.size() < sizeof(PCMS16_Header) + header.dataSize)
+  if (!header.dataSize || in.size() * sizeof(int16_t) < sizeof(PCMS16_Header) + header.dataSize)
     return {};
 
-  return in.subspan(sizeof(PCMS16_Header) / sizeof(int16_t), header.dataSize);
+  return in.subspan(sizeof(PCMS16_Header) / sizeof(int16_t), header.dataSize / sizeof(int16_t));
 }
 
 std::span<const int16_t> PCMS16DataView(const std::span<const int16_t> &in)
@@ -1454,7 +1454,7 @@ bool PCMS16ToADPCM(const std::span<const int16_t>& in, std::vector<char> &out, i
 
 bool PCMS16ToVorbis(const PCMS16_Header &header, const std::span<const int16_t> &in, std::vector<char> &out, int)
 {
-  if (!header.dataSize || in.size() < header.dataSize)
+  if (!header.dataSize || in.size() * sizeof(int16_t) < header.dataSize)
     return false;
 
   const auto outIndexInput = out.size();

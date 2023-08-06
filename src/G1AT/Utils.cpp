@@ -191,7 +191,7 @@ StringView8CI GetUserPath()
 int32_t DisplayInformation(const StringView8 &message, const StringView8 &title, bool yesNo, const Options &options)
 {
   if (!yesNo && options.common.disableWarnings)
-    return 0;
+    return -1;
 
   return DisplayMessage(message, title, yesNo, SDL_MESSAGEBOX_INFORMATION);
 }
@@ -199,7 +199,7 @@ int32_t DisplayInformation(const StringView8 &message, const StringView8 &title,
 int32_t DisplayWarning(const StringView8 &message, const StringView8 &title, bool yesNo, const Options &options)
 {
   if (!yesNo && options.common.disableWarnings)
-    return 0;
+    return -1;
 
   return DisplayMessage(message, title, yesNo, SDL_MESSAGEBOX_WARNING);
 }
@@ -211,10 +211,10 @@ int32_t DisplayError(const StringView8 &message, const StringView8 &title, bool 
 
 int32_t DisplayMessage(const StringView8 &message, const StringView8 &title, bool yesNo, const uint32_t messageFlags)
 {
-  static std::array yesNoButtonDatas{SDL_MessageBoxButtonData{0, 2, g_LocalizationManager.Localize("MESSAGEBOX_BUTTON_YES").c_str()},
-    SDL_MessageBoxButtonData{SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, g_LocalizationManager.Localize("MESSAGEBOX_BUTTON_NO").c_str()},
-    SDL_MessageBoxButtonData{SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, g_LocalizationManager.Localize("MESSAGEBOX_BUTTON_CANCEL").c_str()}};
-  static SDL_MessageBoxButtonData okButtonData{SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT | SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, g_LocalizationManager.Localize("MESSAGEBOX_BUTTON_OK").c_str()};
+  static std::array yesNoButtonDatas{SDL_MessageBoxButtonData{SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, -1, g_LocalizationManager.Localize("MESSAGEBOX_BUTTON_CANCEL").c_str()},
+    SDL_MessageBoxButtonData{SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, g_LocalizationManager.Localize("MESSAGEBOX_BUTTON_NO").c_str()},
+    SDL_MessageBoxButtonData{0, 1, g_LocalizationManager.Localize("MESSAGEBOX_BUTTON_YES").c_str()}};
+  static SDL_MessageBoxButtonData okButtonData{SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT | SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, -1, g_LocalizationManager.Localize("MESSAGEBOX_BUTTON_OK").c_str()};
   static SDL_MessageBoxColorScheme colorScheme{
     {
       SDL_MessageBoxColor{static_cast<uint8_t>(0.94f * 0.06f * 255), static_cast<uint8_t>(0.94f * 0.06f * 255), static_cast<uint8_t>(0.94f * 0.06f * 255)},
@@ -224,7 +224,7 @@ int32_t DisplayMessage(const StringView8 &message, const StringView8 &title, boo
       SDL_MessageBoxColor{static_cast<uint8_t>(1.00f * 0.06f * 255), static_cast<uint8_t>(1.00f * 0.53f * 255), static_cast<uint8_t>(1.00f * 0.98f * 255)}
     }};
 
-  int32_t outButton = 0;
+  int32_t outButton = -1;
   SDL_MessageBoxData data{messageFlags, nullptr, title.c_str(), message.c_str(), yesNo ? 3 : 1, yesNo ? yesNoButtonDatas.data() : &okButtonData, &colorScheme};
   if (const auto err = SDL_ShowMessageBox(&data, &outButton))
   {

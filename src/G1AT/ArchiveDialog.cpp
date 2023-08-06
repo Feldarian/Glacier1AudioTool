@@ -378,7 +378,7 @@ int32_t ArchiveDialog::UnsavedChangesPopup() const
     return 0;
 
   return DisplayWarning(g_LocalizationManager.Localize("ARCHIVE_DIALOG_UNSAVED_CHANGES_MESSAGE"),
-                                           g_LocalizationManager.Localize("ARCHIVE_DIALOG_UNSAVED_CHANGES_TITLE"), true) - 1;
+                                           g_LocalizationManager.Localize("ARCHIVE_DIALOG_UNSAVED_CHANGES_TITLE"), true);
 }
 
 StringView8CI ArchiveDialog::GetPath() const
