@@ -37,7 +37,6 @@ inline LocalizationManager g_LocalizationManager{g_GlyphRangesBuilder};
 #include <compare>
 #include <execution>
 #include <filesystem>
-#include <format>
 #include <fstream>
 #include <future>
 #include <iomanip>

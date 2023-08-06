@@ -60,7 +60,7 @@ StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& Stri
 
   int32_t length = 0;
 
-  u_strToUTF8(reinterpret_cast<char *>(data() + oldSize), size() - oldSize, &length, reinterpret_cast<const UChar *>(other.data()), other.size(), &errorCode);
+  u_strToUTF8(reinterpret_cast<char *>(data() + oldSize), static_cast<int32_t>(size() - oldSize), &length, reinterpret_cast<const UChar *>(other.data()), static_cast<int32_t>(other.size()), &errorCode);
 
   if (errorCode > U_ZERO_ERROR)
     length = 0;
@@ -122,7 +122,7 @@ StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& Stri
 
   int32_t length = 0;
 
-  u_strFromUTF8(reinterpret_cast<UChar *>(data() + oldSize), size() - oldSize, &length, reinterpret_cast<const char *>(other.data()), other.size(), &errorCode);
+  u_strFromUTF8(reinterpret_cast<UChar *>(data() + oldSize), static_cast<int32_t>(size() - oldSize), &length, reinterpret_cast<const char *>(other.data()), static_cast<int32_t>(other.size()), &errorCode);
 
   if (errorCode > U_ZERO_ERROR)
     length = 0;
@@ -148,7 +148,7 @@ StringWrapper<UTFCharType, CaseSensitive, UTFCharTypeTraits, UTFAllocator>& Stri
 
   int32_t length = 0;
 
-  u_strFromUTF32(reinterpret_cast<UChar *>(data() + oldSize), size() - oldSize, &length, reinterpret_cast<const UChar32 *>(other.data()), other.size(), &errorCode);
+  u_strFromUTF32(reinterpret_cast<UChar *>(data() + oldSize), static_cast<int32_t>(size() - oldSize), &length, reinterpret_cast<const UChar32 *>(other.data()), static_cast<int32_t>(other.size()), &errorCode);
 
   if (errorCode > U_ZERO_ERROR)
     length = 0;

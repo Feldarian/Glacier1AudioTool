@@ -94,8 +94,8 @@ void InitializeOpenFilters()
     return;
 
   auto hitmanFilters = Hitman1Dialog::GetOpenFilter();
-  std::ranges::copy(Hitman23Dialog::GetOpenFilter(), std::back_inserter(hitmanFilters));
-  std::ranges::copy(Hitman4Dialog::GetOpenFilter(), std::back_inserter(hitmanFilters));
+  ranges::copy(Hitman23Dialog::GetOpenFilter(), std::back_inserter(hitmanFilters));
+  ranges::copy(Hitman4Dialog::GetOpenFilter(), std::back_inserter(hitmanFilters));
 
   s_OpenFilters = MakeFileDialogFilter(hitmanFilters);
 }
@@ -336,7 +336,7 @@ ExitStatus App::Application::run() {
 
                   const auto* originalSelectedDialog = s_SelectedDialog.get();
 
-                  for (const auto& filter : Hitman1Dialog::GetOpenFilter() | std::views::values)
+                  for (const auto& filter : Hitman1Dialog::GetOpenFilter() | ranges::views::values)
                   {
                     if (archivePath.path().extension() != StringViewWCI(filter.path().extension()))
                       continue;
@@ -349,7 +349,7 @@ ExitStatus App::Application::run() {
                   if (s_SelectedDialog.get() != originalSelectedDialog)
                     break;
 
-                  for (const auto& filter : Hitman23Dialog::GetOpenFilter() | std::views::values)
+                  for (const auto& filter : Hitman23Dialog::GetOpenFilter() | ranges::views::values)
                   {
                     if (archivePath.path().extension() != StringViewWCI(filter.path().extension()))
                       continue;
@@ -362,7 +362,7 @@ ExitStatus App::Application::run() {
                   if (s_SelectedDialog.get() != originalSelectedDialog)
                     break;
 
-                  for (const auto& filter : Hitman4Dialog::GetOpenFilter() | std::views::values)
+                  for (const auto& filter : Hitman4Dialog::GetOpenFilter() | ranges::views::values)
                   {
                     if (archivePath.path().extension() != StringViewWCI(filter.path().extension()))
                       continue;

@@ -12,6 +12,27 @@
 #include <unicode/ustring.h>
 #include <xxhash.h>
 
+#if FBL_VENDOR_USE_STD_FORMAT
+#include <format>
+#endif
+
+#if FBL_VENDOR_USE_FMT
+#include <fmt/core.h>
+#endif
+
+#if FBL_VENDOR_USE_RANGE_V3
+#include <range/v3/all.hpp>
+#elif FBL_VENDOR_USE_STD_RANGES
+#include <ranges>
+
+namespace ranges
+{
+
+using namespace std::ranges;
+
+}
+#endif
+
 #include <cassert>
 #include <cstdint>
 #include <bitset>

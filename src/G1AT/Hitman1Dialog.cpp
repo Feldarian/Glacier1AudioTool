@@ -71,7 +71,7 @@ bool Hitman1Dialog::LoadImpl(const StringView8CI &loadPathView, const Options &o
     if (!inserted)
       return Clear(false);
 
-    if (!lastModifiedDatesMap.try_emplace(file.path, std::format("{} {:2d} {}", month, day, time)).second)
+    if (!lastModifiedDatesMap.try_emplace(file.path, Format("{} {:2d} {}", month, day, time)).second)
       return Clear(false);
 
     indexToKey.emplace_back(file.path);
@@ -160,8 +160,8 @@ bool Hitman1Dialog::SaveImpl(const StringView8CI &savePathView, const Options &o
 
     fileIt->second.ExportNative(exportBytes, options);
 
-    archiveIdx << std::format("-rw-rw-r--   1 zope {:12d} {} {}\n", exportBytes.size(), lastModifiedDateIt->second,
-                              filePath);
+    archiveIdx << Format("-rw-rw-r--   1 zope {:12d} {} {}\n", exportBytes.size(), lastModifiedDateIt->second,
+                              filePath).native();
     archiveBin.write(exportBytes.data(), static_cast<int64_t>(exportBytes.size()));
 
     GetFile(filePath).dirty = false;

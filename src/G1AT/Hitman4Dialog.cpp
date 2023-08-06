@@ -275,7 +275,7 @@ bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const std::vector<char> 
     assert(strRecord.id < header.entriesCount);
 
     hitmanFile.data.resize(strRecord.dataSize);
-    std::ranges::fill(hitmanFile.data, 0);
+    ranges::fill(hitmanFile.data, 0);
     strFiles.emplace_back(hitmanFile);
 
     if (!strRecord.hasLIP)
@@ -335,7 +335,7 @@ bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const std::vector<char> 
     // TODO - LIP data should be copied only into entry which has it if strIndex != i
     const auto lipDataSize = (wavDataSize - strRecord.dataSize) & (~0xFFFull);
     strLIPData.resize(lipDataSize);
-    std::ranges::fill(strLIPData, 0);
+    ranges::fill(strLIPData, 0);
 
     if (lipDataSize <= 0x1000)
     {
@@ -633,7 +633,7 @@ bool Hitman4WAVFile::Load(const std::vector<char> &wavData, const OrderedMap<Str
     recordMap.try_emplace(currOffset, Hitman4WAVRecord{newData, currOffset});
   }
 
-  const auto wavFileDataView = offsetToWAVFileDataMap | std::views::values;
+  const auto wavFileDataView = offsetToWAVFileDataMap | ranges::views::values;
 
   std::atomic_bool importFailed = false;
   std::for_each(std::execution::par, wavFileDataView.begin(), wavFileDataView.end(), [this, &importFailed](auto& wavFileData)
@@ -673,13 +673,13 @@ bool Hitman4WAVFile::Save(const StringView8CI &savePathView)
   std::ofstream wavData(savePath, std::ios::binary | std::ios::trunc);
 
   uint32_t offset = 0;
-  for (auto &record : recordMap | std::views::values)
+  for (auto &record : recordMap | ranges::views::values)
   {
     record.newOffset = offset;
     offset += static_cast<uint32_t>(record.data.size());
   }
 
-  for (auto &record : recordMap | std::views::values)
+  for (auto &record : recordMap | ranges::views::values)
     wavData.write(record.data.data(), record.data.size());
 
   std::ios_base::sync_with_stdio(oldSync);
@@ -799,7 +799,7 @@ bool Hitman4Dialog::ExportSingle(const StringView8CI &exportFolderPath, const St
   if (!options.hitman4.exportWithLIPData)
     return true;
 
-  const auto streamsFileNameIt = std::ranges::find_if(streamsWAV.stringTable, [fileName = exportFilePath.native().substr(8)](const auto& elem){ return fileName == elem; });
+  const auto streamsFileNameIt = ranges::find_if(streamsWAV.stringTable, [fileName = exportFilePath.native().substr(8)](const auto& elem){ return fileName == elem; });
   if (streamsFileNameIt == streamsWAV.stringTable.end())
     return true;
 

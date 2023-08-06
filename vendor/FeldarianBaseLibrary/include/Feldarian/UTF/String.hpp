@@ -530,6 +530,12 @@ struct hash<UTF::StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFChar
   }
 };
 
+}
+
+#if FBL_VENDOR_USE_STD_FORMAT
+namespace std
+{
+
 template <typename UTFCharTypeOutput, typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput, typename UTFAllocatorInput>
 requires UTF::IsUTFCharType<UTFCharTypeInput>
 struct formatter<UTF::StringWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput, UTFAllocatorInput>, UTFCharTypeOutput>
@@ -575,3 +581,127 @@ struct formatter<UTF::StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UT
 };
 
 }
+#endif
+
+#if FBL_VENDOR_USE_FMT
+namespace fmt
+{
+
+template <typename UTFCharTypeOutput, typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput, typename UTFAllocatorInput>
+requires UTF::IsUTFCharType<UTFCharTypeInput>
+struct formatter<UTF::StringWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput, UTFAllocatorInput>, UTFCharTypeOutput>
+{
+  template <typename FormatParseContext>
+  [[nodiscard]] auto parse(FormatParseContext& parseContext) const
+  {
+    return parseContext.end();
+  }
+
+  template<class FormatContext>
+  [[nodiscard]] auto format(const UTF::StringWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput, UTFAllocatorInput>& utf, FormatContext& context) const
+  {
+    if constexpr (std::same_as<UTFCharTypeInput, UTFCharTypeOutput>)
+      return fmt::formatter<std::basic_string_view<UTFCharTypeInput, UTFCharTypeTraitsInput>, UTFCharTypeOutput>{}.format(utf.native(), context);
+    else if constexpr (UTF::IsSameUTFCharType<UTFCharTypeInput, UTFCharTypeOutput>)
+      return fmt::formatter<UTF::StringViewWrapper<UTFCharTypeOutput>, UTFCharTypeOutput>{}.format(utf.native(), context);
+    else
+      return fmt::formatter<UTF::StringWrapper<UTFCharTypeOutput, CaseSensitiveInput, UTFCharTypeTraitsInput, UTFAllocatorInput>, UTFCharTypeOutput>{}.format(utf.native(), context);
+  }
+};
+
+template <typename UTFCharTypeOutput, typename UTFCharTypeInput, bool CaseSensitiveInput, typename UTFCharTypeTraitsInput>
+requires UTF::IsUTFCharType<UTFCharTypeInput>
+struct formatter<UTF::StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput>, UTFCharTypeOutput>
+{
+  template <typename FormatParseContext>
+  [[nodiscard]] auto parse(FormatParseContext& parseContext) const
+  {
+    return parseContext.end();
+  }
+
+  template<class FormatContext>
+  [[nodiscard]] auto format(const UTF::StringViewWrapper<UTFCharTypeInput, CaseSensitiveInput, UTFCharTypeTraitsInput>& utf, FormatContext& context) const
+  {
+    if constexpr (std::same_as<UTFCharTypeInput, UTFCharTypeOutput>)
+      return fmt::formatter<std::basic_string_view<UTFCharTypeInput, UTFCharTypeTraitsInput>, UTFCharTypeOutput>{}.format(utf.native(), context);
+    else if constexpr (UTF::IsSameUTFCharType<UTFCharTypeInput, UTFCharTypeOutput>)
+      return fmt::formatter<UTF::StringViewWrapper<UTFCharTypeOutput>, UTFCharTypeOutput>{}.format(utf.native(), context);
+    else
+      return fmt::formatter<UTF::StringWrapper<UTFCharTypeOutput, CaseSensitiveInput, UTFCharTypeTraitsInput>, UTFCharTypeOutput>{}.format(utf.native(), context);
+  }
+};
+
+}
+#endif
+
+#if FBL_VENDOR_USE_STD_FORMAT || FBL_VENDOR_USE_FMT
+namespace UTF
+{
+
+	template <StringViewConstructible Type, typename... FormatArgs>
+  String8 Format(const Type &key, FormatArgs &&...args)
+  {
+    return Format(String8(key), std::forward<FormatArgs>(args)...);
+  }
+
+	template <StringViewConstructible Type, typename... FormatArgs>
+  String8 &FormatTo(String8 &buffer, const Type &key, FormatArgs &&...args)
+  {
+    return FormatTo(buffer, String8(key), std::forward<FormatArgs>(args)...);
+  }
+
+	template <StringView8Constructible Type, typename... FormatArgs>
+  String8 Format(const Type &key, FormatArgs &&...args)
+  {
+    try
+    {
+#if FBL_VENDOR_USE_FMT
+      return String8(fmt::vformat(StringView8(key).native(), fmt::make_format_args(std::forward<FormatArgs>(args)...)));
+#elif FBL_VENDOR_USE_STD_FORMAT
+      return String8(std::vformat(StringView8(key).native(), std::make_format_args(std::forward<FormatArgs>(args)...)));
+#endif
+    }
+    //catch (std::format_error &)
+    //{
+    //  return buffer = key;
+    //}
+    catch (...)
+    {
+      return key;
+    }
+  }
+
+	template <StringView8Constructible Type, typename... FormatArgs>
+  String8 &FormatTo(String8 &buffer, const Type &key, FormatArgs &&...args)
+  {
+    buffer.clear();
+
+    try
+    {
+#if FBL_VENDOR_USE_FMT
+      fmt::vformat_to(std::back_inserter(buffer.native()), StringView8(key).native(),
+                      fmt::make_format_args(std::forward<FormatArgs>(args)...));
+#elif FBL_VENDOR_USE_STD_FORMAT
+      std::vformat_to(std::back_inserter(buffer.native()), StringView8(key).native(),
+                      std::make_format_args(std::forward<FormatArgs>(args)...));
+#endif
+    }
+    //catch (std::format_error &)
+    //{
+    //  return buffer = key;
+    //}
+    catch (...)
+    {
+      return buffer = key;
+    }
+
+    return buffer;
+  }
+
+}
+
+namespace UTF
+{
+
+}
+#endif

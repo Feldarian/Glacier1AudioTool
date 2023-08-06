@@ -147,7 +147,7 @@ public:
   {
     std::shared_lock lock(dataMutex);
 
-    const auto languagesRange = localizationInstancesMap | std::views::keys;
+    const auto languagesRange = localizationInstancesMap | ranges::views::keys;
     return {languagesRange.begin(), languagesRange.end()};
   }
 
@@ -206,33 +206,19 @@ public:
     return localized.empty() ? String8(args...) : localized;
   }
 
+#if FBL_VENDOR_USE_STD_FORMAT || FBL_VENDOR_USE_FMT
   template <typename Type, typename... FormatArgs>
     requires StringViewConstructible<Type>
   String8 &LocalizeFormatTo(String8 &buffer, const Type &key, FormatArgs &&...args) const
   {
-    buffer.clear();
-
     std::shared_lock lock(dataMutex);
 
     const auto &localizedFormat = LocalizeInternal(key);
     if (localizedFormat.empty())
       return buffer = key;
 
-    try
-    {
-      std::vformat_to(std::back_inserter(buffer.native()), localizedFormat.native(),
-                      std::make_format_args(std::forward<FormatArgs>(args)...));
-    }
-    //catch (std::format_error &)
-    //{
-    //  return buffer = key;
-    //}
-    catch (...)
-    {
-      return buffer = key;
-    }
-
-    return buffer;
+    return FormatTo(buffer, localizedFormat,
+                    std::forward<FormatArgs>(args)...);
   }
 
   template <typename Type, typename... FormatArgs>
@@ -243,6 +229,7 @@ public:
     LocalizeFormatTo(result, key, std::forward<FormatArgs>(args)...);
     return result;
   }
+#endif
 
 private:
 

@@ -226,7 +226,7 @@ String8CI MakeFileDialogFilter(const std::vector<std::pair<String8, String8CI>> 
 
   String8CI allFiltersFilter;
   String8CI allFiltersDisplay;
-  for (const auto& filter : filters | std::views::values)
+  for (const auto& filter : filters | ranges::views::values)
   {
     if (!allFiltersFilter.empty())
       allFiltersFilter += ";";
@@ -242,12 +242,12 @@ String8CI MakeFileDialogFilter(const std::vector<std::pair<String8, String8CI>> 
   String8CI result;
 
   if (filters.size() > 1)
-    result = std::format("{0} ({1})?{2}?", g_LocalizationManager.Localize("FILE_DIALOG_FILTER_ALL_SUPPORTED"), allFiltersDisplay, allFiltersFilter);
+    result = Format("{0} ({1})?{2}?", g_LocalizationManager.Localize("FILE_DIALOG_FILTER_ALL_SUPPORTED"), allFiltersDisplay, allFiltersFilter);
 
   for (const auto& [identifier, filter] : filters)
-    result += std::format("{0} ({1})?{1}?", g_LocalizationManager.Localize(identifier), filter);
+    result += Format("{0} ({1})?{1}?", g_LocalizationManager.Localize(identifier), filter);
 
-  std::ranges::replace(result, '?', '\0');
+  ranges::replace(result, '?', '\0');
 
   return result;
 }

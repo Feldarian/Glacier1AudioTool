@@ -138,7 +138,7 @@ bool Hitman23WAVFile::Load(const std::vector<char> &wavData, const OrderedMap<St
     recordMap.try_emplace(currOffset, Hitman23WAVRecord{newData, currOffset});
   }
 
-  const auto wavFileDataView = offsetToWAVFileDataMap | std::views::values;
+  const auto wavFileDataView = offsetToWAVFileDataMap | ranges::views::values;
 
   std::atomic_bool importFailed = false;
   std::for_each(std::execution::par, wavFileDataView.begin(), wavFileDataView.end(), [this, &importFailed](auto& wavFileData)
@@ -182,7 +182,7 @@ bool Hitman23WAVFile::Save(const StringView8CI &savePathView)
   std::ofstream wavData(savePath, std::ios::binary | std::ios::trunc);
 
   uint32_t offset = 0;
-  for (auto &record : recordMap | std::views::values)
+  for (auto &record : recordMap | ranges::views::values)
   {
     record.newOffset = offset;
     offset += static_cast<uint32_t>(record.data.size());
@@ -191,7 +191,7 @@ bool Hitman23WAVFile::Save(const StringView8CI &savePathView)
   if (header != nullptr)
     header->fileSizeWithHeader = offset;
 
-  for (auto &record : recordMap | std::views::values)
+  for (auto &record : recordMap | ranges::views::values)
     wavData.write(record.data.data(), record.data.size());
 
   std::ios_base::sync_with_stdio(oldSync);
@@ -267,7 +267,7 @@ bool Hitman23WHDFile::Load(Hitman23Dialog& archiveDialog, const StringView8CI &l
 
 bool Hitman23WHDFile::Save(const Hitman23WAVFile &streamsWAV, const Hitman23WAVFile &missionWAV, const StringView8CI &savePath)
 {
-  for (auto *whdRecord : recordMap | std::views::values)
+  for (auto *whdRecord : recordMap | ranges::views::values)
   {
     const auto &wavRecordMap = whdRecord->dataInStreams == 0 ? missionWAV.recordMap : streamsWAV.recordMap;
     const auto wavRecordIt = wavRecordMap.find(whdRecord->dataOffset);

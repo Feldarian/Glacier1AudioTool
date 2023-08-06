@@ -102,13 +102,13 @@ ArchiveFile& ArchiveDirectory::GetFile(std::vector<StringView8CI>& pathStems, St
 
 bool ArchiveDirectory::IsDirty() const
 {
-  for (const auto &file : files | std::views::values)
+  for (const auto &file : files | ranges::views::values)
   {
     if (file.dirty)
       return true;
   }
 
-  for (const auto &directory : directories | std::views::values)
+  for (const auto &directory : directories | ranges::views::values)
   {
     if (directory.IsDirty())
       return true;
@@ -119,13 +119,13 @@ bool ArchiveDirectory::IsDirty() const
 
 bool ArchiveDirectory::IsOriginal() const
 {
-  for (const auto &file : files | std::views::values)
+  for (const auto &file : files | ranges::views::values)
   {
     if (!file.original)
       return false;
   }
 
-  for (const auto &directory : directories | std::views::values)
+  for (const auto &directory : directories | ranges::views::values)
   {
     if (!directory.IsOriginal())
       return false;
@@ -136,19 +136,19 @@ bool ArchiveDirectory::IsOriginal() const
 
 void ArchiveDirectory::CleanDirty()
 {
-  for (auto &directory : directories | std::views::values)
+  for (auto &directory : directories | ranges::views::values)
     directory.CleanDirty();
 
-  for (auto &file : files | std::views::values)
+  for (auto &file : files | ranges::views::values)
     file.dirty = false;
 }
 
 void ArchiveDirectory::CleanOriginal()
 {
-  for (auto &directory : directories | std::views::values)
+  for (auto &directory : directories | ranges::views::values)
     directory.CleanOriginal();
 
-  for (auto &file : files | std::views::values)
+  for (auto &file : files | ranges::views::values)
     file.original = true;
 }
 
@@ -497,7 +497,7 @@ int32_t ArchiveDialog::DrawBaseDialog()
   if (shouldExit())
     return -1;
 
-  if (!ImGui::Begin(std::format("{}##{}", displayPath, (void*)this).c_str(), openedPtr))
+  if (!ImGui::Begin(Format("{}##{}", displayPath, (void*)this).c_str(), openedPtr))
   {
     ImGui::End();
 
@@ -517,7 +517,7 @@ int32_t ArchiveDialog::DrawBaseDialog()
       if (progressMessage.empty())
         ImGui::TextUnformatted(progressSummary.c_str());
       else
-        ImGui::TextUnformatted(std::format("{}\n{}", progressSummary, progressMessage).c_str());
+        ImGui::TextUnformatted(Format("{}\n{}", progressSummary, progressMessage).c_str());
     }
     else if (!progressMessage.empty())
       ImGui::TextUnformatted(progressMessage.c_str());

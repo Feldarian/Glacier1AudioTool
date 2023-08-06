@@ -253,7 +253,7 @@ bool HitmanFile::Export(std::vector<char> &outputBytes, const Options& options) 
   }
 
   OrderedSet<uint32_t> normalSampleRates{0, 11025, 22050, 44100, 48000};
-  auto normalSampleRateIt = std::ranges::lower_bound(normalSampleRates, archiveRecord.sampleRate);
+  auto normalSampleRateIt = ranges::lower_bound(normalSampleRates, archiveRecord.sampleRate);
   if (normalSampleRateIt == normalSampleRates.end())
   {
     assert(false);
@@ -323,7 +323,7 @@ bool HitmanDialog::IsImportAllowed() const
 bool HitmanDialog::GenerateOriginalData(const Options &options)
 {
   auto dataPathString = originalDataPathPrefix;
-  dataPathString += std::format("{:16X}", originalDataID);
+  dataPathString += Format("{:16X}", originalDataID);
   const auto dataPath = dataPathString.path();
   create_directories(dataPath.parent_path());
 
@@ -367,7 +367,7 @@ bool HitmanDialog::GenerateOriginalData(const Options &options)
 bool HitmanDialog::LoadOriginalData(const Options &options)
 {
   auto dataPathString = originalDataPathPrefix;
-  dataPathString += std::format("{:16X}", originalDataID);
+  dataPathString += Format("{:16X}", originalDataID);
   const auto dataPath = dataPathString.path();
   if (!exists(dataPath))
   {
@@ -524,7 +524,7 @@ int32_t HitmanDialog::ReloadOriginalData(const bool reset, const Options &option
   if (needsOriginalDataReset)
   {
     auto dataPathString = originalDataPathPrefix;
-    dataPathString += std::format("{:16X}", originalDataID);
+    dataPathString += Format("{:16X}", originalDataID);
 
     [[maybe_unused]] std::error_code errorCode;
     std::filesystem::remove(dataPathString.path(), errorCode);

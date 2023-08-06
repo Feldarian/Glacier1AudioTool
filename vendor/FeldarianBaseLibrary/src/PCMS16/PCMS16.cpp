@@ -24,6 +24,19 @@ extern "C"
 
 #include <sndfile.hh>
 
+#if FBL_VENDOR_USE_RANGE_V3
+#include <range/v3/all.hpp>
+#elif FBL_VENDOR_USE_STD_RANGES
+#include <ranges>
+
+namespace ranges
+{
+
+using namespace std::ranges;
+
+}
+#endif
+
 #include <algorithm>
 #include <cassert>
 #include <memory>
@@ -230,7 +243,7 @@ bool ADPCMDecodeData(const std::span<const char>& in, std::vector<int16_t> &out,
       return false;
     }
 
-    std::ranges::fill(adpcmBlock, 0);
+    ranges::fill(adpcmBlock, 0);
     std::memcpy(adpcmBlock.data(), in.data() + inOffset, block_size);
 
     if (outOffset + this_block_pcm_samples * num_channels > out.size())
@@ -239,7 +252,7 @@ bool ADPCMDecodeData(const std::span<const char>& in, std::vector<int16_t> &out,
       return false;
     }
 
-    std::ranges::fill(pcmBlock, 0);
+    ranges::fill(pcmBlock, 0);
 
     if (adpcm_decode_block(pcmBlock.data(), adpcmBlock.data(), block_size, num_channels) != this_block_adpcm_samples)
     {
@@ -295,7 +308,7 @@ bool ADPCMEncodeData(const std::span<const int16_t>& in, std::vector<char> &out,
       return false;
     }
 
-    std::ranges::fill(pcmBlock, 0);
+    ranges::fill(pcmBlock, 0);
     std::memcpy(pcmBlock.data(), in.data() + inOffset, this_block_pcm_samples * num_channels * sizeof(int16_t));
 
     if (this_block_adpcm_samples > this_block_pcm_samples)
@@ -337,7 +350,7 @@ bool ADPCMEncodeData(const std::span<const int16_t>& in, std::vector<char> &out,
       return false;
     }
 
-    std::ranges::fill(adpcmBlock, 0);
+    ranges::fill(adpcmBlock, 0);
 
     size_t num_bytes;
     adpcm_encode_block(adpcm_cnxt, adpcmBlock.data(), &num_bytes, pcmBlock.data(), this_block_adpcm_samples);
