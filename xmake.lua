@@ -9,9 +9,8 @@ set_languages("cxx20", "c17")
 
 add_rules("plugin.vsxmake.autoupdate")
 
-add_defines("UNICODE=1", "_UNICODE=1")
-
 if is_plat("windows") then
+  add_defines("UNICODE=1", "_UNICODE=1")
   add_cxflags("/bigobj", "/utf-8", {tools = {"clang_cl", "cl"}})
   add_cxflags("/MP", {tools = {"cl"}})
   add_defines("_CRT_SECURE_NO_WARNINGS=1", "WIN32_LEAN_AND_MEAN=1", "NOMINMAX=1", "WINVER=_WIN32_WINNT_WIN10", "_WIN32_WINNT=_WIN32_WINNT_WIN10", "NTDDI=NTDDI_WIN10_19H1")

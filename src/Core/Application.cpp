@@ -186,7 +186,7 @@ Application::Application(const std::string& title) {
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable |
                     ImGuiConfigFlags_ViewportsEnable;
 
-  const std::string user_config_path{SDL_GetPrefPath(G1AT_COMPANY_NAMESPACE, G1AT_NAME)};
+  const auto user_config_path = GetUserPath();
   APP_DEBUG("User config path: {}", user_config_path);
 
   //// Absolute imgui.ini path to preserve settings independent of app location.

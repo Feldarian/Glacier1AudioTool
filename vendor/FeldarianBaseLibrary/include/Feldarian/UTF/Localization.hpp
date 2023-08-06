@@ -198,12 +198,21 @@ public:
   }
 
   template <typename... Args>
-    requires StringViewConstructible<Args...>
+    requires StringViewConstructible<Args...> && !(StringView8Constructible<Args...>)
   String8 Localize(const Args &...args) const
   {
     std::shared_lock lock(dataMutex);
     const auto& localized = LocalizeInternal(args...);
     return localized.empty() ? String8(args...) : localized;
+  }
+
+  template <typename... Args>
+    requires StringView8Constructible<Args...>
+  StringView8 Localize(const Args &...args) const
+  {
+    std::shared_lock lock(dataMutex);
+    const auto& localized = LocalizeInternal(args...);
+    return localized.empty() ? StringView8(args...) : StringView8(localized);
   }
 
 #if FBL_VENDOR_USE_STD_FORMAT || FBL_VENDOR_USE_FMT

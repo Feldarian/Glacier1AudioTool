@@ -17,6 +17,3 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-
-#include <commdlg.h>
-#include <shlobj.h>

@@ -6,8 +6,14 @@
 
 #include <Precompiled.hpp>
 
-#include "Options.hpp"
 #include "Utils.hpp"
+
+#include <Config/Config.hpp>
+
+#include "Options.hpp"
+
+#include <commdlg.h>
+#include <shlobj.h>
 
 std::vector<char> ReadWholeBinaryFile(const StringView8CI &acpPath)
 {
@@ -162,33 +168,70 @@ StringView8CI GetProgramPath()
   if (!programPath.empty())
     return programPath;
 
-  programPath.resize(UINT16_MAX, L'\0');
+  auto* sdlBasePath = SDL_GetBasePath();
+  programPath = sdlBasePath;
+  SDL_free(sdlBasePath);
 
-  const auto requiredLength = GetModuleFileNameA(nullptr, programPath.data(), static_cast<uint32_t>(programPath.size()));
-  if (requiredLength >= programPath.size() || requiredLength == 0)
-    return "";
-
-  programPath.resize(requiredLength);
-
-  const auto lastSeparatorPosition = programPath.native().find_last_of("\\/");
-  if (lastSeparatorPosition == String8CI::npos || lastSeparatorPosition == 0)
-    return "";
-
-  programPath.resize(lastSeparatorPosition);
   return programPath;
 }
 
-int32_t DisplayError(const StringView8 &message, const StringView8 &title, const bool yesNo)
+StringView8CI GetUserPath()
 {
-  return MessageBoxA(nullptr, message.c_str(), title.c_str(), MB_ICONERROR | (yesNo ? MB_YESNOCANCEL : MB_OK));
+  static String8CI userPath;
+  if (!userPath.empty())
+    return userPath;
+
+  auto* sdlUserPath = SDL_GetPrefPath(G1AT_COMPANY_NAMESPACE, G1AT_NAME);
+  userPath = sdlUserPath;
+  SDL_free(sdlUserPath);
+
+  return userPath;
 }
 
-int32_t DisplayWarning(const StringView8 &message, const StringView8 &title, const bool yesNo, const Options &options)
+int32_t DisplayInformation(const StringView8 &message, const StringView8 &title, bool yesNo, const Options &options)
 {
   if (!yesNo && options.common.disableWarnings)
-    return IDCLOSE;
+    return 0;
 
-  return MessageBoxA(nullptr, message.c_str(), title.c_str(), MB_ICONWARNING | (yesNo ? MB_YESNOCANCEL : MB_OK));
+  return DisplayMessage(message, title, yesNo, SDL_MESSAGEBOX_INFORMATION);
+}
+
+int32_t DisplayWarning(const StringView8 &message, const StringView8 &title, bool yesNo, const Options &options)
+{
+  if (!yesNo && options.common.disableWarnings)
+    return 0;
+
+  return DisplayMessage(message, title, yesNo, SDL_MESSAGEBOX_WARNING);
+}
+
+int32_t DisplayError(const StringView8 &message, const StringView8 &title, bool yesNo)
+{
+  return DisplayMessage(message, title, yesNo, SDL_MESSAGEBOX_ERROR);
+}
+
+int32_t DisplayMessage(const StringView8 &message, const StringView8 &title, bool yesNo, const uint32_t messageFlags)
+{
+  static std::array yesNoButtonDatas{SDL_MessageBoxButtonData{0, 2, g_LocalizationManager.Localize("MESSAGEBOX_BUTTON_YES").c_str()},
+    SDL_MessageBoxButtonData{SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 1, g_LocalizationManager.Localize("MESSAGEBOX_BUTTON_NO").c_str()},
+    SDL_MessageBoxButtonData{SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, g_LocalizationManager.Localize("MESSAGEBOX_BUTTON_CANCEL").c_str()}};
+  static SDL_MessageBoxButtonData okButtonData{SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT | SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, 0, g_LocalizationManager.Localize("MESSAGEBOX_BUTTON_OK").c_str()};
+  static SDL_MessageBoxColorScheme colorScheme{
+    {
+      SDL_MessageBoxColor{static_cast<uint8_t>(0.94f * 0.06f * 255), static_cast<uint8_t>(0.94f * 0.06f * 255), static_cast<uint8_t>(0.94f * 0.06f * 255)},
+      SDL_MessageBoxColor{static_cast<uint8_t>(1.00f * 1.00f * 255), static_cast<uint8_t>(1.00f * 1.00f * 255), static_cast<uint8_t>(1.00f * 1.00f * 255)},
+      SDL_MessageBoxColor{static_cast<uint8_t>(0.50f * 0.43f * 255), static_cast<uint8_t>(0.50f * 0.43f * 255), static_cast<uint8_t>(0.50f * 0.50f * 255)},
+      SDL_MessageBoxColor{static_cast<uint8_t>(0.40f * 0.26f * 255), static_cast<uint8_t>(0.40f * 0.59f * 255), static_cast<uint8_t>(0.40f * 0.98f * 255)},
+      SDL_MessageBoxColor{static_cast<uint8_t>(1.00f * 0.06f * 255), static_cast<uint8_t>(1.00f * 0.53f * 255), static_cast<uint8_t>(1.00f * 0.98f * 255)}
+    }};
+
+  int32_t outButton = 0;
+  SDL_MessageBoxData data{messageFlags, nullptr, title.c_str(), message.c_str(), yesNo ? 3 : 1, yesNo ? yesNoButtonDatas.data() : &okButtonData, &colorScheme};
+  if (const auto err = SDL_ShowMessageBox(&data, &outButton))
+  {
+    [[maybe_unused]] const String8 errorMessage = SDL_GetError();
+    SDL_ClearError();
+  }
+  return outButton;
 }
 
 std::vector<StringView8CI> GetPathStems(StringView8CI pathView)

@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "Options.hpp"
+
 std::vector<char> ReadWholeBinaryFile(const StringView8CI &acpPath);
 
 String8 ReadWholeTextFile(const StringView8CI &acpPath);
@@ -22,9 +24,15 @@ std::vector<String8CI> GetAllFilesInDirectory(const StringView8CI &directory, co
 
 StringView8CI GetProgramPath();
 
-int32_t DisplayError(const StringView8 &message, const StringView8 &title = g_LocalizationManager.Localize("MESSAGEBOX_ERROR_GENERIC_TITLE"), bool yesNo = false);
+StringView8CI GetUserPath();
 
-int32_t DisplayWarning(const StringView8 &message, const StringView8 &title = g_LocalizationManager.Localize("MESSAGEBOX_WARNING_GENERIC_TITLE"), bool yesNo = false, const Options &options = Options::Get());
+int32_t DisplayMessage(const StringView8 &message, const StringView8 &title = g_LocalizationManager.Localize("MESSAGEBOX_TITLE_INFORMATION"), bool yesNo = false, const uint32_t messageFlags = SDL_MESSAGEBOX_INFORMATION);
+
+int32_t DisplayInformation(const StringView8 &message, const StringView8 &title = g_LocalizationManager.Localize("MESSAGEBOX_TITLE_INFORMATION"), bool yesNo = false, const Options &options = Options::Get());
+
+int32_t DisplayWarning(const StringView8 &message, const StringView8 &title = g_LocalizationManager.Localize("MESSAGEBOX_TITLE_WARNING"), bool yesNo = false, const Options &options = Options::Get());
+
+int32_t DisplayError(const StringView8 &message, const StringView8 &title = g_LocalizationManager.Localize("MESSAGEBOX_TITLE_ERROR"), bool yesNo = false);
 
 std::vector<StringView8CI> GetPathStems(StringView8CI pathView);
 

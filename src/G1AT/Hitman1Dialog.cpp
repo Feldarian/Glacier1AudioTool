@@ -8,8 +8,6 @@
 
 #include "Hitman1Dialog.hpp"
 
-#include <Config/Config.hpp>
-
 #include "Utils.hpp"
 
 bool Hitman1Dialog::Clear(const bool retVal)
@@ -97,7 +95,7 @@ bool Hitman1Dialog::LoadImpl(const StringView8CI &loadPathView, const Options &o
 
   std::ios_base::sync_with_stdio(oldSync);
 
-  auto dataPath = String8CI(SDL_GetPrefPath(G1AT_COMPANY_NAMESPACE, G1AT_NAME)).path();
+  auto dataPath = GetUserPath().path();
   if (dataPath.empty())
     return Clear(false);
 
@@ -125,7 +123,7 @@ bool Hitman1Dialog::ImportSingle(const StringView8CI &importFolderPathView, cons
     if (fileIt == fileMap.end())
     {
       DisplayWarning(g_LocalizationManager.LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", importFilePathView),
-                     g_LocalizationManager.Localize("MESSAGEBOX_WARNING_GENERIC_TITLE"), false, options);
+                     g_LocalizationManager.Localize("MESSAGEBOX_TITLE_WARNING"), false, options);
       return false;
     }
   }

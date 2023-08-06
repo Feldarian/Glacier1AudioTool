@@ -836,7 +836,7 @@ bool Hitman4Dialog::ImportSingle(const StringView8CI &importFolderPath, const St
     if (fileIt == fileMap.end() || whdRecordsIt == whdRecordsMap.end())
     {
       DisplayWarning(g_LocalizationManager.LocalizeFormat("HITMAN_DIALOG_WARNING_MISSING_FILE", importFilePath),
-                     g_LocalizationManager.Localize("MESSAGEBOX_WARNING_GENERIC_TITLE"), false, options);
+                     g_LocalizationManager.Localize("MESSAGEBOX_TITLE_WARNING"), false, options);
       return false;
     }
   }
@@ -883,7 +883,7 @@ bool Hitman4Dialog::LoadImpl(const StringView8CI &loadPath, const Options &optio
       return Clear(false);
   }
 
-  auto dataPath = String8CI(SDL_GetPrefPath(G1AT_COMPANY_NAMESPACE, G1AT_NAME)).path();
+  auto dataPath = GetUserPath().path();
   if (dataPath.empty())
     return Clear(false);
 

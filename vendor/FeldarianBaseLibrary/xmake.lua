@@ -7,9 +7,8 @@ set_languages("cxx20", "c17")
 
 add_rules("plugin.vsxmake.autoupdate")
 
-add_defines("UNICODE=1", "_UNICODE=1")
-
 if is_plat("windows") then
+  add_defines("UNICODE=1", "_UNICODE=1")
   add_cxflags("/bigobj", "/utf-8", {tools = {"clang_cl", "cl"}})
   add_cxflags("/MP", {tools = {"cl"}})
   add_defines("_CRT_SECURE_NO_WARNINGS=1", "WIN32_LEAN_AND_MEAN=1", "NOMINMAX=1", "WINVER=_WIN32_WINNT_WIN10", "_WIN32_WINNT=_WIN32_WINNT_WIN10", "NTDDI=NTDDI_WIN10_19H1")
@@ -138,7 +137,6 @@ option("fbl-use-pcms16")
   set_showmenu(true)
   set_description("Compile PCMS16 module into Feldarian Base Library.")
   set_category("Feldarian Base Library/PCMS16")
-  add_defines("FBL_USE_PCMS16=1", { public = true })
 option_end()
 
 option("fbl-use-utf")
@@ -146,7 +144,6 @@ option("fbl-use-utf")
   set_showmenu(true)
   set_description("Compile UTF module into Feldarian Base Library.")
   set_category("Feldarian Base Library/UTF")
-  add_defines("FBL_USE_UTF=1", { public = true })
 option_end()
 
 add_requires("spdlog v1.12.0", { configs = { header_only = false, std_format = not has_config("fbl-use-utf-fmt"), fmt_external = has_config("fbl-use-utf-fmt"), noexcept = true } })
@@ -157,7 +154,6 @@ option("fbl-pcms16-use-adpcmxq")
   set_showmenu(true)
   set_description("Use ADPCM-XQ library for IMA ADPCM instead of libsndfile.")
   set_category("Feldarian Base Library/PCMS16")
-  add_defines("FBL_PCMS16_USE_ADPCMXQ=1")
 option_end()
 
 if has_config("fbl-pcms16-use-adpcmxq") then
@@ -182,9 +178,11 @@ if has_config("fbl-use-pcms16") then
     set_options("fbl-use-pcms16", "fbl-pcms16-use-adpcmxq")
 
     if has_config("fbl-pcms16-use-adpcmxq") then
+      add_defines("FBL_PCMS16_USE_ADPCMXQ=1")
       add_deps("adpcm-xq", {private = true})
     end
 
+    add_defines("FBL_USE_PCMS16=1", { public = true })
     add_defines("ENABLE_SNDFILE_WINDOWS_PROTOTYPES=1")
 
     add_includedirs("include", {public = false})
@@ -212,6 +210,7 @@ if has_config("fbl-use-utf") then
 
     set_options("fbl-use-utf", "fbl-use-utf-std-format", "fbl-use-utf-fmt", "fbl-use-utf-std-ranges", "fbl-use-utf-range-v3")
 
+    add_defines("FBL_USE_UTF=1", { public = true })
     add_defines("TOML_EXCEPTIONS=0", { public = true })
 
     add_includedirs("include", {public = false})

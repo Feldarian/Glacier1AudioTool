@@ -377,23 +377,8 @@ int32_t ArchiveDialog::UnsavedChangesPopup() const
   if (!archiveRoot.IsDirty())
     return 0;
 
-  const auto msgBoxResult = DisplayWarning(g_LocalizationManager.Localize("ARCHIVE_DIALOG_UNSAVED_CHANGES_MESSAGE"),
-                                           g_LocalizationManager.Localize("ARCHIVE_DIALOG_UNSAVED_CHANGES_TITLE"), true);
-
-  switch (msgBoxResult)
-  {
-    case IDYES: {
-      return 1;
-    }
-    case IDNO: {
-      return 0;
-    }
-    default:
-    case IDCLOSE:
-    case IDCANCEL: {
-      return -1;
-    }
-  }
+  return DisplayWarning(g_LocalizationManager.Localize("ARCHIVE_DIALOG_UNSAVED_CHANGES_MESSAGE"),
+                                           g_LocalizationManager.Localize("ARCHIVE_DIALOG_UNSAVED_CHANGES_TITLE"), true) - 1;
 }
 
 StringView8CI ArchiveDialog::GetPath() const
@@ -461,7 +446,7 @@ int32_t ArchiveDialog::DrawBaseDialog()
   }
 
   const auto archivePath = progressActive ? "" : path;
-  const auto displayPath = archivePath.empty() ? g_LocalizationManager.Localize("ARCHIVE_DIALOG_PROCESSING") : String8(archivePath);
+  const auto displayPath = archivePath.empty() ? g_LocalizationManager.Localize("ARCHIVE_DIALOG_PROCESSING") : StringView8(archivePath);
   bool* openedPtr = progressActive ? nullptr : &opened;
 
   const auto shouldExit = [&]
