@@ -96,7 +96,7 @@ add_requires("scnlib 1.1.2", { configs = { header_only = false } })
 add_requires("libsdl 2.28.2", { configs = { shared = true, use_sdlmain = false } })
 
 local imguiUserConfig = path.absolute("src/ImGuiConfig.hpp");
-add_requires("imgui v1.89.7-docking", { configs = { wchar32 = true, freetype = true, user_config = imguiUserConfig } })
+add_requires("imgui v1.89.9-docking", { configs = { wchar32 = true, freetype = true, user_config = imguiUserConfig } })
 
 function CopyDataToDirecotry(targetDir)
   os.rm(targetDir .. "/data")
@@ -105,7 +105,7 @@ function CopyDataToDirecotry(targetDir)
 end
 
 target("imgui-backends")
-  set_version("1.89.7")
+  set_version("1.89.9")
   set_kind("static")
 
   add_includedirs("vendor/imgui-backends/include", {public = true})

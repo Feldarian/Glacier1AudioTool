@@ -25,15 +25,11 @@
 //  2021-10-06: Backup and restore modified ClipRect/Viewport.
 //  2021-09-21: Initial version.
 
+#ifndef IMGUI_DISABLE
 #include <imgui.h>
-
 #include <imgui/backends/sdlrenderer2.h>
 
-#if defined(_MSC_VER) && _MSC_VER <= 1500 // MSVC 2008 or earlier
-#include <stddef.h>     // intptr_t
-#else
 #include <stdint.h>     // intptr_t
-#endif
 
 // Clang warnings with -Weverything
 #if defined(__clang__)
@@ -260,6 +256,10 @@ void ImGui_ImplSDLRenderer2_DestroyDeviceObjects()
     ImGui_ImplSDLRenderer2_DestroyFontsTexture();
 }
 
+//-----------------------------------------------------------------------------
+
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #endif
+
+#endif // #ifndef IMGUI_DISABLE
