@@ -86,14 +86,14 @@ if is_plat("linux") then
   --add_requireconfs("*.*", { configs = { cxflags = "-fsanitize=address -fsanitize=hwaddress -fsanitize=thread -fsanitize=undefined -fsanitize=memory -fsanitize=leak", mxflags = "-fsanitize=address -fsanitize=hwaddress -fsanitize=thread -fsanitize=undefined -fsanitize=memory -fsanitize=leak", ldflags = "-fsanitize=address -fsanitize=hwaddress -fsanitize=thread -fsanitize=undefined -fsanitize=memory -fsanitize=leak", shflags = "-fsanitize=address -fsanitize=hwaddress -fsanitize=thread -fsanitize=undefined -fsanitize=memory -fsanitize=leak" } })
 end
 
-add_requires("libsndfile 1.2.0", { configs = { shared = true } })
+add_requires("libsndfile 1.2.2", { configs = { shared = true } })
 add_requires("xxhash v0.8.2")
 add_requires("icu4c 73.2", { configs = { shared = true } })
 
 --add_requires("catch2 v3.4.0")
 --add_requires("tracy v0.9.1")
 
-add_requires("toml++ 4a28c36c435d813ddbd39a9a48a79d8c862c547f", { configs = { header_only = true } }) -- 3.3.0 with extra patches
+add_requires("toml++ v3.4.0", { configs = { header_only = true } })
 add_requires("libsamplerate 22bd06eb114850ebe31981eb794d150a95439fef") -- 0.2.2 with extra patches
 
 option("fbl-vendor-use-std-ranges")
@@ -129,7 +129,7 @@ option("fbl-vendor-use-fmt")
 option_end()
 
 if has_config("fbl-use-utf-fmt") then
-  add_requires("fmt 10.0.0", { configs = { header_only = false } })
+  add_requires("fmt 10.1.1", { configs = { header_only = false } })
 end
 
 option("fbl-use-pcms16")

@@ -93,7 +93,8 @@ end
 add_defines("IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1")
 
 add_requires("scnlib 1.1.2", { configs = { header_only = false } })
-add_requires("libsdl 2.28.2", { configs = { shared = true, use_sdlmain = false } })
+add_requires("libsdl 2.28.3", { configs = { shared = true, use_sdlmain = false } })
+add_requires("tinyfiledialogs 3.15.1")
 
 local imguiUserConfig = path.absolute("src/ImGuiConfig.hpp");
 add_requires("imgui v1.89.9-docking", { configs = { wchar32 = true, freetype = true, user_config = imguiUserConfig } })
@@ -188,7 +189,7 @@ target("Glacier1AudioTool")
   set_pcxxheader("src/Precompiled.hpp")
   
   add_syslinks("comdlg32", "opengl32", "shell32")
-  add_packages("scnlib", "libsdl", "imgui", "spdlog", "xxhash", "toml++", "icu4c")
+  add_packages("scnlib", "libsdl", "imgui", "spdlog", "xxhash", "toml++", "icu4c", "tinyfiledialogs")
   
   before_build(function (target)
     os.rm(target:targetdir() .. "/data")
