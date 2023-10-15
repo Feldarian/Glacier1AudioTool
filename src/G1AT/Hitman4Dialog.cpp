@@ -947,24 +947,24 @@ bool Hitman4Dialog::IsImportAllowed() const
   return G1AT_DEBUG_BUILD == 1;
 }
 
-const std::vector<std::pair<String8, String8CI>>& Hitman4Dialog::GetOpenFilter()
+const std::vector<std::pair<StringView8CI, StringView8>>& Hitman4Dialog::GetOpenFilter()
 {
-  static std::vector<std::pair<String8, String8CI>> filters;
+  static std::vector<std::pair<StringView8CI, StringView8>> filters;
   if (!filters.empty())
     return filters;
 
-  filters.emplace_back("FILE_DIALOG_FILTER_HITMAN4_STREAMS", "pc_*.str");
+  filters.emplace_back("pc_*.str", "FILE_DIALOG_FILTER_HITMAN4_STREAMS");
 
   return filters;
 }
 
-const std::vector<std::pair<String8, String8CI>>& Hitman4Dialog::GetSaveFilter() const
+const std::vector<std::pair<StringView8CI, StringView8>>& Hitman4Dialog::GetSaveFilter() const
 {
-  static std::vector<std::pair<String8, String8CI>> filters;
+  static std::vector<std::pair<StringView8CI, StringView8>> filters;
   if (!filters.empty())
     return filters;
 
-  filters.emplace_back("FILE_DIALOG_FILTER_HITMAN4_STREAMS", "pc_*.str");
+  filters.emplace_back("pc_*.str", "FILE_DIALOG_FILTER_HITMAN4_STREAMS");
 
   return filters;
 }

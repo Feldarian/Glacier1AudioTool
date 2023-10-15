@@ -71,7 +71,7 @@ public:
   virtual bool IsExportAllowed() const = 0;
   virtual bool IsImportAllowed() const = 0;
 
-  virtual const std::vector<std::pair<String8, String8CI>>& GetSaveFilter() const = 0;
+  virtual const std::vector<std::pair<StringView8CI, StringView8>>& GetSaveFilter() const = 0;
 
   bool IsAllowed() const;
   bool IsInProgress() const;

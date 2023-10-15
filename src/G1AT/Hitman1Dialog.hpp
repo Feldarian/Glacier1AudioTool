@@ -21,9 +21,9 @@ public:
 
   int32_t DrawDialog() override;
 
-  static const std::vector<std::pair<String8, String8CI>>& GetOpenFilter();
+  static const std::vector<std::pair<StringView8CI, StringView8>>& GetOpenFilter();
 
-  const std::vector<std::pair<String8, String8CI>>& GetSaveFilter() const override;
+  const std::vector<std::pair<StringView8CI, StringView8>>& GetSaveFilter() const override;
 
   std::vector<StringView8CI> indexToKey;
 

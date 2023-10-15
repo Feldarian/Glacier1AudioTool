@@ -186,24 +186,24 @@ int32_t Hitman1Dialog::DrawDialog()
   return DrawHitmanDialog();
 }
 
-const std::vector<std::pair<String8, String8CI>>& Hitman1Dialog::GetOpenFilter()
+const std::vector<std::pair<StringView8CI, StringView8>>& Hitman1Dialog::GetOpenFilter()
 {
-  static std::vector<std::pair<String8, String8CI>> filters;
+  static std::vector<std::pair<StringView8CI, StringView8>> filters;
   if (!filters.empty())
     return filters;
 
-  filters.emplace_back("FILE_DIALOG_FILTER_HITMAN1_SPEECH", "*.idx");
+  filters.emplace_back("*.idx", "FILE_DIALOG_FILTER_HITMAN1_SPEECH");
 
   return filters;
 }
 
-const std::vector<std::pair<String8, String8CI>>& Hitman1Dialog::GetSaveFilter() const
+const std::vector<std::pair<StringView8CI, StringView8>>& Hitman1Dialog::GetSaveFilter() const
 {
-  static std::vector<std::pair<String8, String8CI>> filters;
+  static std::vector<std::pair<StringView8CI, StringView8>> filters;
   if (!filters.empty())
     return filters;
 
-  filters.emplace_back("FILE_DIALOG_FILTER_HITMAN1_SPEECH", "*.idx");
+  filters.emplace_back("*.idx", "FILE_DIALOG_FILTER_HITMAN1_SPEECH");
 
   return filters;
 }

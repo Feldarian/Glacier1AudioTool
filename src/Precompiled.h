@@ -10,6 +10,7 @@
 
 #include <SDL.h>
 #include <SDL_syswm.h>
+#include <tinyfiledialogs.h>
 #include <xxhash.h>
 
 #include <math.h>

@@ -12,9 +12,6 @@
 
 #include "Options.hpp"
 
-#include <commdlg.h>
-#include <shlobj.h>
-
 std::vector<char> ReadWholeBinaryFile(const StringView8CI &acpPath)
 {
   const auto path = acpPath.path();
@@ -59,85 +56,36 @@ float GetAlignedItemWidth(const int64_t acItemsCount)
 
 String8CI BrowseDirectoryDialog()
 {
-  BROWSEINFOA bi;
-  ZeroMemory(&bi, sizeof(bi));
-  bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+  if (const auto* directoryPath = tinyfd_selectFolderDialog(nullptr, nullptr))
+    return {directoryPath, std::strlen(directoryPath)};
 
-  const auto pidl = SHBrowseForFolderA(&bi);
-  if (!pidl)
-    return "";
-
-  String8CI path;
-  path.resize(UINT16_MAX, L'\0');
-  SHGetPathFromIDListA(pidl, path.data());
-
-  IMalloc *imalloc = nullptr;
-  if (SUCCEEDED(SHGetMalloc(&imalloc)))
-  {
-    imalloc->Free(pidl);
-    imalloc->Release();
-  }
-
-  path.resize(strlen(path.c_str()));
-  return path;
+  return {};
 }
 
-std::pair<String8CI, uint32_t> OpenFileDialog(const StringView8CI &filters, const StringView8CI &defaultFileName)
+String8CI OpenFileDialog(const std::vector<std::pair<StringView8CI, StringView8>> &filters, const StringView8CI &defaultFileName)
 {
-  OPENFILENAMEA ofn;
-  ZeroMemory(&ofn, sizeof(ofn));
+  std::vector<const char*> filtersTransformed;
+  filtersTransformed.reserve(filters.size());
+  for (const auto &filter : filters | ranges::views::keys)
+    filtersTransformed.emplace_back(filter.c_str());
 
-  String8CI fileName{ defaultFileName };
-  fileName.resize(UINT16_MAX, '\0');
+  if (const auto* filePath = tinyfd_openFileDialog(nullptr, defaultFileName.c_str(), static_cast<int32_t>(filtersTransformed.size()), filtersTransformed.data(), g_LocalizationManager.Localize("FILE_DIALOG_FILTER_ALL_SUPPORTED").c_str(), 0))
+    return {filePath, std::strlen(filePath)};
 
-  // Initialize OPENFILENAME
-  ofn.lStructSize = sizeof(ofn);
-  ofn.lpstrFile = fileName.data();
-  ofn.nMaxFile = static_cast<uint32_t>(fileName.size());
-  ofn.lpstrFilter = filters.c_str();
-  ofn.nFilterIndex = 0;
-  ofn.lpstrFileTitle = nullptr;
-  ofn.nMaxFileTitle = 0;
-  ofn.Flags = OFN_LONGNAMES | OFN_EXPLORER | OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-
-  if (!GetOpenFileNameA(&ofn))
-    return {{}, 0};
-
-  fileName.resize(strlen(fileName.c_str()));
-
-  if (fileName.native().rfind('.') == String8CI::npos)
-    return {{}, 0};
-
-  return {fileName, ofn.nFilterIndex};
+  return {};
 }
 
-std::pair<String8CI, uint32_t> SaveFileDialog(const StringView8CI &filters, const StringView8CI &defaultFileName)
+String8CI SaveFileDialog(const std::vector<std::pair<StringView8CI, StringView8>> &filters, const StringView8CI &defaultFileName)
 {
-  OPENFILENAMEA ofn;
-  ZeroMemory(&ofn, sizeof(ofn));
+  std::vector<const char*> filtersTransformed;
+  filtersTransformed.reserve(filters.size());
+  for (const auto &filter : filters | ranges::views::keys)
+    filtersTransformed.emplace_back(filter.c_str());
 
-  String8CI fileName{ defaultFileName };
-  fileName.resize(UINT16_MAX, '\0');
+  if (const auto* filePath = tinyfd_saveFileDialog(nullptr, defaultFileName.c_str(), static_cast<int32_t>(filtersTransformed.size()), filtersTransformed.data(), g_LocalizationManager.Localize("FILE_DIALOG_FILTER_ALL_SUPPORTED").c_str()))
+    return {filePath, std::strlen(filePath)};
 
-  // Initialize OPENFILENAME
-  ofn.lStructSize = sizeof(ofn);
-  ofn.lpstrFile = fileName.data();
-  ofn.nMaxFile = static_cast<uint32_t>(fileName.size());
-  ofn.lpstrFilter = filters.c_str();
-  ofn.nFilterIndex = 0;
-  ofn.lpstrFileTitle = nullptr;
-  ofn.nMaxFileTitle = 0;
-  ofn.Flags = OFN_LONGNAMES | OFN_EXPLORER | OFN_OVERWRITEPROMPT;
-
-  if (!GetSaveFileNameA(&ofn))
-    return {};
-
-  fileName.resize(strlen(fileName.c_str()));
-
-  if (fileName.native().rfind('.') == String8CI::npos)
-    return {{}, 0};
-
-  return {fileName, ofn.nFilterIndex};
+  return {};
 }
 
 std::vector<String8CI> GetAllFilesInDirectory(const StringView8CI &directory, const StringView8CI &extension, bool recursive)
@@ -193,7 +141,8 @@ int32_t DisplayInformation(const StringView8 &message, const StringView8 &title,
   if (!yesNo && options.common.disableWarnings)
     return -1;
 
-  return DisplayMessage(message, title, yesNo, SDL_MESSAGEBOX_INFORMATION);
+  const auto result = tinyfd_messageBox(title.c_str(), message.c_str(), yesNo ? "yesnocancel" : "ok", "info", yesNo ? 0 : 1);
+  return result == 0 ? -1 : (result == 2 ? 0 : 1);
 }
 
 int32_t DisplayWarning(const StringView8 &message, const StringView8 &title, bool yesNo, const Options &options)
@@ -201,37 +150,14 @@ int32_t DisplayWarning(const StringView8 &message, const StringView8 &title, boo
   if (!yesNo && options.common.disableWarnings)
     return -1;
 
-  return DisplayMessage(message, title, yesNo, SDL_MESSAGEBOX_WARNING);
+  const auto result = tinyfd_messageBox(title.c_str(), message.c_str(), yesNo ? "yesnocancel" : "ok", "warning", yesNo ? 0 : 1);
+  return result == 0 ? -1 : (result == 2 ? 0 : 1);
 }
 
 int32_t DisplayError(const StringView8 &message, const StringView8 &title, bool yesNo)
 {
-  return DisplayMessage(message, title, yesNo, SDL_MESSAGEBOX_ERROR);
-}
-
-int32_t DisplayMessage(const StringView8 &message, const StringView8 &title, bool yesNo, const uint32_t messageFlags)
-{
-  static std::array yesNoButtonDatas{SDL_MessageBoxButtonData{SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, -1, g_LocalizationManager.Localize("MESSAGEBOX_BUTTON_CANCEL").c_str()},
-    SDL_MessageBoxButtonData{SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT, 0, g_LocalizationManager.Localize("MESSAGEBOX_BUTTON_NO").c_str()},
-    SDL_MessageBoxButtonData{0, 1, g_LocalizationManager.Localize("MESSAGEBOX_BUTTON_YES").c_str()}};
-  static SDL_MessageBoxButtonData okButtonData{SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT | SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT, -1, g_LocalizationManager.Localize("MESSAGEBOX_BUTTON_OK").c_str()};
-  static SDL_MessageBoxColorScheme colorScheme{
-    {
-      SDL_MessageBoxColor{static_cast<uint8_t>(0.94f * 0.06f * 255), static_cast<uint8_t>(0.94f * 0.06f * 255), static_cast<uint8_t>(0.94f * 0.06f * 255)},
-      SDL_MessageBoxColor{static_cast<uint8_t>(1.00f * 1.00f * 255), static_cast<uint8_t>(1.00f * 1.00f * 255), static_cast<uint8_t>(1.00f * 1.00f * 255)},
-      SDL_MessageBoxColor{static_cast<uint8_t>(0.50f * 0.43f * 255), static_cast<uint8_t>(0.50f * 0.43f * 255), static_cast<uint8_t>(0.50f * 0.50f * 255)},
-      SDL_MessageBoxColor{static_cast<uint8_t>(0.40f * 0.26f * 255), static_cast<uint8_t>(0.40f * 0.59f * 255), static_cast<uint8_t>(0.40f * 0.98f * 255)},
-      SDL_MessageBoxColor{static_cast<uint8_t>(1.00f * 0.06f * 255), static_cast<uint8_t>(1.00f * 0.53f * 255), static_cast<uint8_t>(1.00f * 0.98f * 255)}
-    }};
-
-  int32_t outButton = -1;
-  SDL_MessageBoxData data{messageFlags, nullptr, title.c_str(), message.c_str(), yesNo ? 3 : 1, yesNo ? yesNoButtonDatas.data() : &okButtonData, &colorScheme};
-  if (const auto err = SDL_ShowMessageBox(&data, &outButton))
-  {
-    [[maybe_unused]] const String8 errorMessage = SDL_GetError();
-    SDL_ClearError();
-  }
-  return outButton;
+  const auto result = tinyfd_messageBox(title.c_str(), message.c_str(), yesNo ? "yesnocancel" : "ok", "error", yesNo ? 0 : 1);
+  return result == 0 ? -1 : (result == 2 ? 0 : 1);
 }
 
 std::vector<StringView8CI> GetPathStems(StringView8CI pathView)
@@ -260,37 +186,4 @@ std::vector<StringView8CI> GetPathStems(StringView8CI pathView)
   }
 
   return pathStems;
-}
-
-String8CI MakeFileDialogFilter(const std::vector<std::pair<String8, String8CI>> &filters)
-{
-  if (filters.empty())
-    return {};
-
-  String8CI allFiltersFilter;
-  String8CI allFiltersDisplay;
-  for (const auto& filter : filters | ranges::views::values)
-  {
-    if (!allFiltersFilter.empty())
-      allFiltersFilter += ";";
-
-    allFiltersFilter += filter;
-
-    if (!allFiltersDisplay.empty())
-      allFiltersDisplay += "/";
-
-    allFiltersDisplay += filter;
-  }
-
-  String8CI result;
-
-  if (filters.size() > 1)
-    result = Format("{0} ({1})?{2}?", g_LocalizationManager.Localize("FILE_DIALOG_FILTER_ALL_SUPPORTED"), allFiltersDisplay, allFiltersFilter);
-
-  for (const auto& [identifier, filter] : filters)
-    result += Format("{0} ({1})?{1}?", g_LocalizationManager.Localize(identifier), filter);
-
-  ranges::replace(result, '?', '\0');
-
-  return result;
 }

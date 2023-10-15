@@ -118,7 +118,7 @@ target("imgui-backends")
 target_end()
 
 target("Glacier1AudioTool")
-  set_version("1.2.1")
+  set_version("1.2.2")
   set_kind("binary")
   
   set_rundir("$(projectdir)")

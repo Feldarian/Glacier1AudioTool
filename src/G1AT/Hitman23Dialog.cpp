@@ -417,24 +417,24 @@ int32_t Hitman23Dialog::DrawDialog()
   return DrawHitmanDialog();
 }
 
-const std::vector<std::pair<String8, String8CI>>& Hitman23Dialog::GetOpenFilter()
+const std::vector<std::pair<StringView8CI, StringView8>>& Hitman23Dialog::GetOpenFilter()
 {
-  static std::vector<std::pair<String8, String8CI>> filters;
+  static std::vector<std::pair<StringView8CI, StringView8>> filters;
   if (!filters.empty())
     return filters;
 
-  filters.emplace_back("FILE_DIALOG_FILTER_HITMAN23_STREAMS", "streams.wav");
+  filters.emplace_back("streams.wav", "FILE_DIALOG_FILTER_HITMAN23_STREAMS");
 
   return filters;
 }
 
-const std::vector<std::pair<String8, String8CI>>& Hitman23Dialog::GetSaveFilter() const
+const std::vector<std::pair<StringView8CI, StringView8>>& Hitman23Dialog::GetSaveFilter() const
 {
-  static std::vector<std::pair<String8, String8CI>> filters;
+  static std::vector<std::pair<StringView8CI, StringView8>> filters;
   if (!filters.empty())
     return filters;
 
-  filters.emplace_back("FILE_DIALOG_FILTER_HITMAN23_STREAMS", "streams.wav");
+  filters.emplace_back("streams.wav", "FILE_DIALOG_FILTER_HITMAN23_STREAMS");
 
   return filters;
 }
