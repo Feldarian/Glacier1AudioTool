@@ -895,7 +895,7 @@ bool Hitman4Dialog::LoadImpl(const StringView8CI &loadPath, const Options &optio
   originalDataParentID = 0;
 
   if (!LoadOriginalData(options))
-    return Clear(false);
+    return GenerateOriginalData(options);
 
   return true;
 }

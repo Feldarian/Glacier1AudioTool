@@ -380,7 +380,7 @@ bool Hitman23Dialog::LoadImpl(const StringView8CI &loadPathView, const Options &
   originalDataParentID = 0;
 
   if (!LoadOriginalData(options))
-    return Clear(false);
+    return GenerateOriginalData(options);
 
   return true;
 }
