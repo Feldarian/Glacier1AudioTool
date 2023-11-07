@@ -244,15 +244,15 @@ bool HitmanFile::Export(std::vector<char> &outputBytes, const Options& options) 
     return false;
   }
 
-  assert(archiveRecord.sampleRate >= 8000);
+  assert(archiveRecord.sampleRate >= 4000);
   assert(archiveRecord.sampleRate <= 48000);
-  if (archiveRecord.sampleRate < 8000 || archiveRecord.sampleRate > 48000)
+  if (archiveRecord.sampleRate < 4000 || archiveRecord.sampleRate > 48000)
   {
     assert(false);
     return false;
   }
 
-  OrderedSet<uint32_t> normalSampleRates{0, 11025, 22050, 44100, 48000};
+  OrderedSet<uint32_t> normalSampleRates{0, 4000, 8000, 11025, 22050, 44100, 48000};
   auto normalSampleRateIt = ranges::lower_bound(normalSampleRates, archiveRecord.sampleRate);
   if (normalSampleRateIt == normalSampleRates.end())
   {

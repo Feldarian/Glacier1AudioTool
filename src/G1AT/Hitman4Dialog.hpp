@@ -136,13 +136,11 @@ struct Hitman4STRHeader
 {
   char id[0x0C] = {'I', 'O', 'I', 'S', 'N', 'D', 'S', 'T', 'R', 'E', 'A', 'M'};
   uint32_t version = 9; // always 0x09
+  uint32_t unk10[2];
   uint32_t offsetToEntryTable = 0; // points at the STR_Footer, right after string table ends
   uint32_t entriesCount = 0; // same as number of STR_Data entries in STR_Footer
   uint32_t dataBeginOffset = 0x0100; // offset to begining of data (or whole header size...)
-  uint32_t unk1C = 0; // was 0x0 in samples
-  uint32_t unk20 = 1; // was 0x1 in all samples
-  uint32_t unkLanguageId = 1; // was 0x1 in english samples and 0x2 in german, maybe some language id?
-  uint32_t unk28[0x100 - 0x28] = {};
+  uint32_t unk24[0x100 - 0x24] = {};
 };
 
 struct Hitman4STRRecordHeader
@@ -154,7 +152,10 @@ struct Hitman4STRRecordHeader
   uint32_t sampleRate = 0; // sample rate
   uint32_t bitsPerSample = 0; // bits per sample
   // magic == 0x02 || 0x03 || 0x11
-  uint32_t blockAlign = 0; // block alignment for 0x02
+  uint32_t unk14 = 0; // block alignment for 0x02
+  // magic == 0x02 || 0x03 || 0x11
+  uint32_t unk18 = 0; // samples per block
+  uint32_t blockAlign = 0;
   // magic == 0x03 || 0x11
   uint32_t samplesPerBlock = 0; // samples per block
 

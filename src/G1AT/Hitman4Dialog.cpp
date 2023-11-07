@@ -268,9 +268,10 @@ bool Hitman4STRFile::Load(Hitman4Dialog& archiveDialog, const std::vector<char> 
     assert(wavData.size() >= wavDataEndOffset);
     assert(wavDataSize % 0x0100 == 0);
 
-    assert(strWAVHeader.magic != 0x02 || strRecord.sizeOfHeader == 24);
-    assert(strWAVHeader.magic != 0x03 || strRecord.sizeOfHeader == 0x1c);
-    assert(strWAVHeader.magic != 0x04 || strRecord.sizeOfHeader == 20);
+    assert(strWAVHeader.magic == 0x02 || strWAVHeader.magic == 0x04 || strWAVHeader.magic == 0x03 || strWAVHeader.magic == 0x11);
+    assert(strWAVHeader.magic != 0x02 || strRecord.sizeOfHeader == 0x20);
+    assert(strWAVHeader.magic != 0x03 || strRecord.sizeOfHeader == 0x24);
+    assert(strWAVHeader.magic != 0x04 || strRecord.sizeOfHeader == 0x14);
     assert(strWAVHeader.magic != 0x11 || strRecord.sizeOfHeader == 0x18);
     assert(strRecord.id < header.entriesCount);
 
@@ -873,7 +874,7 @@ bool Hitman4Dialog::LoadImpl(const StringView8CI &loadPath, const Options &optio
   if (!streamsWAV.Load(*this, streamsWAVData))
     return Clear(false);
 
-  for (const auto &whdPath : allWHDFiles)
+  /*for (const auto &whdPath : allWHDFiles)
   {
     auto &whdFile = whdFiles.emplace_back();
     if (!whdFile.Load(*this, whdPath))
@@ -881,7 +882,7 @@ bool Hitman4Dialog::LoadImpl(const StringView8CI &loadPath, const Options &optio
 
     if (!wavFiles.emplace_back().Load(String8CI(whdFile.path.path().replace_extension(L".wav")), whdFile.recordMap, fileMap))
       return Clear(false);
-  }
+  }*/
 
   auto dataPath = GetUserPath().path();
   if (dataPath.empty())
