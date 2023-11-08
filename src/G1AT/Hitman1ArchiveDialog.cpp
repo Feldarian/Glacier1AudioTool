@@ -6,19 +6,19 @@
 
 #include <Precompiled.hpp>
 
-#include "Hitman1Dialog.hpp"
+#include "Hitman1ArchiveDialog.hpp"
 
 #include "Utils.hpp"
 
-bool Hitman1Dialog::Clear(const bool retVal)
+bool Hitman1ArchiveDialog::Clear(const bool retVal)
 {
   indexToKey.clear();
   lastModifiedDatesMap.clear();
 
-  return HitmanDialog::Clear(retVal);
+  return Glacier1ArchiveDialog::Clear(retVal);
 }
 
-bool Hitman1Dialog::LoadImpl(const StringView8CI &loadPathView, const Options &options)
+bool Hitman1ArchiveDialog::LoadImpl(const StringView8CI &loadPathView, const Options &options)
 {
   const auto loadPath = loadPathView.path();
   Clear();
@@ -40,7 +40,7 @@ bool Hitman1Dialog::LoadImpl(const StringView8CI &loadPathView, const Options &o
 
   struct Hitman1Record
   {
-    HitmanFile& file;
+    Glacier1AudioFile& file;
     std::span<const char> data;
   };
 
@@ -65,7 +65,7 @@ bool Hitman1Dialog::LoadImpl(const StringView8CI &loadPathView, const Options &o
 
     auto& file = GetFile(entryPath);
 
-    auto [fileMapIt, inserted] = fileMap.try_emplace(file.path, HitmanFile{file.path});
+    auto [fileMapIt, inserted] = fileMap.try_emplace(file.path, Glacier1AudioFile{file.path});
     if (!inserted)
       return Clear(false);
 
@@ -112,7 +112,7 @@ bool Hitman1Dialog::LoadImpl(const StringView8CI &loadPathView, const Options &o
   return true;
 }
 
-bool Hitman1Dialog::ImportSingle(const StringView8CI &importFolderPathView, const StringView8CI &importFilePathView, const Options &options)
+bool Hitman1ArchiveDialog::ImportSingle(const StringView8CI &importFolderPathView, const StringView8CI &importFilePathView, const Options &options)
 {
   auto filePath = relative(importFilePathView.path(), importFolderPathView.path());
   auto fileIt = fileMap.find(filePath);
@@ -134,7 +134,7 @@ bool Hitman1Dialog::ImportSingle(const StringView8CI &importFolderPathView, cons
   return true;
 }
 
-bool Hitman1Dialog::SaveImpl(const StringView8CI &savePathView, const Options &options)
+bool Hitman1ArchiveDialog::SaveImpl(const StringView8CI &savePathView, const Options &options)
 {
   const auto archiveIdxFilePath = savePathView.path();
   auto archiveBinFilePath = archiveIdxFilePath;
@@ -181,12 +181,12 @@ bool Hitman1Dialog::SaveImpl(const StringView8CI &savePathView, const Options &o
   return true;
 }
 
-int32_t Hitman1Dialog::DrawDialog()
+int32_t Hitman1ArchiveDialog::DrawDialog()
 {
-  return DrawHitmanDialog();
+  return DrawGlacier1ArchiveDialog();
 }
 
-const std::vector<std::pair<StringView8CI, StringView8>>& Hitman1Dialog::GetOpenFilter()
+const std::vector<std::pair<StringView8CI, StringView8>>& Hitman1ArchiveDialog::GetOpenFilter()
 {
   static std::vector<std::pair<StringView8CI, StringView8>> filters;
   if (!filters.empty())
@@ -197,7 +197,7 @@ const std::vector<std::pair<StringView8CI, StringView8>>& Hitman1Dialog::GetOpen
   return filters;
 }
 
-const std::vector<std::pair<StringView8CI, StringView8>>& Hitman1Dialog::GetSaveFilter() const
+const std::vector<std::pair<StringView8CI, StringView8>>& Hitman1ArchiveDialog::GetSaveFilter() const
 {
   static std::vector<std::pair<StringView8CI, StringView8>> filters;
   if (!filters.empty())

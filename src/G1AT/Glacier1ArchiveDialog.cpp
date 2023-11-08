@@ -6,13 +6,13 @@
 
 #include <Precompiled.hpp>
 
-#include "HitmanDialog.hpp"
+#include "Glacier1ArchiveDialog.hpp"
 
 #include "Utils.hpp"
 
 // TODO - use spans like in PCMS16 which are resized to max. required capacity before use and optimize a bit calling of this that way
 //        or even better, try to upgrade to std::ranges or views
-bool HitmanFile::Import(SoundRecord soundRecord, const std::span<const char> &soundDataView, const Options &options)
+bool Glacier1AudioFile::Import(AudioRecord soundRecord, const std::span<const char> &soundDataView, const Options &options)
 {
   if (!soundRecord.dataSize || soundDataView.size() < soundRecord.dataSize)
     return false;
@@ -100,7 +100,7 @@ bool HitmanFile::Import(SoundRecord soundRecord, const std::span<const char> &so
   return ImportNative(soundRecord, soundDataView, {}, options);
 }
 
-bool HitmanFile::Import(const std::span<const char> &in, const Options &options)
+bool Glacier1AudioFile::Import(const std::span<const char> &in, const Options &options)
 {
   if (options.common.directImport)
     return ImportNative(in, true, options);
@@ -109,7 +109,7 @@ bool HitmanFile::Import(const std::span<const char> &in, const Options &options)
   return Import(soundRecord, SoundDataDataView(soundRecord, in), options);
 }
 
-bool HitmanFile::Import(const StringView8CI &importPath, const Options& options)
+bool Glacier1AudioFile::Import(const StringView8CI &importPath, const Options& options)
 {
   auto importData = ReadWholeBinaryFile(importPath);
   if (importData.empty())
@@ -118,7 +118,7 @@ bool HitmanFile::Import(const StringView8CI &importPath, const Options& options)
   return Import(importData, options);
 }
 
-bool HitmanFile::ImportNative(const SoundRecord &soundRecord, const std::span<const char> &soundDataView, const std::span<const int16_t> &pcms16DataView, const Options &options)
+bool Glacier1AudioFile::ImportNative(const AudioRecord &soundRecord, const std::span<const char> &soundDataView, const std::span<const int16_t> &pcms16DataView, const Options &options)
 {
   if (!soundRecord.dataSize || soundDataView.size() < soundRecord.dataSize)
     return false;
@@ -160,7 +160,7 @@ bool HitmanFile::ImportNative(const SoundRecord &soundRecord, const std::span<co
   }
 }
 
-bool HitmanFile::ImportNative(SoundRecord soundRecord, const std::span<const char>& soundDataView, const bool allowConversions, const Options& options)
+bool Glacier1AudioFile::ImportNative(AudioRecord soundRecord, const std::span<const char>& soundDataView, const bool allowConversions, const Options& options)
 {
   if (!soundRecord.dataSize || soundDataView.size() < soundRecord.dataSize)
     return false;
@@ -183,13 +183,13 @@ bool HitmanFile::ImportNative(SoundRecord soundRecord, const std::span<const cha
   return ImportNative(soundRecord, soundDataView, pcms16Span, options);
 }
 
-bool HitmanFile::ImportNative(const std::span<const char>& in, const bool allowConversions, const Options& options)
+bool Glacier1AudioFile::ImportNative(const std::span<const char>& in, const bool allowConversions, const Options& options)
 {
   const auto soundRecord = SoundDataHeader(in);
   return ImportNative(soundRecord, SoundDataDataView(soundRecord, in), allowConversions, options);
 }
 
-bool HitmanFile::ImportNative(const StringView8CI &importPath, const bool allowConversions, const Options& options)
+bool Glacier1AudioFile::ImportNative(const StringView8CI &importPath, const bool allowConversions, const Options& options)
 {
   auto importData = ReadWholeBinaryFile(importPath);
   if (importData.empty())
@@ -198,7 +198,7 @@ bool HitmanFile::ImportNative(const StringView8CI &importPath, const bool allowC
   return ImportNative(importData, allowConversions, options);
 }
 
-bool HitmanFile::ExportNative(std::vector<char> &outputBytes, const Options&) const
+bool Glacier1AudioFile::ExportNative(std::vector<char> &outputBytes, const Options&) const
 {
   const auto outIndexInput = outputBytes.size();
 
@@ -231,7 +231,7 @@ bool HitmanFile::ExportNative(std::vector<char> &outputBytes, const Options&) co
   return true;
 }
 
-bool HitmanFile::Export(std::vector<char> &outputBytes, const Options& options) const
+bool Glacier1AudioFile::Export(std::vector<char> &outputBytes, const Options& options) const
 {
   if (!options.common.transcodeToPlayableFormat)
     return ExportNative(outputBytes, options);
@@ -297,7 +297,7 @@ bool HitmanFile::Export(std::vector<char> &outputBytes, const Options& options) 
   return true;
 }
 
-bool HitmanDialog::Clear(const bool retVal)
+bool Glacier1ArchiveDialog::Clear(const bool retVal)
 {
   opened = false;
   fileMap.clear();
@@ -305,22 +305,22 @@ bool HitmanDialog::Clear(const bool retVal)
   return ArchiveDialog::Clear(retVal);
 }
 
-bool HitmanDialog::IsSaveAllowed() const
+bool Glacier1ArchiveDialog::IsSaveAllowed() const
 {
   return true;
 }
 
-bool HitmanDialog::IsExportAllowed() const
+bool Glacier1ArchiveDialog::IsExportAllowed() const
 {
   return true;
 }
 
-bool HitmanDialog::IsImportAllowed() const
+bool Glacier1ArchiveDialog::IsImportAllowed() const
 {
   return true;
 }
 
-bool HitmanDialog::GenerateOriginalData(const Options &options)
+bool Glacier1ArchiveDialog::GenerateOriginalData(const Options &options)
 {
   auto dataPathString = originalDataPathPrefix;
   dataPathString += Format("{:16X}", originalDataID);
@@ -356,7 +356,7 @@ bool HitmanDialog::GenerateOriginalData(const Options &options)
     auto &archiveFile = GetFile(filePath);
     archiveFile.original = true;
 
-    genFile.write(reinterpret_cast<const char *>(&file.originalRecord), sizeof(HitmanSoundRecord));
+    genFile.write(reinterpret_cast<const char *>(&file.originalRecord), sizeof(Glacier1AudioRecord));
   }
 
   std::ios_base::sync_with_stdio(oldSync);
@@ -364,7 +364,7 @@ bool HitmanDialog::GenerateOriginalData(const Options &options)
   return true;
 }
 
-bool HitmanDialog::LoadOriginalData(const Options &options)
+bool Glacier1ArchiveDialog::LoadOriginalData(const Options &options)
 {
   auto dataPathString = originalDataPathPrefix;
   dataPathString += Format("{:16X}", originalDataID);
@@ -408,7 +408,7 @@ bool HitmanDialog::LoadOriginalData(const Options &options)
 
   for (auto &[filePath, file] : fileMap)
   {
-    genFile.read(reinterpret_cast<char *>(&file.originalRecord), sizeof(HitmanSoundRecord));
+    genFile.read(reinterpret_cast<char *>(&file.originalRecord), sizeof(Glacier1AudioRecord));
 
     assert(file.originalRecord.dataXXH3 != 0);
     assert(file.archiveRecord.dataXXH3 != 0);
@@ -422,54 +422,54 @@ bool HitmanDialog::LoadOriginalData(const Options &options)
   return true;
 }
 
-bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const std::span<const char> &data, const bool allowConversions, const Options &options)
+bool Glacier1ArchiveDialog::ImportSingleHitmanFile(Glacier1AudioFile &glacier1AudioFile, const std::span<const char> &data, const bool allowConversions, const Options &options)
 {
   if (allowConversions)
   {
-    if (!hitmanFile.Import(data, options))
+    if (!glacier1AudioFile.Import(data, options))
       return false;
   }
   else
   {
-    if (!hitmanFile.ImportNative(data, false, options))
+    if (!glacier1AudioFile.ImportNative(data, false, options))
       return false;
   }
 
-  auto &archiveFile = GetFile(hitmanFile.path);
+  auto &archiveFile = GetFile(glacier1AudioFile.path);
 
-  if (hitmanFile.originalRecord.dataXXH3 == 0)
-    hitmanFile.originalRecord = hitmanFile.archiveRecord;
+  if (glacier1AudioFile.originalRecord.dataXXH3 == 0)
+    glacier1AudioFile.originalRecord = glacier1AudioFile.archiveRecord;
 
-  archiveFile.original = hitmanFile.originalRecord == hitmanFile.archiveRecord;
+  archiveFile.original = glacier1AudioFile.originalRecord == glacier1AudioFile.archiveRecord;
   archiveFile.dirty = archiveFile.dirty || !archiveFile.original;
 
   return true;
 }
 
-bool HitmanDialog::ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringView8CI &importFilePath, const Options &options)
+bool Glacier1ArchiveDialog::ImportSingleHitmanFile(Glacier1AudioFile &glacier1AudioFile, const StringView8CI &importFilePath, const Options &options)
 {
   auto inputData = ReadWholeBinaryFile(importFilePath);
-  return ImportSingleHitmanFile(hitmanFile, inputData, !options.common.directImport, options);
+  return ImportSingleHitmanFile(glacier1AudioFile, inputData, !options.common.directImport, options);
 }
 
-bool HitmanDialog::ExportSingleHitmanFile(const HitmanFile &hitmanFile, std::vector<char> &data, bool doConversion, const Options &options) const
+bool Glacier1ArchiveDialog::ExportSingleHitmanFile(const Glacier1AudioFile &glacier1AudioFile, std::vector<char> &data, bool doConversion, const Options &options) const
 {
   if (doConversion)
-    return hitmanFile.Export(data, options);
+    return glacier1AudioFile.Export(data, options);
 
-  return hitmanFile.ExportNative(data, options);
+  return glacier1AudioFile.ExportNative(data, options);
 }
 
-bool HitmanDialog::ExportSingleHitmanFile(const HitmanFile &hitmanFile, const StringView8CI &exportFolderPath, const Options &options) const
+bool Glacier1ArchiveDialog::ExportSingleHitmanFile(const Glacier1AudioFile &glacier1AudioFile, const StringView8CI &exportFolderPath, const Options &options) const
 {
   std::vector<char> outputData;
-  if (!ExportSingleHitmanFile(hitmanFile, outputData, options.common.transcodeToPlayableFormat, options))
+  if (!ExportSingleHitmanFile(glacier1AudioFile, outputData, options.common.transcodeToPlayableFormat, options))
     return false;
 
   if (outputData.size() < 4)
     return false;
 
-  auto exportPath = exportFolderPath.path() / hitmanFile.path.path();
+  auto exportPath = exportFolderPath.path() / glacier1AudioFile.path.path();
   const auto magic = *reinterpret_cast<const uint32_t*>(outputData.data());
   switch (magic)
   {
@@ -498,7 +498,7 @@ bool HitmanDialog::ExportSingleHitmanFile(const HitmanFile &hitmanFile, const St
   return true;
 }
 
-bool HitmanDialog::ExportSingle(const StringView8CI &exportFolderPath, const StringView8CI &exportFilePath, const Options &options) const
+bool Glacier1ArchiveDialog::ExportSingle(const StringView8CI &exportFolderPath, const StringView8CI &exportFilePath, const Options &options) const
 {
   const auto fileMapIt = fileMap.find(exportFilePath);
   if (fileMapIt == fileMap.cend())
@@ -507,7 +507,7 @@ bool HitmanDialog::ExportSingle(const StringView8CI &exportFolderPath, const Str
   return ExportSingleHitmanFile(fileMapIt->second, exportFolderPath, options);
 }
 
-int32_t HitmanDialog::ReloadOriginalData(const bool reset, const Options &options)
+int32_t Glacier1ArchiveDialog::ReloadOriginalData(const bool reset, const Options &options)
 {
   needsOriginalDataReload = true;
   needsOriginalDataReset |= reset;
@@ -554,7 +554,7 @@ int32_t HitmanDialog::ReloadOriginalData(const bool reset, const Options &option
   return 1;
 }
 
-int32_t HitmanDialog::DrawHitmanDialog()
+int32_t Glacier1ArchiveDialog::DrawGlacier1ArchiveDialog()
 {
   if (needsOriginalDataReload || needsOriginalDataReset)
     ReloadOriginalData();

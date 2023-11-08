@@ -6,11 +6,11 @@
 
 #include <Precompiled.hpp>
 
-#include "Hitman23Dialog.hpp"
+#include "Hitman23ArchiveDialog.hpp"
 
 #include "Utils.hpp"
 
-HitmanSoundRecord Hitman23WHDRecord::ToHitmanSoundRecord() const
+Glacier1AudioRecord Hitman23WHDRecord::ToHitmanSoundRecord() const
 {
   return {
     0,
@@ -25,7 +25,7 @@ HitmanSoundRecord Hitman23WHDRecord::ToHitmanSoundRecord() const
   };
 }
 
-void Hitman23WHDRecord::FromHitmanSoundRecord(const HitmanSoundRecord &soundRecord)
+void Hitman23WHDRecord::FromHitmanSoundRecord(const Glacier1AudioRecord &soundRecord)
 {
   formatTag = soundRecord.formatTag;
   sampleRate = soundRecord.sampleRate;
@@ -49,7 +49,7 @@ bool Hitman23WAVFile::Clear(const bool retVal)
 }
 
 bool Hitman23WAVFile::Load(const std::vector<char> &wavData, const OrderedMap<StringView8CI, Hitman23WHDRecord *> &whdRecordsMap,
-                           OrderedMap<StringView8CI, HitmanFile>& fileMap, const bool isMissionWAV)
+                           OrderedMap<StringView8CI, Glacier1AudioFile>& fileMap, const bool isMissionWAV)
 {
   if (wavData.empty())
     return Clear(false);
@@ -57,7 +57,7 @@ bool Hitman23WAVFile::Load(const std::vector<char> &wavData, const OrderedMap<St
   struct WAVFileData
   {
     uint32_t size = 0;
-    HitmanFile& file;
+    Glacier1AudioFile& file;
   };
 
   auto resampledOffset = static_cast<uint32_t>(wavData.size());
@@ -144,9 +144,9 @@ bool Hitman23WAVFile::Load(const std::vector<char> &wavData, const OrderedMap<St
     if (importFailed.load(std::memory_order_relaxed))
       return;
 
-    auto& hitmanFile = wavFileData.file;
-    hitmanFile.archiveRecord = SoundDataSoundRecord(hitmanFile.archiveRecord, hitmanFile.data);
-    importFailed.store(importFailed.load(std::memory_order_relaxed) || hitmanFile.archiveRecord.dataXXH3 == 0);
+    auto& glacier1AudioFile = wavFileData.file;
+    glacier1AudioFile.archiveRecord = SoundDataSoundRecord(glacier1AudioFile.archiveRecord, glacier1AudioFile.data);
+    importFailed.store(importFailed.load(std::memory_order_relaxed) || glacier1AudioFile.archiveRecord.dataXXH3 == 0);
   });
 
   if (importFailed)
@@ -161,7 +161,7 @@ bool Hitman23WAVFile::Load(const std::vector<char> &wavData, const OrderedMap<St
 }
 
 bool Hitman23WAVFile::Load(const StringView8CI &loadPath, const OrderedMap<StringView8CI, Hitman23WHDRecord *> &whdRecordsMap,
-                           OrderedMap<StringView8CI, HitmanFile>& fileMap, const bool isMissionWAV)
+                           OrderedMap<StringView8CI, Glacier1AudioFile>& fileMap, const bool isMissionWAV)
 {
   if (!Load(ReadWholeBinaryFile(loadPath), whdRecordsMap, fileMap, isMissionWAV))
     return false;
@@ -209,7 +209,7 @@ bool Hitman23WHDFile::Clear(const bool retVal)
   return retVal;
 }
 
-bool Hitman23WHDFile::Load(Hitman23Dialog& archiveDialog, const StringView8CI &loadPathView)
+bool Hitman23WHDFile::Load(Hitman23ArchiveDialog& archiveDialog, const StringView8CI &loadPathView)
 {
   if (data.empty())
     data = ReadWholeBinaryFile(loadPathView);
@@ -254,7 +254,7 @@ bool Hitman23WHDFile::Load(Hitman23Dialog& archiveDialog, const StringView8CI &l
 
     archiveDialog.whdRecordsMap[file.path].emplace_back(whdRecord);
 
-    [[maybe_unused]] const auto [fileMapIt, fileMapEmplaced] = archiveDialog.fileMap.try_emplace(file.path, HitmanFile{file.path, whdRecord->ToHitmanSoundRecord()});
+    [[maybe_unused]] const auto [fileMapIt, fileMapEmplaced] = archiveDialog.fileMap.try_emplace(file.path, Glacier1AudioFile{file.path, whdRecord->ToHitmanSoundRecord()});
     assert(whdRecord->dataInStreams || fileMapEmplaced);
   }
 
@@ -287,7 +287,7 @@ bool Hitman23WHDFile::Save(const Hitman23WAVFile &streamsWAV, const Hitman23WAVF
   return true;
 }
 
-bool Hitman23Dialog::Clear(const bool retVal)
+bool Hitman23ArchiveDialog::Clear(const bool retVal)
 {
   whdFiles.clear();
   wavFiles.clear();
@@ -296,10 +296,10 @@ bool Hitman23Dialog::Clear(const bool retVal)
   fileMap.clear();
   whdRecordsMap.clear();
 
-  return HitmanDialog::Clear(retVal);
+  return Glacier1ArchiveDialog::Clear(retVal);
 }
 
-bool Hitman23Dialog::ImportSingle(const StringView8CI &importFolderPathView, const StringView8CI &importFilePathView, const Options &options)
+bool Hitman23ArchiveDialog::ImportSingle(const StringView8CI &importFolderPathView, const StringView8CI &importFilePathView, const Options &options)
 {
   auto filePath = relative(importFilePathView.path(), importFolderPathView.path());
   auto fileIt = fileMap.find(filePath);
@@ -326,7 +326,7 @@ bool Hitman23Dialog::ImportSingle(const StringView8CI &importFolderPathView, con
   return true;
 }
 
-bool Hitman23Dialog::LoadImpl(const StringView8CI &loadPathView, const Options &options)
+bool Hitman23ArchiveDialog::LoadImpl(const StringView8CI &loadPathView, const Options &options)
 {
   Clear();
 
@@ -385,7 +385,7 @@ bool Hitman23Dialog::LoadImpl(const StringView8CI &loadPathView, const Options &
   return true;
 }
 
-bool Hitman23Dialog::SaveImpl(const StringView8CI &savePathView, const Options &options)
+bool Hitman23ArchiveDialog::SaveImpl(const StringView8CI &savePathView, const Options &options)
 {
   const auto newBasePath = savePathView.path().parent_path();
 
@@ -412,12 +412,12 @@ bool Hitman23Dialog::SaveImpl(const StringView8CI &savePathView, const Options &
   return true;
 }
 
-int32_t Hitman23Dialog::DrawDialog()
+int32_t Hitman23ArchiveDialog::DrawDialog()
 {
-  return DrawHitmanDialog();
+  return DrawGlacier1ArchiveDialog();
 }
 
-const std::vector<std::pair<StringView8CI, StringView8>>& Hitman23Dialog::GetOpenFilter()
+const std::vector<std::pair<StringView8CI, StringView8>>& Hitman23ArchiveDialog::GetOpenFilter()
 {
   static std::vector<std::pair<StringView8CI, StringView8>> filters;
   if (!filters.empty())
@@ -428,7 +428,7 @@ const std::vector<std::pair<StringView8CI, StringView8>>& Hitman23Dialog::GetOpe
   return filters;
 }
 
-const std::vector<std::pair<StringView8CI, StringView8>>& Hitman23Dialog::GetSaveFilter() const
+const std::vector<std::pair<StringView8CI, StringView8>>& Hitman23ArchiveDialog::GetSaveFilter() const
 {
   static std::vector<std::pair<StringView8CI, StringView8>> filters;
   if (!filters.empty())

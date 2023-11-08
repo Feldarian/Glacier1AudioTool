@@ -52,7 +52,7 @@ struct ADPCM_Header
   uint32_t dataSize = 0;
 };
 
-struct SoundRecord
+struct AudioRecord
 {
   uint64_t dataXXH3 = 0;
   uint32_t dataSizeUncompressed = 0;
@@ -64,54 +64,54 @@ struct SoundRecord
   uint16_t blockAlign = 0;
   uint16_t samplesPerBlock = 0;
 
-  auto operator<=>(const SoundRecord & other) const = default;
+  auto operator<=>(const AudioRecord & other) const = default;
 };
 
-PCMS16_Header PCMS16Header(const SoundRecord& record);
+PCMS16_Header PCMS16Header(const AudioRecord& record);
 PCMS16_Header PCMS16Header(const std::span<const int16_t>& in);
 
-SoundRecord PCMS16SoundRecord(const PCMS16_Header& header, uint64_t xxh3Hash = 0);
-SoundRecord PCMS16SoundRecord(const PCMS16_Header& header, const std::span<const int16_t>& in);
-SoundRecord PCMS16SoundRecord(const std::span<const int16_t>& in);
+AudioRecord PCMS16SoundRecord(const PCMS16_Header& header, uint64_t xxh3Hash = 0);
+AudioRecord PCMS16SoundRecord(const PCMS16_Header& header, const std::span<const int16_t>& in);
+AudioRecord PCMS16SoundRecord(const std::span<const int16_t>& in);
 
 std::span<const int16_t> PCMS16DataView(const PCMS16_Header& header, const std::span<const int16_t>& in);
 std::span<const int16_t> PCMS16DataView(const std::span<const int16_t>& in);
 
-ADPCM_Header ADPCMHeader(const SoundRecord& record, int blocksizePow2 = 0);
+ADPCM_Header ADPCMHeader(const AudioRecord& record, int blocksizePow2 = 0);
 ADPCM_Header ADPCMHeader(const std::span<const char>& in);
 
-SoundRecord ADPCMSoundRecord(const ADPCM_Header& header, uint64_t xxh3Hash = 0);
-SoundRecord ADPCMSoundRecord(const ADPCM_Header& header, const std::span<const char>& in, bool pcms16XXH3Hash = true);
-SoundRecord ADPCMSoundRecord(const std::span<const char>& in);
+AudioRecord ADPCMSoundRecord(const ADPCM_Header& header, uint64_t xxh3Hash = 0);
+AudioRecord ADPCMSoundRecord(const ADPCM_Header& header, const std::span<const char>& in, bool pcms16XXH3Hash = true);
+AudioRecord ADPCMSoundRecord(const std::span<const char>& in);
 
 std::span<const char> ADPCMDataView(const ADPCM_Header& header, const std::span<const char>& in);
 std::span<const char> ADPCMDataView(const std::span<const char>& in);
 
-SoundRecord VorbisHeader(const std::span<const char>& in);
+AudioRecord VorbisHeader(const std::span<const char>& in);
 
-SoundRecord VorbisSoundRecord(const SoundRecord& header, uint64_t xxh3Hash = 0);
-SoundRecord VorbisSoundRecord(const SoundRecord& header, const std::span<const char>& in, bool pcms16XXH3Hash = true);
-SoundRecord VorbisSoundRecord(const std::span<const char>& in);
+AudioRecord VorbisSoundRecord(const AudioRecord& header, uint64_t xxh3Hash = 0);
+AudioRecord VorbisSoundRecord(const AudioRecord& header, const std::span<const char>& in, bool pcms16XXH3Hash = true);
+AudioRecord VorbisSoundRecord(const std::span<const char>& in);
 
-std::span<const char> VorbisDataView(const SoundRecord& header, const std::span<const char>& in);
+std::span<const char> VorbisDataView(const AudioRecord& header, const std::span<const char>& in);
 std::span<const char> VorbisDataView(const std::span<const char>& in);
 
-SoundRecord UnknownSoundDataHeader(const std::span<const char>& in);
+AudioRecord UnknownSoundDataHeader(const std::span<const char>& in);
 
-SoundRecord UnknownSoundDataSoundRecord(const SoundRecord& header, uint64_t xxh3Hash = 0);
-SoundRecord UnknownSoundDataSoundRecord(const SoundRecord& header, const std::span<const char>& in, bool pcms16XXH3Hash = true);
-SoundRecord UnknownSoundDataSoundRecord(const std::span<const char>& in);
+AudioRecord UnknownSoundDataSoundRecord(const AudioRecord& header, uint64_t xxh3Hash = 0);
+AudioRecord UnknownSoundDataSoundRecord(const AudioRecord& header, const std::span<const char>& in, bool pcms16XXH3Hash = true);
+AudioRecord UnknownSoundDataSoundRecord(const std::span<const char>& in);
 
-std::span<const char> UnknownSoundDataDataView(const SoundRecord& header, const std::span<const char>& in);
+std::span<const char> UnknownSoundDataDataView(const AudioRecord& header, const std::span<const char>& in);
 std::span<const char> UnknownSoundDataDataView(const std::span<const char>& in);
 
-SoundRecord SoundDataHeader(const std::span<const char>& in);
+AudioRecord SoundDataHeader(const std::span<const char>& in);
 
-SoundRecord SoundDataSoundRecord(const SoundRecord& header, uint64_t xxh3Hash = 0);
-SoundRecord SoundDataSoundRecord(const SoundRecord& header, const std::span<const char>& in, bool pcms16XXH3Hash = true);
-SoundRecord SoundDataSoundRecord(const std::span<const char>& in);
+AudioRecord SoundDataSoundRecord(const AudioRecord& header, uint64_t xxh3Hash = 0);
+AudioRecord SoundDataSoundRecord(const AudioRecord& header, const std::span<const char>& in, bool pcms16XXH3Hash = true);
+AudioRecord SoundDataSoundRecord(const std::span<const char>& in);
 
-std::span<const char> SoundDataDataView(const SoundRecord& header, const std::span<const char>& in);
+std::span<const char> SoundDataDataView(const AudioRecord& header, const std::span<const char>& in);
 std::span<const char> SoundDataDataView(const std::span<const char>& in);
 
 int32_t PCMS16ChangeSampleRate(PCMS16_Header& header, std::vector<char>& data, uint32_t newSampleRate);
@@ -123,13 +123,13 @@ int32_t PCMS16ChangeChannelCount(PCMS16_Header& header, std::vector<int16_t>& da
 bool PCMS16FromADPCM(const ADPCM_Header &header, const std::span<const char>& in, std::vector<int16_t> &out, int flags = 0);
 bool PCMS16FromADPCM(const std::span<const char>& in, std::vector<int16_t> &out, int flags = 0);
 
-bool PCMS16FromVorbis(const SoundRecord &header, const std::span<const char>& in, std::vector<int16_t> &out, int flags = 0);
+bool PCMS16FromVorbis(const AudioRecord &header, const std::span<const char>& in, std::vector<int16_t> &out, int flags = 0);
 bool PCMS16FromVorbis(const std::span<const char>& in, std::vector<int16_t> &out, int flags = 0);
 
-bool PCMS16FromUnknownSoundData(const SoundRecord &header, const std::span<const char>& in, std::vector<int16_t> &out, int flags = 0);
+bool PCMS16FromUnknownSoundData(const AudioRecord &header, const std::span<const char>& in, std::vector<int16_t> &out, int flags = 0);
 bool PCMS16FromUnknownSoundData(const std::span<const char>& in, std::vector<int16_t> &out, int flags = 0);
 
-bool PCMS16FromSoundData(const SoundRecord &header, const std::span<const char>& in, std::vector<int16_t> &out, int flags = 0);
+bool PCMS16FromSoundData(const AudioRecord &header, const std::span<const char>& in, std::vector<int16_t> &out, int flags = 0);
 bool PCMS16FromSoundData(const std::span<const char>& in, std::vector<int16_t> &out, int flags = 0);
 
 bool PCMS16ToADPCM(const PCMS16_Header& header, const std::span<const int16_t>& in, std::vector<char> &out, int flags = 0, int blocksizePow2 = 0, int lookahead = 3);

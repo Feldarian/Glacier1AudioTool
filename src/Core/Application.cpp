@@ -14,16 +14,16 @@
 
 #include <Config/Config.hpp>
 
-#include <G1AT/Hitman1Dialog.hpp>
-#include <G1AT/Hitman23Dialog.hpp>
-#include <G1AT/Hitman4Dialog.hpp>
+#include <G1AT/Hitman1ArchiveDialog.hpp>
+#include <G1AT/Hitman23ArchiveDialog.hpp>
+#include <G1AT/Hitman4ArchiveDialog.hpp>
 #include <G1AT/Utils.hpp>
 
 namespace
 {
 
-std::shared_ptr<HitmanDialog> s_SelectedDialog;
-OrderedSet<std::shared_ptr<HitmanDialog>> s_Dialogs;
+std::shared_ptr<Glacier1ArchiveDialog> s_SelectedDialog;
+OrderedSet<std::shared_ptr<Glacier1ArchiveDialog>> s_Dialogs;
 std::vector<std::pair<StringView8CI, StringView8>> s_OpenFilters;
 
 }
@@ -93,9 +93,9 @@ void InitializeOpenFilters()
   if (!s_OpenFilters.empty())
     return;
 
-  s_OpenFilters = Hitman1Dialog::GetOpenFilter();
-  ranges::copy(Hitman23Dialog::GetOpenFilter(), std::back_inserter(s_OpenFilters));
-  ranges::copy(Hitman4Dialog::GetOpenFilter(), std::back_inserter(s_OpenFilters));
+  s_OpenFilters = Hitman1ArchiveDialog::GetOpenFilter();
+  ranges::copy(Hitman23ArchiveDialog::GetOpenFilter(), std::back_inserter(s_OpenFilters));
+  ranges::copy(Hitman4ArchiveDialog::GetOpenFilter(), std::back_inserter(s_OpenFilters));
 }
 
 namespace App {
@@ -329,24 +329,24 @@ ExitStatus App::Application::run() {
             {
               const auto* originalSelectedDialog = s_SelectedDialog.get();
 
-              for (const auto& filter : Hitman1Dialog::GetOpenFilter() | ranges::views::keys)
+              for (const auto& filter : Hitman1ArchiveDialog::GetOpenFilter() | ranges::views::keys)
               {
                 if (archivePath.path().extension() != StringViewWCI(filter.path().extension()))
                   continue;
 
-                s_SelectedDialog = *s_Dialogs.insert(std::make_shared<Hitman1Dialog>()).first;
+                s_SelectedDialog = *s_Dialogs.insert(std::make_shared<Hitman1ArchiveDialog>()).first;
                 s_SelectedDialog->Load(archivePath);
                 break;
               }
 
               if (s_SelectedDialog.get() == originalSelectedDialog)
               {
-                for (const auto& filter : Hitman23Dialog::GetOpenFilter() | ranges::views::keys)
+                for (const auto& filter : Hitman23ArchiveDialog::GetOpenFilter() | ranges::views::keys)
                 {
                   if (archivePath.path().extension() != StringViewWCI(filter.path().extension()))
                     continue;
 
-                  s_SelectedDialog = *s_Dialogs.insert(std::make_shared<Hitman23Dialog>()).first;
+                  s_SelectedDialog = *s_Dialogs.insert(std::make_shared<Hitman23ArchiveDialog>()).first;
                   s_SelectedDialog->Load(archivePath);
                   break;
                 }
@@ -354,12 +354,12 @@ ExitStatus App::Application::run() {
 
               if (s_SelectedDialog.get() == originalSelectedDialog)
               {
-                for (const auto& filter : Hitman4Dialog::GetOpenFilter() | ranges::views::keys)
+                for (const auto& filter : Hitman4ArchiveDialog::GetOpenFilter() | ranges::views::keys)
                 {
                   if (archivePath.path().extension() != StringViewWCI(filter.path().extension()))
                     continue;
 
-                  s_SelectedDialog = *s_Dialogs.insert(std::make_shared<Hitman4Dialog>()).first;
+                  s_SelectedDialog = *s_Dialogs.insert(std::make_shared<Hitman4ArchiveDialog>()).first;
                   s_SelectedDialog->Load(archivePath);
                   break;
                 }

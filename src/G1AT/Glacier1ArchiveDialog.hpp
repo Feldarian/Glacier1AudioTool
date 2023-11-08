@@ -8,16 +8,16 @@
 
 #include "ArchiveDialog.hpp"
 
-using HitmanSoundRecord = SoundRecord;
+using Glacier1AudioRecord = AudioRecord;
 
-struct HitmanFile
+struct Glacier1AudioFile
 {
-  bool Import(SoundRecord soundRecord, const std::span<const char>& soundDataView, const Options& options);
+  bool Import(AudioRecord soundRecord, const std::span<const char>& soundDataView, const Options& options);
   bool Import(const std::span<const char>& in, const Options& options);
   bool Import(const StringView8CI &importPath, const Options& options);
 
-  bool ImportNative(const SoundRecord & soundRecord, const std::span<const char>& soundDataView, const std::span<const int16_t>& pcms16DataView, const Options& options);
-  bool ImportNative(SoundRecord soundRecord, const std::span<const char>& soundDataView, bool allowConversions, const Options& options);
+  bool ImportNative(const AudioRecord & soundRecord, const std::span<const char>& soundDataView, const std::span<const int16_t>& pcms16DataView, const Options& options);
+  bool ImportNative(AudioRecord soundRecord, const std::span<const char>& soundDataView, bool allowConversions, const Options& options);
   bool ImportNative(const std::span<const char>& in, bool allowConversions, const Options& options);
   bool ImportNative(const StringView8CI &importPath, bool allowConversions, const Options& options);
 
@@ -26,12 +26,12 @@ struct HitmanFile
   bool ExportNative(std::vector<char> &outputBytes, const Options& options) const;
 
   StringView8CI path;
-  HitmanSoundRecord archiveRecord;
-  HitmanSoundRecord originalRecord;
+  Glacier1AudioRecord archiveRecord;
+  Glacier1AudioRecord originalRecord;
   std::vector<char> data;
 };
 
-class HitmanDialog : public ArchiveDialog
+class Glacier1ArchiveDialog : public ArchiveDialog
 {
 public:
   bool Clear(bool retVal = false) override;
@@ -44,17 +44,17 @@ public:
   bool LoadOriginalData(const Options &options = Options::Get());
   int32_t ReloadOriginalData(bool reset = false, const Options &options = Options::Get());
 
-  bool ImportSingleHitmanFile(HitmanFile &hitmanFile, const std::span<const char> &data, bool allowConversions, const Options &options);
-  bool ImportSingleHitmanFile(HitmanFile &hitmanFile, const StringView8CI &importFilePath, const Options &options);
+  bool ImportSingleHitmanFile(Glacier1AudioFile &glacier1AudioFile, const std::span<const char> &data, bool allowConversions, const Options &options);
+  bool ImportSingleHitmanFile(Glacier1AudioFile &glacier1AudioFile, const StringView8CI &importFilePath, const Options &options);
 
-  bool ExportSingleHitmanFile(const HitmanFile &hitmanFile, std::vector<char> &data, bool doConversion, const Options &options) const;
-  bool ExportSingleHitmanFile(const HitmanFile &hitmanFile, const StringView8CI &exportFolderPath, const Options &options) const;
+  bool ExportSingleHitmanFile(const Glacier1AudioFile &glacier1AudioFile, std::vector<char> &data, bool doConversion, const Options &options) const;
+  bool ExportSingleHitmanFile(const Glacier1AudioFile &glacier1AudioFile, const StringView8CI &exportFolderPath, const Options &options) const;
 
   bool ExportSingle(const StringView8CI &exportFolderPath, const StringView8CI &exportFilePath, const Options &options) const override;
 
-  int32_t DrawHitmanDialog();
+  int32_t DrawGlacier1ArchiveDialog();
 
-  OrderedMap<StringView8CI, HitmanFile> fileMap;
+  OrderedMap<StringView8CI, Glacier1AudioFile> fileMap;
   String8CI originalDataPathPrefix;
   uint64_t originalDataID = 0;
   uint64_t originalDataParentID = 0;

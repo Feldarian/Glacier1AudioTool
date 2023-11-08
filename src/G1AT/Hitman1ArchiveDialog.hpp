@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "HitmanDialog.hpp"
+#include "Glacier1ArchiveDialog.hpp"
 
-class Hitman1Dialog final : public HitmanDialog
+class Hitman1ArchiveDialog final : public Glacier1ArchiveDialog
 {
 public:
   bool Clear(bool retVal = false) override;

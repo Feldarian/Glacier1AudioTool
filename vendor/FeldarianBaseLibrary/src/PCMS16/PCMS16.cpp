@@ -668,7 +668,7 @@ std::vector<int16_t> PCMS16ChangeChannelCount(PCMS16_Header &header, const std::
 
 }
 
-PCMS16_Header PCMS16Header(const SoundRecord &record)
+PCMS16_Header PCMS16Header(const AudioRecord &record)
 {
   if (record.formatTag == 0x01 && record.bitsPerSample == 16)
   {
@@ -742,7 +742,7 @@ PCMS16_Header PCMS16Header(const std::span<const int16_t> &in)
   return header;
 }
 
-SoundRecord PCMS16SoundRecord(const PCMS16_Header &header, const uint64_t xxh3Hash)
+AudioRecord PCMS16SoundRecord(const PCMS16_Header &header, const uint64_t xxh3Hash)
 {
   return {
     xxh3Hash,
@@ -757,7 +757,7 @@ SoundRecord PCMS16SoundRecord(const PCMS16_Header &header, const uint64_t xxh3Ha
   };
 }
 
-SoundRecord PCMS16SoundRecord(const PCMS16_Header &header, const std::span<const int16_t> &in)
+AudioRecord PCMS16SoundRecord(const PCMS16_Header &header, const std::span<const int16_t> &in)
 {
   if (!header.dataSize || in.size() < header.dataSize)
     return {};
@@ -766,7 +766,7 @@ SoundRecord PCMS16SoundRecord(const PCMS16_Header &header, const std::span<const
   return PCMS16SoundRecord(header, dataXXH3Hash);
 }
 
-SoundRecord PCMS16SoundRecord(const std::span<const int16_t> &in)
+AudioRecord PCMS16SoundRecord(const std::span<const int16_t> &in)
 {
   const auto header = PCMS16Header(in);
   return PCMS16SoundRecord(header, PCMS16DataView(header, in));
@@ -785,7 +785,7 @@ std::span<const int16_t> PCMS16DataView(const std::span<const int16_t> &in)
   return PCMS16DataView(PCMS16Header(in), in);
 }
 
-ADPCM_Header ADPCMHeader(const SoundRecord &in, int blocksizePow2)
+ADPCM_Header ADPCMHeader(const AudioRecord &in, int blocksizePow2)
 {
   const auto samplesCount = static_cast<uint32_t>(in.dataSizeUncompressed / (in.channels * sizeof(int16_t)));
 
@@ -883,7 +883,7 @@ ADPCM_Header ADPCMHeader(const std::span<const char> &in)
   return header;
 }
 
-SoundRecord ADPCMSoundRecord(const ADPCM_Header &header, const uint64_t xxh3Hash)
+AudioRecord ADPCMSoundRecord(const ADPCM_Header &header, const uint64_t xxh3Hash)
 {
   return {
     xxh3Hash,
@@ -898,7 +898,7 @@ SoundRecord ADPCMSoundRecord(const ADPCM_Header &header, const uint64_t xxh3Hash
   };
 }
 
-SoundRecord ADPCMSoundRecord(const ADPCM_Header &header, const std::span<const char> &in, bool pcms16XXH3Hash)
+AudioRecord ADPCMSoundRecord(const ADPCM_Header &header, const std::span<const char> &in, bool pcms16XXH3Hash)
 {
   if (!header.dataSize || in.size() < header.dataSize)
     return {};
@@ -917,7 +917,7 @@ SoundRecord ADPCMSoundRecord(const ADPCM_Header &header, const std::span<const c
   return ADPCMSoundRecord(header, dataXXH3Hash);
 }
 
-SoundRecord ADPCMSoundRecord(const std::span<const char> &in)
+AudioRecord ADPCMSoundRecord(const std::span<const char> &in)
 {
   const auto header = ADPCMHeader(in);
   return ADPCMSoundRecord(header, ADPCMDataView(header, in));
@@ -936,7 +936,7 @@ std::span<const char> ADPCMDataView(const std::span<const char> &in)
   return ADPCMDataView(ADPCMHeader(in), in);
 }
 
-SoundRecord VorbisHeader(const std::span<const char> &in)
+AudioRecord VorbisHeader(const std::span<const char> &in)
 {
   if (in.size() < sizeof(uint32_t))
     return {};
@@ -984,7 +984,7 @@ SoundRecord VorbisHeader(const std::span<const char> &in)
   };
 }
 
-SoundRecord VorbisSoundRecord(const SoundRecord &header, const uint64_t xxh3Hash)
+AudioRecord VorbisSoundRecord(const AudioRecord &header, const uint64_t xxh3Hash)
 {
   return {
     xxh3Hash,
@@ -999,7 +999,7 @@ SoundRecord VorbisSoundRecord(const SoundRecord &header, const uint64_t xxh3Hash
   };
 }
 
-SoundRecord VorbisSoundRecord(const SoundRecord &header, const std::span<const char> &in, bool pcms16XXH3Hash)
+AudioRecord VorbisSoundRecord(const AudioRecord &header, const std::span<const char> &in, bool pcms16XXH3Hash)
 {
   if (!header.dataSize || in.size() < header.dataSize)
     return {};
@@ -1018,13 +1018,13 @@ SoundRecord VorbisSoundRecord(const SoundRecord &header, const std::span<const c
   return VorbisSoundRecord(header, dataXXH3Hash);
 }
 
-SoundRecord VorbisSoundRecord(const std::span<const char> &in)
+AudioRecord VorbisSoundRecord(const std::span<const char> &in)
 {
   const auto header = VorbisHeader(in);
   return VorbisSoundRecord(header, VorbisDataView(header, in));
 }
 
-std::span<const char> VorbisDataView(const SoundRecord &header, const std::span<const char> &in)
+std::span<const char> VorbisDataView(const AudioRecord &header, const std::span<const char> &in)
 {
   if (!header.dataSize || in.size() < header.dataSize)
     return {};
@@ -1037,7 +1037,7 @@ std::span<const char> VorbisDataView(const std::span<const char> &in)
   return VorbisDataView(VorbisHeader(in), in);
 }
 
-SoundRecord UnknownSoundDataHeader(const std::span<const char> &in)
+AudioRecord UnknownSoundDataHeader(const std::span<const char> &in)
 {
   SF_VIRTUAL_DATA_FIXED virtSndData{const_cast<char*>(in.data()), static_cast<sf_count_t>(in.size())};
   SndfileHandle sndFile(g_VirtSndFileIOFixed, &virtSndData);
@@ -1072,7 +1072,7 @@ SoundRecord UnknownSoundDataHeader(const std::span<const char> &in)
   };
 }
 
-SoundRecord UnknownSoundDataSoundRecord(const SoundRecord &header, const uint64_t xxh3Hash)
+AudioRecord UnknownSoundDataSoundRecord(const AudioRecord &header, const uint64_t xxh3Hash)
 {
   return {
     xxh3Hash,
@@ -1087,7 +1087,7 @@ SoundRecord UnknownSoundDataSoundRecord(const SoundRecord &header, const uint64_
   };
 }
 
-SoundRecord UnknownSoundDataSoundRecord(const SoundRecord &header, const std::span<const char> &in, bool pcms16XXH3Hash)
+AudioRecord UnknownSoundDataSoundRecord(const AudioRecord &header, const std::span<const char> &in, bool pcms16XXH3Hash)
 {
   if (!header.dataSize || in.size() < header.dataSize)
     return {};
@@ -1106,13 +1106,13 @@ SoundRecord UnknownSoundDataSoundRecord(const SoundRecord &header, const std::sp
   return UnknownSoundDataSoundRecord(header, dataXXH3Hash);
 }
 
-SoundRecord UnknownSoundDataSoundRecord(const std::span<const char> &in)
+AudioRecord UnknownSoundDataSoundRecord(const std::span<const char> &in)
 {
   const auto header = UnknownSoundDataHeader(in);
   return UnknownSoundDataSoundRecord(header, UnknownSoundDataDataView(header, in));
 }
 
-std::span<const char> UnknownSoundDataDataView(const SoundRecord &header, const std::span<const char> &in)
+std::span<const char> UnknownSoundDataDataView(const AudioRecord &header, const std::span<const char> &in)
 {
   if (!header.dataSize || in.size() < header.dataSize)
     return {};
@@ -1125,7 +1125,7 @@ std::span<const char> UnknownSoundDataDataView(const std::span<const char> &in)
   return UnknownSoundDataDataView(UnknownSoundDataHeader(in), in);
 }
 
-SoundRecord SoundDataHeader(const std::span<const char> &in)
+AudioRecord SoundDataHeader(const std::span<const char> &in)
 {
   const auto pcms16Header = PCMS16Header(ToSpan<const int16_t>(in));
   if (pcms16Header.dataSize)
@@ -1142,7 +1142,7 @@ SoundRecord SoundDataHeader(const std::span<const char> &in)
   return UnknownSoundDataHeader(in);
 }
 
-SoundRecord SoundDataSoundRecord(const SoundRecord &header, const uint64_t xxh3Hash)
+AudioRecord SoundDataSoundRecord(const AudioRecord &header, const uint64_t xxh3Hash)
 {
   return {
     xxh3Hash,
@@ -1157,7 +1157,7 @@ SoundRecord SoundDataSoundRecord(const SoundRecord &header, const uint64_t xxh3H
   };
 }
 
-SoundRecord SoundDataSoundRecord(const SoundRecord &header, const std::span<const char> &in, bool pcms16XXH3Hash)
+AudioRecord SoundDataSoundRecord(const AudioRecord &header, const std::span<const char> &in, bool pcms16XXH3Hash)
 {
   if (!header.dataSize || in.size() < header.dataSize)
     return {};
@@ -1176,13 +1176,13 @@ SoundRecord SoundDataSoundRecord(const SoundRecord &header, const std::span<cons
   return SoundDataSoundRecord(header, dataXXH3Hash);
 }
 
-SoundRecord SoundDataSoundRecord(const std::span<const char> &in)
+AudioRecord SoundDataSoundRecord(const std::span<const char> &in)
 {
   const auto header = SoundDataHeader(in);
   return SoundDataSoundRecord(header, SoundDataDataView(header, in));
 }
 
-std::span<const char> SoundDataDataView(const SoundRecord &header, const std::span<const char> &in)
+std::span<const char> SoundDataDataView(const AudioRecord &header, const std::span<const char> &in)
 {
   if (!header.dataSize || in.size() < header.dataSize)
     return {};
@@ -1282,7 +1282,7 @@ bool PCMS16FromADPCM(const std::span<const char>& in, std::vector<int16_t> &out,
   return PCMS16FromADPCM(header, ADPCMDataView(in), out, flags);
 }
 
-bool PCMS16FromVorbis(const SoundRecord &header, const std::span<const char> &in, std::vector<int16_t> &out, int flags)
+bool PCMS16FromVorbis(const AudioRecord &header, const std::span<const char> &in, std::vector<int16_t> &out, int flags)
 {
   if (!header.dataSize || in.size() < header.dataSize)
     return false;
@@ -1337,7 +1337,7 @@ bool PCMS16FromVorbis(const std::span<const char> &in, std::vector<int16_t> &out
   return PCMS16FromVorbis(header, VorbisDataView(in), out, flags);
 }
 
-bool PCMS16FromUnknownSoundData(const SoundRecord &header, const std::span<const char> &in, std::vector<int16_t> &out, int flags)
+bool PCMS16FromUnknownSoundData(const AudioRecord &header, const std::span<const char> &in, std::vector<int16_t> &out, int flags)
 {
   if (!header.dataSize || in.size() < header.dataSize)
     return false;
@@ -1392,7 +1392,7 @@ bool PCMS16FromUnknownSoundData(const std::span<const char> &in, std::vector<int
   return PCMS16FromUnknownSoundData(header, UnknownSoundDataDataView(in), out, flags);
 }
 
-bool PCMS16FromSoundData(const SoundRecord &header, const std::span<const char> &in, std::vector<int16_t> &out, int flags)
+bool PCMS16FromSoundData(const AudioRecord &header, const std::span<const char> &in, std::vector<int16_t> &out, int flags)
 {
   if (!header.dataSize || in.size() < header.dataSize)
     return false;
