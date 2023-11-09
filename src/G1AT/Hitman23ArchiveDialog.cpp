@@ -17,7 +17,7 @@ Glacier1AudioRecord Hitman23WHDRecord::ToHitmanSoundRecord() const
     dataSizeUncompressed,
     dataSize,
     sampleRate,
-    formatTag,
+    static_cast<AudioRecordFormat>(formatTag),
     static_cast<uint16_t>(bitsPerSample),
     static_cast<uint16_t>(channels),
     static_cast<uint16_t>(blockAlign),
@@ -27,7 +27,7 @@ Glacier1AudioRecord Hitman23WHDRecord::ToHitmanSoundRecord() const
 
 void Hitman23WHDRecord::FromHitmanSoundRecord(const Glacier1AudioRecord &soundRecord)
 {
-  formatTag = soundRecord.formatTag;
+  formatTag = static_cast<uint16_t>(soundRecord.format);
   sampleRate = soundRecord.sampleRate;
   bitsPerSample = soundRecord.bitsPerSample;
   dataSizeUncompressed = soundRecord.dataSizeUncompressed;

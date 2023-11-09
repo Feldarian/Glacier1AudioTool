@@ -26,13 +26,13 @@ struct Hitman23WHDRecord
   uint16_t dataInStreams = 0; // either 0 or 32768
   uint32_t sampleRate = 0;
   uint32_t bitsPerSample = 0;
-  uint32_t dataSizeUncompressed = 0; // uncompressed data size, equal dataSize when formatTag == 1
+  uint32_t dataSizeUncompressed = 0; // uncompressed data size, equal dataSize when format == 1
   uint32_t dataSize = 0;
   uint32_t channels = 0;
   uint32_t dataOffset = 0;
   uint32_t samplesCount = 0; // always half of dataSizeUncompressed
   uint32_t blockAlign = 0;
-  uint32_t samplesPerBlock = 0;  // always 1 when formatTag == 1
+  uint32_t samplesPerBlock = 0;  // always 1 when format == 1
 
   Glacier1AudioRecord ToHitmanSoundRecord() const;
   void FromHitmanSoundRecord(const Glacier1AudioRecord& soundRecord);

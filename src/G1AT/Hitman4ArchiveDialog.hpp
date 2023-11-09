@@ -8,115 +8,13 @@
 
 #include "Glacier1ArchiveDialog.hpp"
 
-struct STR_Header
-{
-  char id[0x0C] = {'I', 'O', 'I', 'S', 'N', 'D', 'S', 'T', 'R', 'E', 'A', 'M'}; // always "IOISNDSTREAM"
-  uint32_t version = 9; // always 0x09
-  uint32_t offsetToEntryTable = 0; // points at the STR_Footer, right after string table ends
-  uint32_t entriesCount = 0; // same as number of STR_Data entries in STR_Footer
-  uint32_t dataBeginOffset = 0x100; // offset to beginning of data (or whole header size... not really known...)
-  uint32_t unk1C = 0; // was 0x0 in tested samples
-  uint32_t unk20 = 1; // was 0x1 in all tested samples
-  uint32_t languageId = 1; // 0 for PC_Def.str, 1 for PC_Eng.str, 2 for PC_Ger.str, etc.
-  uint32_t unk28[(0x100 - 0x28) / sizeof(uint32_t)] = {}; // seems to be just bunch of zeroes
-};
+#include <G1AL/POD/Streams/STR.hpp>
 
-enum class STR_EntryHeaderFormat
-{
-  PCM_S16 = 0x02,
-  IMA_ADPCM = 0x03,
-  OGG_VORBIS = 0x04,
-  DISTANCE_BASED_MASTER = 0x11
-};
+Glacier1AudioRecord STR_DataHeader_ToGlacier1AudioRecord_v1(const STR_DataHeader_v1& entryHeader);
+STR_DataHeader_v1 STR_DataHeader_FromGlacier1AudioRecord_v1(const Glacier1AudioRecord& soundRecord);
 
-// beware that this is really 3 different headers, as there is no padding... didn't know how to name things so left it like this for now..
-struct STR_EntryHeader
-{
-  // PCM_S16, IMA_ADPCM, OGG_VORBIS and DISTANCE_BASED_MASTER have following bytes
-  uint32_t headerFormat; // always one of enum STR_EntryHeaderFormat options, specifies how data should be read
-  uint32_t samplesCount; // samples count
-  uint32_t channels; // number of channels
-  uint32_t sampleRate; // sample rate
-  uint32_t bitsPerSample; // bits per sample
-
-  // all PCM_S16, IMA_ADPCM and DISTANCE_BASED_MASTER have following bytes on top
-  uint32_t blockAlign; // block alignment
-
-  // all IMA_ADPCM have following bytes on top
-  uint32_t samplesPerBlock; // samples per block
-
-  Glacier1AudioRecord ToGlacier1AudioRecord() const;
-  void FromGlacier1AudioRecord(const Glacier1AudioRecord& soundRecord);
-};
-
-struct STR_Entry
-{
-  uint64_t id; // probably some ID, is less than total entries count, does not match its index
-  uint64_t dataOffset; // offset to beginning of data, beware of the distance-based records which alias the same index!
-  uint64_t dataSize; // data size
-  uint64_t headerOffset; // offset to table containing header
-  uint32_t sizeOfHeader; // size of STR_EntryHeader (unused fields from the structure are left out)
-  uint32_t unk24; // unknown number
-  uint64_t fileNameLength; // length of filename in string table
-  uint64_t fileNameOffset; // offset to filename in string table
-  uint32_t hasLIP; // 0x04 when LIP data is present for current entry, 0x00 otherwise
-  uint32_t unk3C; // unknown number
-  uint64_t distanceBasedRecordOrder;  // if 0, entry is not distance-based, otherwise denotes data order of individual records in data block (or is simply non-zero for master record)
-};
-
-struct STR_Header_v2
-{
-  char id[0x0C] = {'I', 'O', 'I', 'S', 'N', 'D', 'S', 'T', 'R', 'E', 'A', 'M'}; // always "IOISNDSTREAM"
-  uint32_t version = 9; // always 0x09
-  uint32_t unk10[2];
-  uint32_t offsetToEntryTable = 0; // points at the STR_Footer, right after string table ends
-  uint32_t entriesCount = 0; // same as number of STR_Data entries in STR_Footer
-  uint32_t dataBeginOffset = 0x100; // offset to beginning of data (or whole header size... not really known...)
-  uint32_t unk24 = 0; // was 0x0 in tested samples
-  uint32_t unk28 = 1; // was 0x1 in all tested samples
-  uint32_t languageId = 0; // 0 for PC_Def.str, 1 for PC_Eng.str, 2 for PC_Ger.str, etc.
-  uint32_t unk30[(0x100 - 0x30) / sizeof(uint32_t)] = {}; // seems to be just bunch of zeroes
-};
-
-enum class STR_EntryHeaderFormat_v2
-{
-  PCM_S16 = 0x02,
-  IMA_ADPCM = 0x03,
-  OGG_VORBIS = 0x04,
-  UNKNOWN_MASTER = 0x1A
-};
-
-// beware that this is really 2 different headers, as there is no padding... didn't know how to name things so left it like this for now..
-struct STR_EntryHeader_v2
-{
-  // PCM_S16, IMA_ADPCM, OGG_VORBIS and UNKNOWN_MASTER have following bytes
-  uint32_t headerFormat; // always one of enum STR_EntryHeaderFormat_v2 options, specifies how data should be read
-  uint32_t samplesCount; // samples count
-  uint32_t channels; // number of channels
-  uint32_t sampleRate; // sample rate
-  uint32_t bitsPerSample; // bits per sample
-  uint32_t unk14 = 0;
-  uint32_t unk18 = 0;
-  uint32_t blockAlign; // block alignment
-
-  // all IMA_ADPCM have following bytes on top
-  uint32_t samplesPerBlock; // samples per block
-};
-
-struct STR_Entry_v2
-{
-  uint64_t id; // probably some ID, is less than total entries count, does not match its index
-  uint64_t dataOffset; // offset to beginning of data, beware of the distance-based records which alias the same index!
-  uint64_t dataSize; // data size
-  uint64_t headerOffset; // offset to table containing header
-  uint32_t sizeOfHeader; // size of STR_EntryHeader (unused fields from the structure are left out)
-  uint32_t unk24; // unknown number
-  uint64_t fileNameLength; // length of filename in string table
-  uint64_t fileNameOffset; // offset to filename in string table
-  uint32_t hasLIP; // 0x04 when LIP data is present for current entry, 0x00 otherwise
-  uint32_t unk3C; // unknown number
-  uint64_t unk40;  // OLD INFO: if 0, entry is not distance-based, otherwise denotes data order of individual records in data block (or is simply non-zero for master record)
-};
+Glacier1AudioRecord STR_DataHeader_ToGlacier1AudioRecord_v2(const STR_DataHeader_v2& entryHeader);
+STR_DataHeader_v2 STR_DataHeader_FromGlacier1AudioRecord_v2(const Glacier1AudioRecord& soundRecord);
 
 class Hitman4ArchiveDialog;
 
@@ -138,7 +36,7 @@ struct Hitman4WHDRecordScene
 {
   uint32_t filePathLength;
   uint32_t filePathOffset;
-  uint16_t formatTag; // always 0x11 IMA ADPCM
+  uint16_t format; // always 0x11 IMA ADPCM
   uint16_t dataInStreams; // always 0
   uint32_t sampleRate;
   uint32_t bitsPerSample; // always 4
@@ -261,12 +159,12 @@ struct Hitman4STRFile
   OrderedMap<uint64_t, Hitman4WAVRecord> recordMap;
   std::list<std::vector<char>> extraData;
 
-  STR_Header                    header;
-  std::vector<std::vector<char>>      wavDataTable;
-  std::vector<std::vector<char>>      lipDataTable;
-  std::vector<STR_EntryHeader> wavHeaderTable;
-  std::vector<String8CI>              stringTable;
-  std::vector<STR_Entry>       recordTable;
+  STR_Header_v1                  header;
+  std::vector<std::vector<char>> wavDataTable;
+  std::vector<std::vector<char>> lipDataTable;
+  std::vector<STR_DataHeader_v1> wavHeaderTable;
+  std::vector<String8CI>         stringTable;
+  std::vector<STR_Entry_v1>      recordTable;
 
   OrderedMap<StringView8CI, size_t> fileNameToIndex;
 

@@ -50,7 +50,7 @@ bool Glacier1AudioFile::Import(AudioRecord soundRecord, const std::span<const ch
     fixedData |= result > 0;
   }
 
-  if (!options.common.transcodeToOriginalFormat || originalRecord.formatTag == 0x01)
+  if (!options.common.transcodeToOriginalFormat || originalRecord.format == AudioRecordFormat::PCM_S16)
   {
     archiveRecord = PCMS16SoundRecord(fixedHeader, pcms16Decoded);
     archiveRecord.samplesPerBlock = 1;
@@ -61,11 +61,11 @@ bool Glacier1AudioFile::Import(AudioRecord soundRecord, const std::span<const ch
     return true;
   }
 
-  if (fixedData || soundRecord.formatTag != originalRecord.formatTag)
+  if (fixedData || soundRecord.format != originalRecord.format)
   {
-    switch (originalRecord.formatTag)
+    switch (originalRecord.format)
     {
-      case 0x11: {
+      case AudioRecordFormat::IMA_ADPCM: {
         std::vector<char> adpcmData(archiveRecord.dataSize);
         if (!PCMS16ToADPCM(fixedHeader, pcms16Decoded, adpcmData, PCMS16_CONVERSION_FLAG_RAW_OUTPUT))
           return false;
@@ -77,7 +77,7 @@ bool Glacier1AudioFile::Import(AudioRecord soundRecord, const std::span<const ch
 
         return true;
       }
-      case 0x1000: {
+      case AudioRecordFormat::OGG_VORBIS: {
         std::vector<char> vorbisData;
         if (!PCMS16ToVorbis(fixedHeader, pcms16Decoded, vorbisData))
           return false;
@@ -126,14 +126,14 @@ bool Glacier1AudioFile::ImportNative(const AudioRecord &soundRecord, const std::
   if (!options.common.importSameFiles && (archiveRecord.dataXXH3 == soundRecord.dataXXH3))
     return true;
 
-  switch (soundRecord.formatTag)
+  switch (soundRecord.format)
   {
-    case 0x01:
-    case 0x11:
-    case 0x1000: {
+    case AudioRecordFormat::PCM_S16:
+    case AudioRecordFormat::IMA_ADPCM:
+    case AudioRecordFormat::OGG_VORBIS: {
       archiveRecord = soundRecord;
 
-      if (archiveRecord.formatTag != 0x11)
+      if (archiveRecord.format != AudioRecordFormat::IMA_ADPCM)
         archiveRecord.samplesPerBlock = 1;
 
       data.resize(archiveRecord.dataSize);
@@ -141,7 +141,7 @@ bool Glacier1AudioFile::ImportNative(const AudioRecord &soundRecord, const std::
 
       return true;
     }
-    case 0x8000: {
+    case AudioRecordFormat::UNKNOWN_SUPPORTED: {
       if (pcms16DataView.empty())
         return false;
 
@@ -165,7 +165,7 @@ bool Glacier1AudioFile::ImportNative(AudioRecord soundRecord, const std::span<co
   if (!soundRecord.dataSize || soundDataView.size() < soundRecord.dataSize)
     return false;
 
-  if (soundRecord.formatTag == 0x01)
+  if (soundRecord.format == AudioRecordFormat::PCM_S16)
   {
     soundRecord.dataXXH3 = XXH3_64bits(soundDataView.data(), soundRecord.dataSize);
     return ImportNative(soundRecord, soundDataView, std::span<const int16_t>{}, options);
@@ -202,19 +202,19 @@ bool Glacier1AudioFile::ExportNative(std::vector<char> &outputBytes, const Optio
 {
   const auto outIndexInput = outputBytes.size();
 
-  if (archiveRecord.formatTag == 0x01)
+  if (archiveRecord.format == AudioRecordFormat::PCM_S16)
   {
     const auto header = PCMS16Header(archiveRecord);
     outputBytes.resize(outIndexInput + sizeof(PCMS16_Header));
     std::memcpy(outputBytes.data() + outIndexInput, &header, sizeof(PCMS16_Header));
   }
-  else if (archiveRecord.formatTag == 0x11)
+  else if (archiveRecord.format == AudioRecordFormat::IMA_ADPCM)
   {
     const auto header = ADPCMHeader(archiveRecord);
     outputBytes.resize(outIndexInput + sizeof(ADPCM_Header));
     std::memcpy(outputBytes.data() + outIndexInput, &header, sizeof(ADPCM_Header));
   }
-  else if (archiveRecord.formatTag == 0x1000)
+  else if (archiveRecord.format == AudioRecordFormat::OGG_VORBIS)
   {
     // NOTE: nothing to do, OGG files are completely contained in data
   }
@@ -244,9 +244,9 @@ bool Glacier1AudioFile::Export(std::vector<char> &outputBytes, const Options& op
     return false;
   }
 
-  assert(archiveRecord.sampleRate >= 8000);
+  assert(archiveRecord.sampleRate >= 4000);
   assert(archiveRecord.sampleRate <= 48000);
-  if (archiveRecord.sampleRate < 8000 || archiveRecord.sampleRate > 48000)
+  if (archiveRecord.sampleRate < 4000 || archiveRecord.sampleRate > 48000)
   {
     assert(false);
     return false;
@@ -268,10 +268,10 @@ bool Glacier1AudioFile::Export(std::vector<char> &outputBytes, const Options& op
   const auto normalSampleRate = *normalSampleRateIt;
   if (archiveRecord.sampleRate == normalSampleRate&& archiveRecord.blockAlign == archiveRecord.channels * (archiveRecord.bitsPerSample / 8))
   {
-    if (archiveRecord.formatTag == 0x01)
+    if (archiveRecord.format == AudioRecordFormat::PCM_S16)
       return ExportNative(outputBytes, options);
 
-    if (!options.common.transcodeOGGToPCM && archiveRecord.formatTag == 0x1000)
+    if (!options.common.transcodeOGGToPCM && archiveRecord.format == AudioRecordFormat::OGG_VORBIS)
       return ExportNative(outputBytes, options);
   }
 

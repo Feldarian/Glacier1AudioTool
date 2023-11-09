@@ -670,7 +670,7 @@ std::vector<int16_t> PCMS16ChangeChannelCount(PCMS16_Header &header, const std::
 
 PCMS16_Header PCMS16Header(const AudioRecord &record)
 {
-  if (record.formatTag == 0x01 && record.bitsPerSample == 16)
+  if (record.format == AudioRecordFormat::PCM_S16 && record.bitsPerSample == 16)
   {
     PCMS16_Header header;
 
@@ -749,7 +749,7 @@ AudioRecord PCMS16SoundRecord(const PCMS16_Header &header, const uint64_t xxh3Ha
     header.dataSize,
     header.dataSize,
     header.fmtSampleRate,
-    header.fmtFormat,
+    static_cast<AudioRecordFormat>(header.fmtFormat),
     header.fmtBitsPerSample,
     header.fmtChannels,
     header.fmtBlockAlign,
@@ -789,7 +789,7 @@ ADPCM_Header ADPCMHeader(const AudioRecord &in, int blocksizePow2)
 {
   const auto samplesCount = static_cast<uint32_t>(in.dataSizeUncompressed / (in.channels * sizeof(int16_t)));
 
-  if (in.formatTag == 0x11 && in.bitsPerSample == 4)
+  if (in.format == AudioRecordFormat::IMA_ADPCM && in.bitsPerSample == 4)
   {
     ADPCM_Header header;
 
@@ -890,7 +890,7 @@ AudioRecord ADPCMSoundRecord(const ADPCM_Header &header, const uint64_t xxh3Hash
     static_cast<uint32_t>(header.factSamplesCount * header.fmtChannels * sizeof(int16_t)),
     header.dataSize,
     header.fmtSampleRate,
-    header.fmtFormat,
+    static_cast<AudioRecordFormat>(header.fmtFormat),
     header.fmtBitsPerSample,
     header.fmtChannels,
     header.fmtBlockAlign,
@@ -976,7 +976,7 @@ AudioRecord VorbisHeader(const std::span<const char> &in)
     static_cast<uint32_t>(frames * channels * sizeof(int16_t)),
     static_cast<uint32_t>(in.size()),
     sampleRate,
-    0x1000,
+    AudioRecordFormat::OGG_VORBIS,
     16,
     channels,
     static_cast<uint16_t>(channels * sizeof(int16_t)),
@@ -991,7 +991,7 @@ AudioRecord VorbisSoundRecord(const AudioRecord &header, const uint64_t xxh3Hash
     header.dataSizeUncompressed,
     header.dataSize,
     header.sampleRate,
-    header.formatTag,
+    header.format,
     header.bitsPerSample,
     header.channels,
     header.blockAlign,
@@ -1064,7 +1064,7 @@ AudioRecord UnknownSoundDataHeader(const std::span<const char> &in)
     static_cast<uint32_t>(frames * channels * sizeof(int16_t)),
     static_cast<uint32_t>(in.size()),
     sampleRate,
-    0x8000,
+    AudioRecordFormat::UNKNOWN_SUPPORTED,
     16,
     channels,
     static_cast<uint16_t>(channels * sizeof(int16_t)),
@@ -1079,7 +1079,7 @@ AudioRecord UnknownSoundDataSoundRecord(const AudioRecord &header, const uint64_
     header.dataSizeUncompressed,
     header.dataSize,
     header.sampleRate,
-    header.formatTag,
+    header.format,
     header.bitsPerSample,
     header.channels,
     header.blockAlign,
@@ -1149,7 +1149,7 @@ AudioRecord SoundDataSoundRecord(const AudioRecord &header, const uint64_t xxh3H
     header.dataSizeUncompressed,
     header.dataSize,
     header.sampleRate,
-    header.formatTag,
+    header.format,
     header.bitsPerSample,
     header.channels,
     header.blockAlign,
@@ -1162,7 +1162,7 @@ AudioRecord SoundDataSoundRecord(const AudioRecord &header, const std::span<cons
   if (!header.dataSize || in.size() < header.dataSize)
     return {};
 
-  if (!pcms16XXH3Hash || header.formatTag == 0x01)
+  if (!pcms16XXH3Hash || header.format == AudioRecordFormat::PCM_S16)
   {
     const auto dataXXH3Hash = XXH3_64bits(in.data(), header.dataSize);
     return SoundDataSoundRecord(header, dataXXH3Hash);
@@ -1187,18 +1187,18 @@ std::span<const char> SoundDataDataView(const AudioRecord &header, const std::sp
   if (!header.dataSize || in.size() < header.dataSize)
     return {};
 
-  switch (header.formatTag)
+  switch (header.format)
   {
-    case 0x01: {
+    case AudioRecordFormat::PCM_S16: {
       return ToSpan<const char>(PCMS16DataView(PCMS16Header(header), ToSpan<const int16_t>(in)));
     }
-    case 0x11: {
+    case AudioRecordFormat::IMA_ADPCM: {
       return ADPCMDataView(ADPCMHeader(header), in);
     }
-    case 0x1000: {
+    case AudioRecordFormat::OGG_VORBIS: {
       return VorbisDataView(header, in);
     }
-    case 0x8000: {
+    case AudioRecordFormat::UNKNOWN_SUPPORTED: {
       return UnknownSoundDataDataView(header, in);
     }
     default: {
@@ -1397,9 +1397,9 @@ bool PCMS16FromSoundData(const AudioRecord &header, const std::span<const char> 
   if (!header.dataSize || in.size() < header.dataSize)
     return false;
 
-  switch (header.formatTag)
+  switch (header.format)
   {
-    case 0x01: {
+    case AudioRecordFormat::PCM_S16: {
       if (!(flags & PCMS16_CONVERSION_FLAG_RAW_OUTPUT))
       {
         const auto pcms16Header = PCMS16Header(header);
@@ -1415,13 +1415,13 @@ bool PCMS16FromSoundData(const AudioRecord &header, const std::span<const char> 
 
       return true;
     }
-    case 0x11: {
+    case AudioRecordFormat::IMA_ADPCM: {
       return PCMS16FromADPCM(ADPCMHeader(header), in, out, flags);
     }
-    case 0x1000: {
+    case AudioRecordFormat::OGG_VORBIS: {
       return PCMS16FromVorbis(header, in, out, flags);
     }
-    case 0x8000: {
+    case AudioRecordFormat::UNKNOWN_SUPPORTED: {
       return PCMS16FromUnknownSoundData(header, in, out, flags);
     }
     default: {

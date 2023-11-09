@@ -52,13 +52,22 @@ struct ADPCM_Header
   uint32_t dataSize = 0;
 };
 
+enum class AudioRecordFormat : uint16_t
+{
+  INVALID = 0x00,
+  PCM_S16 = 0x01,
+  IMA_ADPCM = 0x11,
+  OGG_VORBIS = 0x1000,
+  UNKNOWN_SUPPORTED = 0x8000
+};
+
 struct AudioRecord
 {
   uint64_t dataXXH3 = 0;
   uint32_t dataSizeUncompressed = 0;
   uint32_t dataSize = 0;
   uint32_t sampleRate = 0;
-  uint16_t formatTag = 0;
+  AudioRecordFormat format = AudioRecordFormat::INVALID;
   uint16_t bitsPerSample = 0;
   uint16_t channels = 0;
   uint16_t blockAlign = 0;
