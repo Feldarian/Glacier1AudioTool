@@ -8,16 +8,16 @@
 
 #include "ArchiveDialog.hpp"
 
-using Glacier1AudioRecord = AudioRecord;
+using Glacier1AudioRecord = AudioDataInfo;
 
 struct Glacier1AudioFile
 {
-  bool Import(AudioRecord soundRecord, const std::span<const char>& soundDataView, const Options& options);
+  bool Import(AudioDataInfo soundRecord, const std::span<const char>& soundDataView, const Options& options);
   bool Import(const std::span<const char>& in, const Options& options);
   bool Import(const StringView8CI &importPath, const Options& options);
 
-  bool ImportNative(const AudioRecord & soundRecord, const std::span<const char>& soundDataView, const std::span<const int16_t>& pcms16DataView, const Options& options);
-  bool ImportNative(AudioRecord soundRecord, const std::span<const char>& soundDataView, bool allowConversions, const Options& options);
+  bool ImportNative(const AudioDataInfo & soundRecord, const std::span<const char>& soundDataView, const std::span<const int16_t>& pcms16DataView, const Options& options);
+  bool ImportNative(AudioDataInfo soundRecord, const std::span<const char>& soundDataView, bool allowConversions, const Options& options);
   bool ImportNative(const std::span<const char>& in, bool allowConversions, const Options& options);
   bool ImportNative(const StringView8CI &importPath, bool allowConversions, const Options& options);
 

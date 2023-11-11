@@ -15,106 +15,6 @@
 
 #include "Utils.hpp"
 
-Glacier1AudioRecord Hitman4WHDRecordScene::ToHitmanSoundRecord() const
-{
-  assert(filePathLength > 0 && filePathLength < 0x004F4850);
-
-  const auto resBitsPerSample = static_cast<uint16_t>(format == 4096 || bitsPerSample == 0 ? 16 : bitsPerSample);
-  const auto resChannels = static_cast<uint16_t>(channels);
-  const auto resBlockAlign = static_cast<uint16_t>(format == 4096 || blockAlign == 0 ? 2 * channels : blockAlign);
-  const auto resFmtExtra = static_cast<uint16_t>(format == 17 ? samplesPerBlock : 1);
-
-  assert(pad30[0] == 0);
-  assert(pad30[1] == 0);
-  assert(pad30[2] == 0);
-  assert(pad30[3] == 0);
-
-  assert(dataInStreams == 0);
-
-  return {
-    0,
-    dataSizeUncompressed,
-    dataSize,
-    sampleRate,
-    static_cast<AudioRecordFormat>(format),
-    resBitsPerSample,
-    resChannels,
-    resBlockAlign,
-    resFmtExtra
-  };
-}
-
-void Hitman4WHDRecordScene::FromHitmanSoundRecord(const Glacier1AudioRecord &soundRecord)
-{
-  format = static_cast<uint16_t>(soundRecord.format);
-  sampleRate = soundRecord.sampleRate;
-  bitsPerSample = format == 4096 ? 0 : soundRecord.bitsPerSample;
-  dataSizeUncompressed = soundRecord.dataSizeUncompressed;
-  dataSize = soundRecord.dataSize;
-  channels = soundRecord.channels;
-  samplesCount = soundRecord.dataSizeUncompressed / sizeof(int16_t);
-  blockAlign = format == 4096 ? blockAlign : soundRecord.blockAlign;
-  samplesPerBlock = format == 4096 ? 0x004F3E93 : (format == 1 ? 0xCDCDCDCD : soundRecord.samplesPerBlock);
-}
-
-Glacier1AudioRecord STR_DataHeader_ToGlacier1AudioRecord_v1(const STR_DataHeader_v1& entryHeader)
-{
-  return {
-    0,
-    static_cast<uint32_t>(entryHeader.samplesCount * sizeof(int16_t)),
-    0, // must be filled externally, cannot deduce from this header alone...
-    entryHeader.sampleRate,
-    entryHeader.format == STR_DataFormat_v1::PCM_S16 ? AudioRecordFormat::PCM_S16 : (entryHeader.format == STR_DataFormat_v1::OGG_VORBIS ? AudioRecordFormat::OGG_VORBIS : (entryHeader.format == STR_DataFormat_v1::IMA_ADPCM ? AudioRecordFormat::IMA_ADPCM : AudioRecordFormat::INVALID)),
-    static_cast<uint16_t>(entryHeader.bitsPerSample ? entryHeader.bitsPerSample : 16),
-    static_cast<uint16_t>(entryHeader.channels),
-    static_cast<uint16_t>(entryHeader.format == STR_DataFormat_v1::IMA_ADPCM && entryHeader.blockAlign ? entryHeader.blockAlign : entryHeader.channels * ((entryHeader.bitsPerSample ? entryHeader.bitsPerSample : 16) / 8)),
-    static_cast<uint16_t>(entryHeader.samplesPerBlock ? entryHeader.samplesPerBlock : entryHeader.channels)
-  };
-}
-
-STR_DataHeader_v1 STR_DataHeader_FromGlacier1AudioRecord_v1(const Glacier1AudioRecord& soundRecord)
-{
-  return {
-    soundRecord.format == AudioRecordFormat::PCM_S16 ? STR_DataFormat_v1::PCM_S16 : (soundRecord.format == AudioRecordFormat::OGG_VORBIS ? STR_DataFormat_v1::OGG_VORBIS : (soundRecord.format == AudioRecordFormat::IMA_ADPCM ? STR_DataFormat_v1::IMA_ADPCM : STR_DataFormat_v1::INVALID)),
-    static_cast<uint32_t>(soundRecord.dataSizeUncompressed / sizeof(int16_t)),
-    soundRecord.channels,
-    soundRecord.sampleRate,
-    soundRecord.format == AudioRecordFormat::OGG_VORBIS ? 0u : soundRecord.bitsPerSample,
-    soundRecord.format == AudioRecordFormat::PCM_S16 || soundRecord.format == AudioRecordFormat::IMA_ADPCM ? soundRecord.blockAlign : 0u,
-    soundRecord.format == AudioRecordFormat::IMA_ADPCM ? soundRecord.samplesPerBlock : 0u,
-  };
-}
-
-Glacier1AudioRecord STR_DataHeader_ToGlacier1AudioRecord_v2(const STR_DataHeader_v2& entryHeader)
-{
-  return {
-    0,
-    static_cast<uint32_t>(entryHeader.samplesCount * sizeof(int16_t)),
-    0, // must be filled externally, cannot deduce from this header alone...
-    entryHeader.sampleRate,
-    entryHeader.format == STR_DataFormat_v2::PCM_S16 ? AudioRecordFormat::PCM_S16 : (entryHeader.format == STR_DataFormat_v2::OGG_VORBIS ? AudioRecordFormat::OGG_VORBIS : (entryHeader.format == STR_DataFormat_v2::IMA_ADPCM ? AudioRecordFormat::IMA_ADPCM : AudioRecordFormat::INVALID)),
-    static_cast<uint16_t>(entryHeader.bitsPerSample ? entryHeader.bitsPerSample : 16),
-    static_cast<uint16_t>(entryHeader.channels),
-    static_cast<uint16_t>(entryHeader.format == STR_DataFormat_v2::IMA_ADPCM && entryHeader.blockAlign ? entryHeader.blockAlign : entryHeader.channels * ((entryHeader.bitsPerSample ? entryHeader.bitsPerSample : 16) / 8)),
-    static_cast<uint16_t>(entryHeader.samplesPerBlock ? entryHeader.samplesPerBlock : entryHeader.channels)
-  };
-}
-
-STR_DataHeader_v2 STR_DataHeader_FromGlacier1AudioRecord_v2(const Glacier1AudioRecord& soundRecord)
-{
-  return {
-    soundRecord.format == AudioRecordFormat::PCM_S16 ? STR_DataFormat_v2::PCM_S16 : (soundRecord.format == AudioRecordFormat::OGG_VORBIS ? STR_DataFormat_v2::OGG_VORBIS : (soundRecord.format == AudioRecordFormat::IMA_ADPCM ? STR_DataFormat_v2::IMA_ADPCM : STR_DataFormat_v2::INVALID)),
-    static_cast<uint32_t>(soundRecord.dataSizeUncompressed / sizeof(int16_t)),
-    soundRecord.channels,
-    soundRecord.sampleRate,
-    soundRecord.format == AudioRecordFormat::OGG_VORBIS ? 0u : soundRecord.bitsPerSample,
-    0, // TODO - this is wrong!
-    0, // TODO - this is wrong!
-    soundRecord.format == AudioRecordFormat::PCM_S16 || soundRecord.format == AudioRecordFormat::IMA_ADPCM ? soundRecord.blockAlign : 0u,
-    soundRecord.format == AudioRecordFormat::IMA_ADPCM ? soundRecord.samplesPerBlock : 0u,
-  };
-}
-
 bool Hitman4STRFile::Clear(const bool retVal)
 {
   header = {};
@@ -130,10 +30,10 @@ bool Hitman4STRFile::Load(Hitman4ArchiveDialog& archiveDialog, const std::vector
   if (wavData.empty())
     return Clear(false);
 
-  if (wavData.size() < sizeof(STR_Header_v1))
+  if (wavData.size() < sizeof(STR::v1::Header))
     return Clear(false);
 
-  std::memcpy(&header, wavData.data(), sizeof(STR_Header_v1));
+  std::memcpy(&header, wavData.data(), sizeof(STR::v1::Header));
 
   if (header.dataBeginOffset == header.offsetToEntryTable)
   {
@@ -141,11 +41,11 @@ bool Hitman4STRFile::Load(Hitman4ArchiveDialog& archiveDialog, const std::vector
     return Clear(false);
   }
 
-  if (wavData.size() - header.offsetToEntryTable < header.entriesCount * sizeof(STR_Entry_v1))
+  if (wavData.size() - header.offsetToEntryTable < header.entriesCount * sizeof(STR::v1::Entry))
     return Clear(false);
 
   recordTable.resize(header.entriesCount);
-  std::memcpy(recordTable.data(), wavData.data() + header.offsetToEntryTable, header.entriesCount * sizeof(STR_Entry_v1));
+  std::memcpy(recordTable.data(), wavData.data() + header.offsetToEntryTable, header.entriesCount * sizeof(STR::v1::Entry));
 
   wavDataTable.resize(header.entriesCount);
   lipDataTable.resize(header.entriesCount);
@@ -278,7 +178,7 @@ bool Hitman4STRFile::Load(Hitman4ArchiveDialog& archiveDialog, const std::vector
 
     const auto strFilePathCI = String8CI("Streams\\") += strFilePath;
 
-    auto soundRecord = STR_DataHeader_ToGlacier1AudioRecord_v1(strWAVHeader);
+    auto soundRecord = strWAVHeader.ToBaseDataInfo();
     soundRecord.dataSize = static_cast<uint32_t>(strRecord.dataSize);
     auto& file = archiveDialog.GetFile(strFilePathCI);
     const auto [fileMapIt, fileMapEmplaced] = archiveDialog.fileMap.try_emplace(file.path, Glacier1AudioFile{file.path, soundRecord});
@@ -296,10 +196,10 @@ bool Hitman4STRFile::Load(Hitman4ArchiveDialog& archiveDialog, const std::vector
     assert(wavData.size() >= wavDataEndOffset);
     assert(wavDataSize % 0x0100 == 0);
 
-    assert(strWAVHeader.format != STR_DataFormat_v1::PCM_S16 || strRecord.dataHeaderSize == 24);
-    assert(strWAVHeader.format != STR_DataFormat_v1::IMA_ADPCM || strRecord.dataHeaderSize == 0x1c);
-    assert(strWAVHeader.format != STR_DataFormat_v1::OGG_VORBIS || strRecord.dataHeaderSize == 20);
-    assert(strWAVHeader.format != STR_DataFormat_v1::DISTANCE_BASED_MASTER || strRecord.dataHeaderSize == 0x18);
+    assert(strWAVHeader.format != STR::v1::DataFormat::PCM_S16 || strRecord.dataHeaderSize == 24);
+    assert(strWAVHeader.format != STR::v1::DataFormat::IMA_ADPCM || strRecord.dataHeaderSize == 0x1c);
+    assert(strWAVHeader.format != STR::v1::DataFormat::OGG_VORBIS || strRecord.dataHeaderSize == 20);
+    assert(strWAVHeader.format != STR::v1::DataFormat::DISTANCE_BASED_MASTER || strRecord.dataHeaderSize == 0x18);
     assert(strRecord.id < header.entriesCount);
 
     glacier1AudioFile.data.resize(strRecord.dataSize);
@@ -348,7 +248,7 @@ bool Hitman4STRFile::Load(Hitman4ArchiveDialog& archiveDialog, const std::vector
       }
 
       glacier1AudioFile.data.resize(strThisSubRecord.dataSize);
-      glacier1AudioFile.archiveRecord = STR_DataHeader_ToGlacier1AudioRecord_v1(strThisWAVHeader);
+      glacier1AudioFile.archiveRecord = strThisWAVHeader.ToBaseDataInfo();
       glacier1AudioFile.archiveRecord.dataSize = static_cast<uint32_t>(strThisSubRecord.dataSize);
 
       [[maybe_unused]] const auto [recordMapIt, recordMapEmplaced] = recordMap.try_emplace(strRecord.dataOffset | (strThisSubRecord.distanceBasedRecordOrder & 0xFF), Hitman4WAVRecord{glacier1AudioFile.data, static_cast<uint32_t>(strRecord.dataOffset)});
@@ -408,7 +308,7 @@ bool Hitman4STRFile::Load(Hitman4ArchiveDialog& archiveDialog, const std::vector
       }
 
       glacier1AudioFile.data.resize(strThisSubRecord.dataSize);
-      glacier1AudioFile.archiveRecord = STR_DataHeader_ToGlacier1AudioRecord_v1(strThisWAVHeader);
+      glacier1AudioFile.archiveRecord = strThisWAVHeader.ToBaseDataInfo();
       glacier1AudioFile.archiveRecord.dataSize = static_cast<uint32_t>(strThisSubRecord.dataSize);
 
       if (!strThisSubRecord.hasLIP)
@@ -511,7 +411,7 @@ bool Hitman4STRFile::Load(Hitman4ArchiveDialog& archiveDialog, const std::vector
     }
 
     glacier1AudioFile.data.resize(strThisSubRecord.dataSize);
-    glacier1AudioFile.archiveRecord = STR_DataHeader_ToGlacier1AudioRecord_v1(strThisWAVHeader);
+    glacier1AudioFile.archiveRecord = strThisWAVHeader.ToBaseDataInfo();
     glacier1AudioFile.archiveRecord.dataSize = static_cast<uint32_t>(strThisSubRecord.dataSize);
 
     if (!strSub1Record.hasLIP)
@@ -569,14 +469,14 @@ bool Hitman4WAVFile::Clear(const bool retVal)
   return retVal;
 }
 
-bool Hitman4WAVFile::Load(const std::vector<char> &wavData, const OrderedMap<StringView8CI, Hitman4WHDRecordScene *> &whdRecordsMap, OrderedMap<StringView8CI, Glacier1AudioFile>& fileMap)
+bool Hitman4WAVFile::Load(const std::vector<char> &wavData, const OrderedMap<StringView8CI, WHD::v2::EntryScenes *> &whdRecordsMap, OrderedMap<StringView8CI, Glacier1AudioFile>& fileMap)
 {
   if (wavData.empty())
     return Clear(false);
 
   struct WAVFileData
   {
-    Hitman4WHDRecordScene *record = nullptr;
+    WHD::v2::EntryScenes *record = nullptr;
     Glacier1AudioFile& file;
   };
 
@@ -619,7 +519,7 @@ bool Hitman4WAVFile::Load(const std::vector<char> &wavData, const OrderedMap<Str
     std::memcpy(newData.data(), wavData.data(), wavData.size());
     recordMap.try_emplace(0, Hitman4WAVRecord{newData, 0});
     if (!recordMap.empty())
-      header = reinterpret_cast<Hitman4WAVHeader *>(recordMap.at(0).data.data());
+      header = reinterpret_cast<WAV::v2::Header *>(recordMap.at(0).data.data());
     else
       header = nullptr;
 
@@ -677,12 +577,12 @@ bool Hitman4WAVFile::Load(const std::vector<char> &wavData, const OrderedMap<Str
   if (importFailed)
     return Clear(false);
 
-  header = reinterpret_cast<Hitman4WAVHeader *>(recordMap.at(0).data.data());
+  header = reinterpret_cast<WAV::v2::Header *>(recordMap.at(0).data.data());
 
   return true;
 }
 
-bool Hitman4WAVFile::Load(const StringView8CI &loadPath, const OrderedMap<StringView8CI, Hitman4WHDRecordScene *> &whdRecordsMap, OrderedMap<StringView8CI, Glacier1AudioFile>& fileMap)
+bool Hitman4WAVFile::Load(const StringView8CI &loadPath, const OrderedMap<StringView8CI, WHD::v2::EntryScenes *> &whdRecordsMap, OrderedMap<StringView8CI, Glacier1AudioFile>& fileMap)
 {
   if (!Load(ReadWholeBinaryFile(loadPath), whdRecordsMap, fileMap))
     return false;
@@ -738,12 +638,12 @@ bool Hitman4WHDFile::Load(Hitman4ArchiveDialog& archiveDialog, const StringView8
   recordMap.clear();
 
   auto *whdPtr = data.data();
-  header = reinterpret_cast<Hitman4WHDHeader *>(whdPtr);
-  whdPtr += sizeof(Hitman4WHDHeader);
+  header = reinterpret_cast<WHD::v2::Header *>(whdPtr);
+  whdPtr += sizeof(WHD::v2::Header);
 
   while (memcmp(whdPtr, terminateBytes.data(), terminateBytes.size() * sizeof(uint32_t)) != 0)
   {
-    Hitman4WHDRecordScene *whdRecord = nullptr;
+    WHD::v2::EntryScenes *whdRecord = nullptr;
 
     do
     {
@@ -762,22 +662,22 @@ bool Hitman4WHDFile::Load(Hitman4ArchiveDialog& archiveDialog, const StringView8
         assert(static_cast<size_t>(whdPtr - data.data()) <= data.size());
       }
 
-      whdRecord = reinterpret_cast<Hitman4WHDRecordScene *>(whdPtr);
-    } while (whdRecord->filePathLength >= data.size() && whdRecord->filePathLength != 0x004F4850);
+      whdRecord = reinterpret_cast<WHD::v2::EntryScenes *>(whdPtr);
+    } while (whdRecord->fileNameLength >= data.size() && whdRecord->fileNameLength != 0x004F4850);
 
     assert(whdRecord);
 
     if (whdRecord->dataInStreams)
     {
-      whdPtr += whdRecord->filePathLength ? sizeof(Hitman4WHDRecordStreams) : sizeof(Hitman4WHDRecordStreamsAliased);
+      whdPtr += whdRecord->fileNameLength ? sizeof(WHD::v2::EntryStreams) : sizeof(WHD::v2::EntryStreamsDistanceBasedMaster);
       assert(static_cast<size_t>(whdPtr - data.data()) <= data.size());
       continue;
     }
 
-    whdPtr += sizeof(Hitman4WHDRecordScene);
+    whdPtr += sizeof(WHD::v2::EntryScenes);
     assert(static_cast<size_t>(whdPtr - data.data()) <= data.size());
 
-    String8CI filePath(std::string_view(data.data() + whdRecord->filePathOffset));
+    String8CI filePath(std::string_view(data.data() + whdRecord->fileNameOffset));
     auto filePathNative = filePath.path();
 
     if (filePathNative.extension() != StringViewWCI(L".wav"))
@@ -791,7 +691,7 @@ bool Hitman4WHDFile::Load(Hitman4ArchiveDialog& archiveDialog, const StringView8
       return Clear(false);
 
     archiveDialog.whdRecordsMap[file.path].emplace_back(whdRecord);
-    [[maybe_unused]] const auto [fileMapIt, fileMapEmplaced] = archiveDialog.fileMap.try_emplace(file.path, Glacier1AudioFile{file.path, whdRecord->ToHitmanSoundRecord()});
+    [[maybe_unused]] const auto [fileMapIt, fileMapEmplaced] = archiveDialog.fileMap.try_emplace(file.path, Glacier1AudioFile{file.path, whdRecord->ToBaseDataInfo()});
     if (!fileMapEmplaced)
       return Clear(false);
   }
@@ -873,7 +773,7 @@ bool Hitman4ArchiveDialog::ImportSingle(const StringView8CI &importFolderPath, c
     return false;
 
   for (auto* whdRecord : whdRecordsIt->second)
-    whdRecord->FromHitmanSoundRecord(fileIt->second.archiveRecord);
+    whdRecord->FromBaseDataInfo(fileIt->second.archiveRecord);
 
   return true;
 }

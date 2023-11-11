@@ -1,6 +1,6 @@
 set_xmakever("2.8.1")
 
-includes("vendor/FeldarianBaseLibrary")
+includes("vendor/Glacier1AudioLibrary")
 
 set_allowedplats("windows", "linux")
 set_arch("x64")
@@ -76,18 +76,15 @@ end
 
 add_cxflags("-Wno-microsoft-include", "-Wno-unused-command-line-argument", "-Wno-pragma-system-header-outside-header", {tools = {"clang_cl", "clang"}})
 
-add_requireconfs("*", { configs = { debug = is_mode("debug"), shared = false } })
---add_requireconfs("*.*", { configs = { debug = is_mode("debug"), shared = false } })
+add_requireconfs("**", { configs = { debug = is_mode("debug"), shared = false } })
 
 if is_plat("windows") then
   set_runtimes(vsRuntime);
-  --add_requireconfs("*", { configs = { cxflags = "/fsanitize=address", mxflags = "/fsanitize=address", ldflags = "/fsanitize=address", shflags = "/fsanitize=address" } })
-  --add_requireconfs("*.*", { configs = { cxflags = "/fsanitize=address", mxflags = "/fsanitize=address", ldflags = "/fsanitize=address", shflags = "/fsanitize=address" } })
+  --add_requireconfs("**", { configs = { cxflags = "/fsanitize=address", mxflags = "/fsanitize=address", ldflags = "/fsanitize=address", shflags = "/fsanitize=address" } })
 end
 
 if is_plat("linux") then
-  --add_requireconfs("*", { configs = { cxflags = "-fsanitize=address -fsanitize=hwaddress -fsanitize=thread -fsanitize=undefined -fsanitize=memory -fsanitize=leak", mxflags = "-fsanitize=address -fsanitize=hwaddress -fsanitize=thread -fsanitize=undefined -fsanitize=memory -fsanitize=leak", ldflags = "-fsanitize=address -fsanitize=hwaddress -fsanitize=thread -fsanitize=undefined -fsanitize=memory -fsanitize=leak", shflags = "-fsanitize=address -fsanitize=hwaddress -fsanitize=thread -fsanitize=undefined -fsanitize=memory -fsanitize=leak" } })
-  --add_requireconfs("*.*", { configs = { cxflags = "-fsanitize=address -fsanitize=hwaddress -fsanitize=thread -fsanitize=undefined -fsanitize=memory -fsanitize=leak", mxflags = "-fsanitize=address -fsanitize=hwaddress -fsanitize=thread -fsanitize=undefined -fsanitize=memory -fsanitize=leak", ldflags = "-fsanitize=address -fsanitize=hwaddress -fsanitize=thread -fsanitize=undefined -fsanitize=memory -fsanitize=leak", shflags = "-fsanitize=address -fsanitize=hwaddress -fsanitize=thread -fsanitize=undefined -fsanitize=memory -fsanitize=leak" } })
+  --add_requireconfs("**", { configs = { cxflags = "-fsanitize=address -fsanitize=hwaddress -fsanitize=thread -fsanitize=undefined -fsanitize=memory -fsanitize=leak", mxflags = "-fsanitize=address -fsanitize=hwaddress -fsanitize=thread -fsanitize=undefined -fsanitize=memory -fsanitize=leak", ldflags = "-fsanitize=address -fsanitize=hwaddress -fsanitize=thread -fsanitize=undefined -fsanitize=memory -fsanitize=leak", shflags = "-fsanitize=address -fsanitize=hwaddress -fsanitize=thread -fsanitize=undefined -fsanitize=memory -fsanitize=leak" } })
 end
 
 add_defines("IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1")
@@ -120,15 +117,15 @@ target_end()
 target("Glacier1AudioTool")
   set_version("1.2.2")
   set_kind("binary")
-  
+
   set_rundir("$(projectdir)")
   add_defines("IMGUI_USER_CONFIG=\""..imguiUserConfig.."\"")
 
   --add_defines("G1AT_BUILD_TESTS")
   --add_defines("G1AT_ENABLE_PROFILING")
 
-  add_deps("FeldarianBaseLibrary", "imgui-backends", { private = true })
-  
+  add_deps("Glacier1AudioLibrary", "imgui-backends", { private = true })
+
   add_files("manifests/**.manifest")
 
   add_includedirs("src")
@@ -142,17 +139,17 @@ target("Glacier1AudioTool")
   --add_files("src/App/**.c")
   add_headerfiles("src/App/**.hpp")
   add_files("src/App/**.cpp")
-  
+
   --add_headerfiles("src/Config/**.h")
   --add_files("src/Config/**.c")
   add_headerfiles("src/Config/**.hpp")
   --add_files("src/Config/**.cpp")
-  
+
   --add_headerfiles("src/Core/**.h")
   --add_files("src/Core/**.c")
   add_headerfiles("src/Core/**.hpp")
   add_files("src/Core/**.cpp")
-  
+
   --add_headerfiles("src/G1AT/**.h")
   --add_files("src/G1AT/**.c")
   add_headerfiles("src/G1AT/**.hpp")
@@ -174,7 +171,7 @@ target("Glacier1AudioTool")
     add_headerfiles("src/Platform/Mac/**.hpp")
     add_files("src/Platform/Mac/**.cpp")
   end
-  
+
   set_configvar("G1AT_COMPANY_NAMESPACE", "Feldarian")
   set_configvar("G1AT_COMPANY_NAME", "Feldarian Softworks")
   set_configvar("G1AT_NAME", "Glacier 1 Audio Tool")
@@ -185,12 +182,12 @@ target("Glacier1AudioTool")
   add_configfiles("src/Config/Config.h.in")
   add_includedirs("$(buildir)/generated")
   add_headerfiles("$(buildir)/generated/Config/**.h")
-  
+
   set_pcxxheader("src/Precompiled.hpp")
-  
+
   add_syslinks("comdlg32", "opengl32", "shell32")
   add_packages("scnlib", "libsdl", "imgui", "spdlog", "xxhash", "toml++", "icu4c", "tinyfiledialogs")
-  
+
   before_build(function (target)
     os.rm(target:targetdir() .. "/data")
   end)

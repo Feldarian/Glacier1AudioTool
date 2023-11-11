@@ -1,0 +1,4 @@
+[submodule "vendor/Glacier1AudioLibrary"]
+	path = vendor/Glacier1AudioLibrary
+	url = git@github.com:Feldarian/Glacier1AudioLibrary.git
+	branch = main

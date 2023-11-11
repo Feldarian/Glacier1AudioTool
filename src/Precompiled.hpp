@@ -13,10 +13,11 @@ extern "C"
 
 }
 
-#include <Feldarian/PCMS16/PCMS16.hpp>
-#include <Feldarian/UTF/UTF.hpp>
+#include <Feldarian/G1AL/G1AL.hpp>
 
-using namespace UTF;
+using namespace Feldarian::Base::PCMS16;
+using namespace Feldarian::Base::UTF;
+using namespace Feldarian::G1AL;
 
 inline GlyphRangesBuilder g_GlyphRangesBuilder;
 inline LocalizationManager g_LocalizationManager{g_GlyphRangesBuilder};
